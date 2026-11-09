@@ -8,6 +8,7 @@ const path = (file: string) => fileURLToPath(new URL(file, import.meta.url));
 export default defineConfig({
   root: path('./site'),
   base: './',
+  envDir: path('.'),
   publicDir: path('./apps/preview/public'),
   resolve: { alias: { '@': path('./src') } },
   server: { fs: { allow: [path('.')] } },
