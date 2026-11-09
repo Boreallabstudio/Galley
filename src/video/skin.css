@@ -563,14 +563,21 @@
     background: none;
   }
 
+  /* The caption line keeps the field's height whether Find is open or not, so nothing below it moves. */
+  .gl-figcaption:has(.gl-find) {
+    --gl-find-h: calc(var(--gl-unit) * 2);
+
+    min-height: var(--gl-find-h);
+  }
+
   .gl-figcaption .gl-find-input {
     width: 3.4em;
-    min-height: 0;
+    min-height: var(--gl-find-h);
   }
 
   @media (pointer: coarse) {
-    .gl-figcaption .gl-find-input {
-      min-height: calc(var(--gl-unit) * 2.75);
+    .gl-figcaption:has(.gl-find) {
+      --gl-find-h: calc(var(--gl-unit) * 2.75);
     }
   }
 
