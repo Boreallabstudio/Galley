@@ -251,6 +251,28 @@ class GalleyTextElement extends UIElement {
 
     this.#scroller.append(this.#content);
     this.append(find, this.#scroller, this.#return);
+    this.#placeFind(find);
+  }
+
+  /**
+   * Stacked on a phone the text cannot spare a row for Find, so the field moves into the caption line under the
+   * picture as a single word, and opens across that line while in use. skin.css says which layout is in force.
+   */
+  #placeFind(find: HTMLElement) {
+    const figcaption = this.closest('.gl')?.querySelector<HTMLElement>('.gl-figcaption');
+    if (!figcaption) return;
+    const place = () => {
+      const inCaption = getComputedStyle(this).getPropertyValue('--gl-find-in-caption').trim() === '1';
+      const home = inCaption ? figcaption : this;
+      if (find.parentElement !== home) {
+        if (inCaption) figcaption.append(find);
+        else this.prepend(find);
+      }
+      this.#findInput.placeholder = inCaption ? 'Find' : 'Find a word';
+    };
+    const observer = new ResizeObserver(place);
+    observer.observe(this.closest('.gl') ?? this);
+    place();
   }
 
   /** Mark every place the query occurs, and go to the first one at or after the playhead. */
@@ -940,10 +962,10 @@ class GalleyMarksElement extends UIElement {
           this.replaceChildren();
           marks = chapters.slice(1).map((chapter, index) => {
             const mark = document.createElement('span');
-            mark.className = 'gl-mark';
+            mark.className = 'gl-tick';
             mark.dataset.start = String(chapter.start);
             mark.style.setProperty('--gl-at', `${Math.min(100, (chapter.start / duration) * 100)}%`);
-            mark.innerHTML = `<span class="gl-mark-number">${roman(index + 2)}</span>`;
+            mark.innerHTML = `<span class="gl-tick-number">${roman(index + 2)}</span>`;
             this.append(mark);
             return mark;
           });

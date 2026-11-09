@@ -517,6 +517,9 @@
   /* ---------- The text ---------- */
 
   .gl-text {
+    --gl-find-row: calc(var(--gl-unit) * 2.75);
+    --gl-find-in-caption: 0;
+
     grid-area: text;
     position: relative;
     display: block;
@@ -534,10 +537,72 @@
     }
   }
 
+  /* Stacked, Find lives in the caption line (see #placeFind), and the text keeps its whole height. */
+  @container gl (width < 46rem) {
+    .gl-text {
+      --gl-find-row: 0px;
+      --gl-find-in-caption: 1;
+    }
+
+    .gl-content {
+      padding-top: 1.1em;
+    }
+  }
+
+  .gl-figcaption {
+    position: relative;
+  }
+
+  .gl-figcaption .gl-find {
+    position: relative;
+    inset: auto;
+    order: 3;
+    height: auto;
+    margin-left: auto;
+    font-size: inherit;
+    background: none;
+  }
+
+  .gl-figcaption .gl-find-input {
+    width: 3.4em;
+    min-height: 0;
+  }
+
+  @media (pointer: coarse) {
+    .gl-figcaption .gl-find-input {
+      min-height: calc(var(--gl-unit) * 2.75);
+    }
+  }
+
+  /* In use, the field opens across the whole caption line. */
+  .gl-figcaption:has(.gl-find-input:focus, .gl-find-input:not(:placeholder-shown)) .gl-find {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    justify-content: flex-start;
+    background: var(--gl-paper);
+  }
+
+  .gl-figcaption:has(.gl-find-input:focus, .gl-find-input:not(:placeholder-shown)) .gl-find-input {
+    flex: 1;
+    width: auto;
+  }
+
+  /* Before the first play the caption line carries only Find; the title is on the picture. */
+  @container gl (width < 46rem) {
+    .gl-plate:has(.gl-frame:not([data-started])) .gl-figcaption:has(.gl-find) {
+      display: flex;
+    }
+
+    .gl-plate:has(.gl-frame:not([data-started])) .gl-figcaption .gl-title {
+      visibility: hidden;
+    }
+  }
+
   /* The text runs below its own top row, where Find sits, so nothing scrolls under the field. */
   .gl-scroller {
     position: absolute;
-    inset: calc(var(--gl-unit) * 2.75) 0 0;
+    inset: var(--gl-find-row) 0 0;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--gl-rule-strong) transparent;
@@ -704,6 +769,11 @@
   .gl-find-input:focus {
     width: 12em;
     border-bottom: 2px solid var(--gl-accent);
+  }
+
+  .gl-find-input:focus-visible {
+    outline: 2px solid var(--gl-accent);
+    outline-offset: 2px;
   }
 
   .gl-find-input::-webkit-search-cancel-button {
@@ -1230,7 +1300,7 @@
     pointer-events: none;
   }
 
-  .gl-mark {
+  .gl-tick {
     position: absolute;
     top: 50%;
     left: var(--gl-at);
@@ -1241,11 +1311,11 @@
     translate: -50% -50%;
   }
 
-  .gl-mark[data-read] {
+  .gl-tick[data-read] {
     background: var(--gl-accent);
   }
 
-  .gl-mark-number {
+  .gl-tick-number {
     position: absolute;
     bottom: calc(100% + 3px);
     left: 50%;
@@ -1258,19 +1328,19 @@
     translate: -50% 0;
   }
 
-  .gl-mark[data-read] .gl-mark-number {
+  .gl-tick[data-read] .gl-tick-number {
     color: var(--gl-accent);
   }
 
   /* On a narrow rule the numerals would crowd; the ticks alone mark the sections. */
   @container gl (width < 46rem) {
-    .gl-mark-number {
+    .gl-tick-number {
       display: none;
     }
   }
 
-  .gl-time-slider[data-gl-keyed] .gl-mark-number,
-  .gl-time-slider:is([data-pointing], [data-dragging]) .gl-mark-number {
+  .gl-time-slider[data-gl-keyed] .gl-tick-number,
+  .gl-time-slider:is([data-pointing], [data-dragging]) .gl-tick-number {
     opacity: 0.35;
   }
 
@@ -1637,11 +1707,11 @@
       background: CanvasText;
     }
 
-    .gl-mark {
+    .gl-tick {
       background: CanvasText;
     }
 
-    .gl-mark[data-read] {
+    .gl-tick[data-read] {
       background: Highlight;
     }
   }
