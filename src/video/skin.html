@@ -1,0 +1,140 @@
+<media-container class="media-skin gl" data-theme="galley" data-preset="video">
+<div class="gl-page">
+<figure class="gl-plate">
+<galley-plate class="gl-frame">
+<!-- Add a compatible media component here. -->
+<media-poster class="gl-poster">
+<img alt="" decoding="async" class="gl-poster-image">
+</media-poster>
+<galley-line class="gl-overlay-line"></galley-line>
+<media-buffering-indicator class="gl-buffering">
+<span class="gl-buffering-label">Loading</span>
+</media-buffering-indicator>
+<div aria-hidden="true" class="gl-indicators">
+<media-seek-indicator class="gl-indicator gl-seek-indicator">
+<media-seek-indicator-value class="gl-indicator-value">
+</media-seek-indicator-value>
+</media-seek-indicator>
+<media-volume-indicator class="gl-indicator gl-volume-indicator">
+<media-volume-indicator-fill class="gl-volume-indicator-fill">
+<media-text token="volume.label" class="gl-indicator-label">Volume</media-text>
+<media-volume-indicator-value class="gl-indicator-value">
+</media-volume-indicator-value>
+</media-volume-indicator-fill>
+</media-volume-indicator>
+</div>
+<media-error-dialog>
+<media-dialog-backdrop class="gl-dialog-backdrop">
+</media-dialog-backdrop>
+<media-dialog-popup class="gl-dialog">
+<span class="gl-dialog-kicker" aria-hidden="true">Erratum</span>
+<media-dialog-title class="gl-dialog-title">
+</media-dialog-title>
+<media-dialog-description class="gl-dialog-description">
+</media-dialog-description>
+<media-dialog-close class="gl-button gl-dialog-close">
+</media-dialog-close>
+</media-dialog-popup>
+</media-error-dialog>
+</galley-plate>
+<figcaption class="gl-figcaption">
+<media-title class="gl-title"></media-title>
+<galley-chapter class="gl-chapter"></galley-chapter>
+</figcaption>
+</figure>
+<galley-text class="gl-text" aria-label="Transcript. Choose a line to play from there."></galley-text>
+<media-controls class="gl-controls">
+<media-controls-content class="gl-foot">
+<media-play-button class="gl-button gl-play">
+<media-text token="buttons.play" class="gl-when-paused">Play</media-text>
+<media-text token="buttons.pause" class="gl-when-playing">Pause</media-text>
+<media-text token="buttons.replay" class="gl-when-ended">Replay</media-text>
+</media-play-button>
+<media-time-group class="gl-time">
+<media-time class="gl-time-current" type="current">
+</media-time>
+<media-time-separator class="gl-time-separator">
+</media-time-separator>
+<media-time class="gl-time-duration" type="duration">
+</media-time>
+</media-time-group>
+<media-time-slider class="gl-slider gl-time-slider" thumb-alignment="center">
+<media-time-slider-chapters class="gl-chapters">
+<template>
+<div class="gl-chapter-segment">
+<media-slider-track class="gl-track">
+<media-slider-buffer class="gl-buffer">
+</media-slider-buffer>
+<media-slider-fill class="gl-fill">
+</media-slider-fill>
+</media-slider-track>
+</div>
+</template>
+</media-time-slider-chapters>
+<media-slider-thumb class="gl-thumb">
+</media-slider-thumb>
+<media-slider-preview class="gl-preview" >
+<media-time-slider-chapter-title class="gl-preview-chapter">
+</media-time-slider-chapter-title>
+<media-slider-value class="gl-preview-time" type="pointer">
+</media-slider-value>
+<galley-peek class="gl-peek" aria-hidden="true"></galley-peek>
+</media-slider-preview>
+</media-time-slider>
+<media-controls-group class="gl-group gl-sound">
+<media-mute-button class="gl-button gl-mute">
+<media-text token="volume.label" class="gl-when-unmuted">Volume</media-text>
+<media-text token="volume.muted" class="gl-when-muted">Muted</media-text>
+</media-mute-button>
+<media-volume-slider class="gl-slider gl-volume-slider" thumb-alignment="center">
+<media-slider-track class="gl-track">
+<media-slider-fill class="gl-fill">
+</media-slider-fill>
+</media-slider-track>
+<media-slider-thumb class="gl-thumb">
+</media-slider-thumb>
+</media-volume-slider>
+</media-controls-group>
+<media-playback-rate-button class="gl-button gl-rate">
+</media-playback-rate-button>
+<media-captions-button class="gl-button gl-captions">
+<media-text token="menu.captions">Captions</media-text>
+</media-captions-button>
+<media-fullscreen-button class="gl-button gl-fullscreen">
+<span class="gl-when-windowed">Fullscreen</span>
+<span class="gl-when-fullscreen">Exit</span>
+</media-fullscreen-button>
+</media-controls-content>
+</media-controls>
+</div>
+<media-hotkey keys="Space" action="togglePaused">
+</media-hotkey>
+<media-hotkey keys="k" action="togglePaused">
+</media-hotkey>
+<media-hotkey keys="m" action="toggleMuted">
+</media-hotkey>
+<media-hotkey keys="ArrowRight" action="seekStep">
+</media-hotkey>
+<media-hotkey keys="ArrowLeft" action="seekStep">
+</media-hotkey>
+<media-hotkey keys="l" action="seekStep" value="10">
+</media-hotkey>
+<media-hotkey keys="j" action="seekStep" value="-10">
+</media-hotkey>
+<media-hotkey keys="ArrowUp" action="volumeStep">
+</media-hotkey>
+<media-hotkey keys="ArrowDown" action="volumeStep">
+</media-hotkey>
+<media-hotkey keys="0-9" action="seekToPercent">
+</media-hotkey>
+<media-hotkey keys="f" action="toggleFullscreen">
+</media-hotkey>
+<media-hotkey keys="c" action="toggleSubtitles">
+</media-hotkey>
+<media-hotkey keys=">" action="speedUp">
+</media-hotkey>
+<media-hotkey keys="<" action="speedDown">
+</media-hotkey>
+<media-status-announcer class="gl-announcer">
+</media-status-announcer>
+</media-container>

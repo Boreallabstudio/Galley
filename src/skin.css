@@ -1,0 +1,3 @@
+/* Global styles for the skin, loaded only in the preview. The skin itself loads no webfont. */
+@import '@fontsource-variable/newsreader/opsz.css';
+@import '@fontsource-variable/newsreader/opsz-italic.css';
