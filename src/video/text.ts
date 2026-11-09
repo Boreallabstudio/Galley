@@ -243,6 +243,7 @@ class GalleyTextElement extends UIElement {
     const find = document.createElement('div');
     find.className = 'gl-find';
     find.setAttribute('role', 'search');
+    find.setAttribute('aria-label', 'Find in the text');
     find.innerHTML =
       '<input class="gl-find-input" type="search" placeholder="Find a word" aria-label="Find in the text" ' +
       'aria-describedby="" autocomplete="off" spellcheck="false" enterkeyhint="go">' +
@@ -438,7 +439,8 @@ class GalleyTextElement extends UIElement {
           const span = document.createElement('span');
           span.className = 'gl-word';
           span.dataset.word = String(wordIndex);
-          span.textContent = `${word.text} `;
+          // The space is its own text node, so a reference mark can sit hard against the word it follows.
+          span.append(word.text, ' ');
           line.append(span);
           return span;
         });
@@ -451,7 +453,7 @@ class GalleyTextElement extends UIElement {
           mark.className = 'gl-mark';
           mark.setAttribute('aria-hidden', 'true');
           mark.textContent = String(this.#notes.length + rowNotes.indexOf(note) + 1);
-          words[at]?.append(mark);
+          words[at]?.lastChild?.before(mark);
         }
 
         p.append(line);
