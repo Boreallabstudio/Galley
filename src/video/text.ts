@@ -17,7 +17,7 @@ import { paragraphsOf } from './vtt';
  *
  * Words already spoken are inked; words still to come wait in a lighter grey; a pencil rule runs under the line being
  * spoken, word by word. Choosing any word jumps there. Keyboard users move between lines with the arrow keys and
- * choose one with Enter or Space; the transcript keeps a single tab stop.
+ * play from one with Enter (Space stays play and pause); the transcript keeps a single tab stop.
  */
 
 interface LineRecord {
@@ -33,6 +33,18 @@ interface NoteRecord {
 
 const FOLLOW_ANCHOR = 0.32;
 
+/** Words compared for Find: lower case, without accents or punctuation, digit groups kept together. */
+function normalize(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/(\d)[,.](?=\d)/g, '$1')
+    .replace(/[^\p{L}\p{N}\s']/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 class GalleyTextElement extends UIElement {
   #time = new PlayerController(this, playerContext, selectTime);
   #playback = new PlayerController(this, playerContext, selectPlayback);
@@ -46,6 +58,10 @@ class GalleyTextElement extends UIElement {
   #hint!: HTMLElement;
   #return!: HTMLButtonElement;
   #returnTime!: HTMLElement;
+  #findInput!: HTMLInputElement;
+  #findCount!: HTMLElement;
+  #matches: { line: number; word: number; length: number }[] = [];
+  #match = -1;
 
   #lines: LineRecord[] = [];
   #cuesEnd = 0;
@@ -72,6 +88,7 @@ class GalleyTextElement extends UIElement {
       this.#render(cues, chapters, notes);
       this.#unsubscribe?.();
       this.#unsubscribe = edition.subscribe((time) => this.#update(time));
+      if (this.#abort) this.#watchSeekBar(this.#abort.signal);
     });
 
     this.#listen(this.#abort.signal);
@@ -83,7 +100,13 @@ class GalleyTextElement extends UIElement {
       (event) => {
         const key = (event as KeyboardEvent).key;
         const target = event.target as HTMLElement;
-        if ((key !== '[' && key !== ']') || target.closest('input, textarea, select, [contenteditable]')) return;
+        if (target.closest('input, textarea, select, [contenteditable]')) return;
+        if (key === '/' && !this.closest('.gl')?.hasAttribute('data-no-text')) {
+          event.preventDefault();
+          this.#findInput.focus();
+          return;
+        }
+        if (key !== '[' && key !== ']') return;
         const keyboardEvent = event as KeyboardEvent;
         if (keyboardEvent.ctrlKey || keyboardEvent.metaKey || keyboardEvent.altKey) return;
         event.preventDefault();
@@ -91,6 +114,62 @@ class GalleyTextElement extends UIElement {
       },
       { signal: this.#abort.signal }
     );
+  }
+
+  /**
+   * The seek bar is a sentence: while the reader points at it or drags it, the page turns to the line under the
+   * pointer and marks it, and returns to the reading when they let go.
+   */
+  #watchSeekBar(signal: AbortSignal) {
+    const slider = this.closest('media-container')?.querySelector<HTMLElement>('media-time-slider');
+    if (!slider || !this.#lines.length) return;
+    let shown = -1;
+    let wasPointing = false;
+
+    const clear = () => {
+      if (shown >= 0) this.#lines[shown]?.element.classList.remove('is-previewed');
+      shown = -1;
+    };
+
+    const update = () => {
+      const pointing = slider.hasAttribute('data-pointing') || slider.hasAttribute('data-dragging');
+      const duration = this.#edition?.media?.duration;
+      if (pointing && duration && Number.isFinite(duration)) {
+        const percent = parseFloat(slider.style.getPropertyValue('--media-slider-pointer'));
+        if (!Number.isFinite(percent)) return;
+        const time = (Math.min(Math.max(percent, 0), 100) / 100) * duration;
+        const index = Math.max(
+          0,
+          indexAt(
+            this.#lines.map((record) => record.cue),
+            time
+          )
+        );
+        wasPointing = true;
+        if (index === shown) return;
+        clear();
+        shown = index;
+        const element = this.#lines[index].element;
+        element.classList.add('is-previewed');
+        this.#scrollTo(element, 'anchor');
+        return;
+      }
+      if (!wasPointing) return;
+      wasPointing = false;
+      clear();
+      // Back to the line being read, unless the reader had already wandered off on their own.
+      if (this.#following) {
+        const record = this.#lines[Math.max(0, this.#current)];
+        if (record) this.#scrollTo(record.element, 'anchor');
+      }
+    };
+
+    const observer = new MutationObserver(update);
+    observer.observe(slider, { attributes: true, attributeFilter: ['style', 'data-pointing', 'data-dragging'] });
+    signal.addEventListener('abort', () => {
+      observer.disconnect();
+      clear();
+    });
   }
 
   /** Jump to the next or previous sentence. Going back first returns to the start of the current one. */
@@ -137,8 +216,112 @@ class GalleyTextElement extends UIElement {
     this.#return.innerHTML = '<span class="gl-return-label">Back to the reading</span> <span class="gl-return-time"></span>';
     this.#returnTime = this.#return.querySelector('.gl-return-time')!;
 
+    // Find a word: type to mark every match, arrows step between them, Enter plays from one, Escape returns.
+    const find = document.createElement('div');
+    find.className = 'gl-find';
+    find.setAttribute('role', 'search');
+    find.innerHTML =
+      '<input class="gl-find-input" type="search" placeholder="Find a word" aria-label="Find in the text" ' +
+      'aria-describedby="" autocomplete="off" spellcheck="false" enterkeyhint="go">' +
+      '<span class="gl-find-count" aria-live="polite"></span>';
+    this.#findInput = find.querySelector('input')!;
+    this.#findCount = find.querySelector('.gl-find-count')!;
+    this.#findInput.removeAttribute('aria-describedby');
+
     this.#scroller.append(this.#content);
-    this.append(this.#scroller, this.#return);
+    this.append(find, this.#scroller, this.#return);
+  }
+
+  /** Mark every place the query occurs, and go to the first one at or after the playhead. */
+  #find(query: string) {
+    for (const match of this.#matches) {
+      for (let k = 0; k < match.length; k++) {
+        this.#lines[match.line]?.words[match.word + k]?.classList.remove('is-match', 'is-match-current');
+      }
+    }
+    this.#matches = [];
+    this.#match = -1;
+    const terms = normalize(query).split(' ').filter(Boolean);
+    if (!terms.length) {
+      this.#findCount.textContent = '';
+      return;
+    }
+    const flat: { line: number; word: number; text: string }[] = [];
+    this.#lines.forEach((record, line) =>
+      record.cue.words.forEach((word, index) => flat.push({ line, word: index, text: normalize(word.text) }))
+    );
+    for (let i = 0; i < flat.length; i++) {
+      let ok = true;
+      for (let k = 0; k < terms.length && ok; k++) {
+        const word = flat[i + k]?.text;
+        const last = k === terms.length - 1;
+        ok = word !== undefined && (last ? word.startsWith(terms[k]) : word === terms[k]);
+      }
+      if (!ok) continue;
+      // A phrase can run across two lines; mark each word on its own line.
+      for (let k = 0; k < terms.length; k++) {
+        const at = flat[i + k];
+        this.#lines[at.line].words[at.word].classList.add('is-match');
+      }
+      this.#matches.push({ line: flat[i].line, word: flat[i].word, length: 1 });
+      for (let k = 1; k < terms.length; k++) {
+        const at = flat[i + k];
+        this.#matches.push({ line: at.line, word: at.word, length: 0 });
+      }
+    }
+    // Keep only the starts of matches for stepping; continuation entries exist so they can be cleared later.
+    const starts = this.#matches.filter((match) => match.length === 1);
+    if (!starts.length) {
+      this.#findCount.textContent = 'Not found';
+      return;
+    }
+    const time = this.#edition?.time ?? 0;
+    const next = starts.findIndex((match) => this.#lines[match.line].cue.words[match.word].start >= time - 0.5);
+    this.#goToMatch(next < 0 ? 0 : next);
+  }
+
+  #goToMatch(index: number) {
+    const starts = this.#matches.filter((match) => match.length === 1);
+    if (!starts.length) return;
+    const previous = starts[this.#match];
+    if (previous) this.#lines[previous.line].words[previous.word].classList.remove('is-match-current');
+    this.#match = (index + starts.length) % starts.length;
+    const match = starts[this.#match];
+    const word = this.#lines[match.line].words[match.word];
+    word.classList.add('is-match-current');
+    this.#findCount.textContent = `${this.#match + 1} of ${starts.length}`;
+    this.#following = false;
+    this.#scrollTo(this.#lines[match.line].element, 'anchor');
+    this.#updateReturn();
+  }
+
+  #onFindKey(event: KeyboardEvent) {
+    const starts = this.#matches.filter((match) => match.length === 1);
+    switch (event.key) {
+      case 'ArrowDown':
+        this.#goToMatch(this.#match + 1);
+        break;
+      case 'ArrowUp':
+        this.#goToMatch(this.#match - 1);
+        break;
+      case 'Enter': {
+        const match = starts[this.#match];
+        if (match) this.#jump(this.#lines[match.line].cue.words[match.word].start);
+        break;
+      }
+      case 'Escape':
+        this.#findInput.value = '';
+        this.#find('');
+        this.#follow(true);
+        this.#focusPlayer();
+        break;
+      default:
+        // Keep the player's single-letter shortcuts out of the field.
+        event.stopPropagation();
+        return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   #render(cues: Cue[], chapters: Cue[], notes: Cue[]) {
@@ -278,7 +461,8 @@ class GalleyTextElement extends UIElement {
       { signal }
     );
     this.addEventListener('keydown', (event) => this.#onKeydown(event), { signal });
-    this.addEventListener('keyup', (event) => this.#onKeyup(event), { signal });
+    this.#findInput.addEventListener('input', () => this.#find(this.#findInput.value), { signal });
+    this.#findInput.addEventListener('keydown', (event) => this.#onFindKey(event), { signal });
 
     // Hovering a word shows its time in the gutter: every word has an address.
     this.addEventListener(
@@ -361,11 +545,6 @@ class GalleyTextElement extends UIElement {
         event.stopPropagation();
         this.#jump(this.#lines[index].cue.start);
         return;
-      case ' ':
-        // ARIA button pattern: Space activates on key up. Stop the player's Space shortcut from also firing.
-        event.preventDefault();
-        event.stopPropagation();
-        return;
       default:
         return;
     }
@@ -375,14 +554,7 @@ class GalleyTextElement extends UIElement {
     this.#focusLine(next, true);
   }
 
-  #onKeyup(event: KeyboardEvent) {
-    if (event.key !== ' ') return;
-    const line = (event.target as HTMLElement).closest<HTMLElement>('.gl-line');
-    if (!line) return;
-    event.preventDefault();
-    event.stopPropagation();
-    this.#jump(this.#lines[Number(line.dataset.index)].cue.start);
-  }
+
 
   #focusPlayer() {
     const container = this.closest<HTMLElement>('media-container');
@@ -437,7 +609,8 @@ class GalleyTextElement extends UIElement {
     const top = element.offsetTop;
     const height = scroller.clientHeight;
     let target: number;
-    if (mode === 'anchor') target = top - height * FOLLOW_ANCHOR;
+    // On a short page the anchor still clears the soft fade at the top, so the line being read is never greyed.
+    if (mode === 'anchor') target = top - Math.max(height * FOLLOW_ANCHOR, Math.min(64, height * 0.42));
     else {
       const current = scroller.scrollTop;
       if (top < current + 24) target = top - 24;
@@ -721,7 +894,7 @@ class GalleyPlateElement extends UIElement {
       'click',
       (event) => {
         const target = event.target as HTMLElement;
-        if (target.closest('button, [role="button"], media-error-dialog, a, input')) return;
+        if (target.closest('button, [role="button"], media-error-dialog, galley-contents, a, input')) return;
         const playback = this.#playback.value;
         if (!playback) return;
         if (playback.paused) Promise.resolve(playback.play()).catch(() => {});
@@ -742,6 +915,47 @@ class GalleyPlateElement extends UIElement {
     const playback = this.#playback.value;
     this.toggleAttribute('data-paused', playback ? playback.paused : true);
     this.toggleAttribute('data-started', Boolean(playback && (!playback.paused || playback.started)));
+    this.toggleAttribute('data-ended', Boolean(playback?.ended));
+  }
+}
+
+/**
+ * <galley-contents>: the closing page. When the speech ends the picture becomes a contents page: read it again, or
+ * go straight to a chapter.
+ */
+class GalleyContentsElement extends UIElement {
+  connectedCallback() {
+    super.connectedCallback();
+    const edition = editionFor(this);
+    if (!edition) return;
+    void edition.text.then(({ chapters }) => {
+      if (!this.isConnected) return;
+      const list = this.querySelector('.gl-endpage-list');
+      if (!list) return;
+      list.replaceChildren();
+      chapters.forEach((chapter, index) => {
+        const item = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'gl-endpage-chapter';
+        button.dataset.start = String(chapter.start);
+        button.innerHTML = `<span class="gl-endpage-number">${roman(index + 1)}</span> <span class="gl-endpage-title"></span>`;
+        button.querySelector('.gl-endpage-title')!.textContent = chapter.text;
+        item.append(button);
+        list.append(item);
+      });
+      this.toggleAttribute('data-has-chapters', chapters.length > 1);
+    });
+
+    this.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-start]');
+      const media = edition.media;
+      if (!button || !media) return;
+      event.stopPropagation();
+      media.currentTime = Number(button.dataset.start);
+      Promise.resolve((media as unknown as HTMLMediaElement).play()).catch(() => {});
+      (this.closest('media-container') as HTMLElement | null)?.focus({ preventScroll: true });
+    });
   }
 }
 
@@ -751,6 +965,7 @@ for (const [name, element] of [
   ['galley-chapter', GalleyChapterElement],
   ['galley-peek', GalleyPeekElement],
   ['galley-plate', GalleyPlateElement],
+  ['galley-contents', GalleyContentsElement],
 ] as const) {
   if (!customElements.get(name)) customElements.define(name, element);
 }

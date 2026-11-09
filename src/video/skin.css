@@ -188,7 +188,8 @@
     padding: 7cqi 7cqi 6cqi;
     color: #f4efe6;
     pointer-events: none;
-    background: linear-gradient(to top, rgb(13 12 10 / 0.84), rgb(13 12 10 / 0.5) 42%, rgb(13 12 10 / 0) 72%);
+    text-shadow: 0 1px 12px rgb(13 12 10 / 0.6);
+    background: linear-gradient(to top, rgb(13 12 10 / 0.9), rgb(13 12 10 / 0.66) 45%, rgb(13 12 10 / 0) 80%);
     transition: opacity var(--gl-fade-duration) var(--gl-ease);
   }
 
@@ -202,11 +203,11 @@
   }
 
   .gl-titlepage-kicker {
-    font-size: clamp(calc(var(--gl-unit) * 0.6875), 2.3cqi, calc(var(--gl-unit) * 0.875));
+    font-size: clamp(calc(var(--gl-unit) * 0.75), 2.3cqi, calc(var(--gl-unit) * 0.875));
+    font-weight: 600;
     font-variant-numeric: lining-nums;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    opacity: 0.82;
   }
 
   .gl-titlepage-time {
@@ -228,6 +229,7 @@
   }
 
   .gl-titlepage-begin {
+    text-shadow: none;
     align-self: flex-start;
     margin-top: 0.5em;
     padding: 0.5em 1.05em 0.55em;
@@ -246,6 +248,123 @@
 
   .gl-titlepage-begin::after {
     content: ' →';
+  }
+
+  /* When the speech ends, the picture becomes a contents page. */
+  .gl-endpage {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.4em;
+    padding: 6cqi 7cqi;
+    overflow-y: auto;
+    color: var(--gl-ink);
+    background: color-mix(in oklab, var(--gl-paper) 94%, transparent);
+    cursor: default;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity var(--gl-fade-duration) var(--gl-ease),
+      visibility 0s linear var(--gl-fade-duration);
+  }
+
+  .gl-frame[data-ended] .gl-endpage {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--gl-fade-duration) var(--gl-ease);
+  }
+
+  .gl-endpage-kicker {
+    font-size: var(--gl-label-size);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gl-accent);
+  }
+
+  .gl-endpage-title-main {
+    font-size: clamp(calc(var(--gl-unit) * 1.25), 6.4cqi, calc(var(--gl-unit) * 2.4));
+    font-style: italic;
+    line-height: 1.05;
+    text-wrap: balance;
+  }
+
+  .gl-endpage-again {
+    align-self: flex-start;
+    min-height: calc(var(--gl-unit) * 2.5);
+    margin: 0.4em 0 0.6em;
+    padding: 0 1.1em;
+    font: inherit;
+    font-size: var(--gl-label-size);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gl-on-ink);
+    cursor: pointer;
+    background: var(--gl-ink);
+    border: 0;
+    border-radius: 999px;
+  }
+
+  .gl-endpage-list {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 13em), 1fr));
+    gap: 0 1.25em;
+    margin: 0;
+    padding: 0.6em 0 0;
+    list-style: none;
+    border-top: 1px solid var(--gl-rule);
+  }
+
+  .gl-endpage[data-has-chapters] .gl-endpage-list {
+    display: grid;
+  }
+
+  .gl-endpage-chapter {
+    display: flex;
+    gap: 0.6em;
+    align-items: baseline;
+    width: 100%;
+    min-height: calc(var(--gl-unit) * 2.25);
+    padding: 0.2em 0;
+    font: inherit;
+    font-size: calc(var(--gl-unit) * 0.875);
+    text-align: start;
+    color: var(--gl-ink);
+    cursor: pointer;
+    background: none;
+    border: 0;
+  }
+
+  .gl-endpage-number {
+    min-width: 2.2em;
+    font-size: 0.86em;
+    letter-spacing: 0.06em;
+    color: var(--gl-accent);
+  }
+
+  @media (hover: hover) {
+    .gl-endpage-chapter:hover .gl-endpage-title {
+      text-decoration: underline;
+      text-decoration-color: var(--gl-accent);
+      text-underline-offset: 0.2em;
+    }
+  }
+
+  .gl-endpage-again:focus-visible,
+  .gl-endpage-chapter:focus-visible {
+    outline: 2px solid var(--gl-accent);
+    outline-offset: 2px;
+  }
+
+  /* Too small for a contents list: the end page keeps to the title and Read again. */
+  @container glf (width < 26rem) {
+    .gl-endpage[data-has-chapters] .gl-endpage-list {
+      display: none;
+    }
   }
 
   .gl-figcaption {
@@ -535,6 +654,91 @@
     outline: none;
   }
 
+  /* Find a word: a quiet field in the top margin of the text. */
+  .gl-find {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 3;
+    display: flex;
+    gap: 0.5em;
+    align-items: baseline;
+    padding: 0.1em 0 0.3em 0.75em;
+    font-size: calc(var(--gl-unit) * 0.8125);
+    background: linear-gradient(to left, var(--gl-paper) 85%, transparent);
+  }
+
+  .gl[data-no-text] .gl-find {
+    display: none;
+  }
+
+  .gl-find-input {
+    width: 9.5em;
+    min-height: calc(var(--gl-unit) * 1.75);
+    padding: 0 0.1em;
+    font: inherit;
+    font-style: italic;
+    color: var(--gl-ink);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--gl-rule-strong);
+    border-radius: 0;
+    outline: none;
+    transition: width 160ms var(--gl-ease);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .gl-find-input::placeholder {
+    color: var(--gl-unread);
+  }
+
+  .gl-find-input:focus {
+    width: 12em;
+    border-bottom: 2px solid var(--gl-accent);
+  }
+
+  .gl-find-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+
+  .gl-find-count {
+    font-variant-numeric: tabular-nums lining-nums;
+    color: var(--gl-ink-2);
+    white-space: nowrap;
+  }
+
+  .gl-find-count:empty {
+    display: none;
+  }
+
+  .gl-word.is-match {
+    color: var(--gl-ink);
+    background-color: color-mix(in oklab, var(--gl-accent) 14%, transparent);
+    border-radius: 2px;
+  }
+
+  .gl-word.is-match-current {
+    background-color: color-mix(in oklab, var(--gl-accent) 30%, transparent);
+    box-shadow: 0 0 0 1px var(--gl-accent);
+  }
+
+  @media (pointer: coarse) {
+    .gl-find-input {
+      min-height: calc(var(--gl-unit) * 2.5);
+      font-size: 16px;
+    }
+  }
+
+  /* The line the seek bar points at, while the reader looks for a place. */
+  .gl-line.is-previewed {
+    background: color-mix(in oklab, var(--gl-accent) 16%, transparent);
+  }
+
+  .gl-line.is-previewed .gl-word {
+    color: var(--gl-ink);
+  }
+
   .gl-line:focus-visible {
     outline: 2px solid var(--gl-accent);
     outline-offset: 2px;
@@ -653,9 +857,10 @@
     opacity: 1;
   }
 
+  /* It sits in the soft fade at the foot of the text, with a margin of paper, so it never sits on a readable line. */
   .gl-return {
     position: absolute;
-    bottom: calc(var(--gl-unit) * 0.75);
+    bottom: calc(var(--gl-unit) * 0.2);
     left: 50%;
     z-index: 2;
     display: inline-flex;
@@ -670,7 +875,9 @@
     background: var(--gl-ink);
     border: 0;
     border-radius: 999px;
-    box-shadow: 0 6px 18px -8px rgb(0 0 0 / 0.45);
+    box-shadow:
+      0 0 0 0.4em var(--gl-paper),
+      0 6px 18px -8px rgb(0 0 0 / 0.45);
     translate: -50% 0;
   }
 
@@ -678,9 +885,9 @@
     display: none;
   }
 
+  /* The top margin holds Find, so the way back always sits at the foot of the text; the arrow gives the direction. */
   .gl-return[data-direction='up'] {
-    top: calc(var(--gl-unit) * 0.75);
-    bottom: auto;
+    bottom: calc(var(--gl-unit) * 0.2);
   }
 
   .gl-return-time {
@@ -730,8 +937,8 @@
     display: inline-grid;
     flex: none;
     place-items: center;
-    min-width: calc(var(--gl-unit) * 2.25);
-    min-height: calc(var(--gl-unit) * 2.25);
+    min-width: calc(var(--gl-unit) * 2.5);
+    min-height: calc(var(--gl-unit) * 2.5);
     padding: 0 calc(var(--gl-unit) * 0.7);
     font: inherit;
     font-size: var(--gl-label-size);
@@ -852,7 +1059,7 @@
     position: relative;
     display: flex;
     align-items: center;
-    height: calc(var(--gl-unit) * 2.25);
+    height: calc(var(--gl-unit) * 2.5);
     cursor: pointer;
     touch-action: none;
     outline: none;
@@ -958,8 +1165,30 @@
     width: calc(var(--gl-unit) * 4.5);
   }
 
-  @container gl (width < 30rem) {
-    .gl-volume-slider {
+  .gl-sound-short {
+    display: none;
+  }
+
+  /* Stacked players leave volume to the device and keep a plain mute button. */
+  @container gl (width < 46rem) {
+    .gl-volume-slider,
+    .gl-sound-long {
+      display: none;
+    }
+
+    .gl-sound-short {
+      display: inline;
+    }
+
+    /* A wide but short screen (a phone on its side) keeps the picture shorter than the screen. */
+    .gl-plate {
+      justify-self: center;
+      width: 100%;
+      max-width: calc(68svh * (var(--gl-plate-ratio)));
+    }
+
+    /* Before play the title is on the picture, so the empty caption line closes up. */
+    .gl-plate:has(.gl-frame:not([data-started])) .gl-figcaption {
       display: none;
     }
   }
@@ -1180,8 +1409,19 @@
   }
 
   .gl-dialog-description {
+    margin: 0;
     color: var(--gl-ink-2);
     line-height: 1.45;
+  }
+
+  /* The player's own technical message stays available to screen readers, not set in the page. */
+  .gl-dialog-detail {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .gl-dialog-close {

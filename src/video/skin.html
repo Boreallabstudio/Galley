@@ -11,6 +11,12 @@
 <media-title class="gl-titlepage-title"></media-title>
 <span class="gl-titlepage-begin">Begin reading</span>
 </div>
+<galley-contents class="gl-endpage">
+<span class="gl-endpage-kicker">The end</span>
+<media-title class="gl-endpage-title-main"></media-title>
+<button type="button" class="gl-endpage-again" data-start="0">Read again</button>
+<ol class="gl-endpage-list" aria-label="Chapters"></ol>
+</galley-contents>
 <galley-line class="gl-overlay-line"></galley-line>
 <media-buffering-indicator class="gl-buffering">
 <span class="gl-buffering-label">Loading</span>
@@ -35,7 +41,8 @@
 <span class="gl-dialog-kicker" aria-hidden="true">Erratum</span>
 <media-dialog-title class="gl-dialog-title">
 </media-dialog-title>
-<media-dialog-description class="gl-dialog-description">
+<p class="gl-dialog-description">The video could not be played. Check the connection and try again; the text is still here to read.</p>
+<media-dialog-description class="gl-dialog-detail">
 </media-dialog-description>
 <media-dialog-close class="gl-button gl-dialog-close">
 </media-dialog-close>
@@ -88,7 +95,7 @@
 </media-time-slider>
 <media-controls-group class="gl-group gl-sound">
 <media-mute-button class="gl-button gl-mute">
-<media-text token="volume.label" class="gl-when-unmuted">Volume</media-text>
+<span class="gl-when-unmuted"><media-text token="volume.label" class="gl-sound-long">Volume</media-text><span class="gl-sound-short">Mute</span></span>
 <media-text token="volume.muted" class="gl-when-muted">Muted</media-text>
 </media-mute-button>
 <media-volume-slider class="gl-slider gl-volume-slider" thumb-alignment="center">

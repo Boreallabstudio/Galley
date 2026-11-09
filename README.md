@@ -2,7 +2,7 @@
 
 A skin for [Video.js 10](https://videojs.org) where the transcript is the player.
 
-Galley sets a video as a page of text. Words ink in as they are spoken, a pencil rule runs under the line you are hearing, and choosing any word plays from there. The seek bar is a sentence: hover it and the card above shows the words spoken at that moment. Chapters become numbered section heads, and notes sit in the margin beside the words they belong to.
+Galley sets a video as a page of text. Words ink in as they are spoken, a pencil rule runs under the line you are hearing, and choosing any word plays from there. The seek bar is a sentence: hover it and the card above shows the words spoken at that moment. Chapters become numbered section heads, and notes sit in the margin beside the words they belong to. Before the first play the picture is a title page; at the end it becomes a contents page that seeks.
 
 ## Use it
 
@@ -29,7 +29,7 @@ Galley answers to the same custom properties as the packaged Video.js skins (`--
 
 ## Keys
 
-Space or K play and pause, J and L move ten seconds, arrows move five, `[` and `]` step a line of text, 0 to 9 jump through the speech, M mutes, C toggles captions over the picture, F goes fullscreen. Tab moves into the text, where arrow keys move between lines and Enter plays from one.
+Space or K play and pause, J and L move ten seconds, arrows move five, `[` and `]` step a line of text, 0 to 9 jump through the speech, M mutes, C toggles captions over the picture, F goes fullscreen, and / finds a word (arrows step between matches, Enter plays from one, Escape goes back). Tab moves into the text, where arrow keys move between lines and Enter plays from one.
 
 ## Develop
 
