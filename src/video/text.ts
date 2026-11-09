@@ -96,6 +96,7 @@ class GalleyTextElement extends UIElement {
 
     const container = this.closest('media-container');
     if (container) this.#fillWindowWhereNoFullscreen(container as HTMLElement, this.#abort.signal);
+    if (container) this.#quietenControlsInFullscreen(container as HTMLElement, this.#abort.signal);
     // Focus the player takes after a tap or click is not drawn; focus reached by keyboard is.
     container?.addEventListener('pointerdown', () => container.setAttribute('data-gl-pointer', ''), { signal: this.#abort.signal, capture: true });
     container?.addEventListener('keydown', () => container.removeAttribute('data-gl-pointer'), { signal: this.#abort.signal, capture: true });
@@ -624,6 +625,55 @@ class GalleyTextElement extends UIElement {
    * iPhone browsers only let the bare <video> go fullscreen, which would leave the text behind. There, Fullscreen
    * and F make the player fill the window instead, transcript and all, and turning the phone sets the spread.
    */
+  /**
+   * In fullscreen, while the media plays, the controls fade back after three quiet seconds so the text and picture
+   * carry the screen. They only dim: they keep their place and stay live, and any touch, pointer move, key or focus
+   * brings them straight back. Never while paused, ended, scrubbing, finding a word, or with keyboard focus in the bar.
+   */
+  #quietenControlsInFullscreen(container: HTMLElement, signal: AbortSignal) {
+    const controls = container.querySelector<HTMLElement>('.gl-controls');
+    const play = container.querySelector<HTMLElement>('.gl-play');
+    if (!controls || !play) return;
+    let timer = 0;
+
+    const fullscreen = () =>
+      container.hasAttribute('data-gl-fullscreen') ||
+      document.fullscreenElement === container ||
+      (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement === container;
+    const playing = () => !play.hasAttribute('data-paused') && !play.hasAttribute('data-ended');
+    const busy = () =>
+      !!controls.querySelector(':focus-visible, [data-dragging], [data-pointing]') ||
+      !!container.querySelector('.gl-find-input:focus, .gl-find-input:not(:placeholder-shown)');
+
+    const wake = () => {
+      window.clearTimeout(timer);
+      container.removeAttribute('data-gl-quiet');
+      if (fullscreen() && playing()) timer = window.setTimeout(rest, 3000);
+    };
+    const rest = () => {
+      if (!fullscreen() || !playing()) return;
+      if (busy()) {
+        timer = window.setTimeout(rest, 3000);
+        return;
+      }
+      container.setAttribute('data-gl-quiet', '');
+    };
+
+    for (const type of ['pointerdown', 'pointermove', 'keydown', 'focusin', 'wheel']) {
+      container.addEventListener(type, wake, { signal, capture: true, passive: true });
+    }
+    document.addEventListener('fullscreenchange', wake, { signal });
+    document.addEventListener('webkitfullscreenchange', wake, { signal });
+    const watch = new MutationObserver(wake);
+    watch.observe(play, { attributes: true, attributeFilter: ['data-paused', 'data-ended'] });
+    watch.observe(container, { attributes: true, attributeFilter: ['data-gl-fullscreen'] });
+    signal.addEventListener('abort', () => {
+      watch.disconnect();
+      window.clearTimeout(timer);
+      container.removeAttribute('data-gl-quiet');
+    });
+  }
+
   #fillWindowWhereNoFullscreen(container: HTMLElement, signal: AbortSignal) {
     const doc = document as Document & { webkitFullscreenEnabled?: boolean };
     if (doc.fullscreenEnabled || doc.webkitFullscreenEnabled) return;

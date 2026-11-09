@@ -237,7 +237,7 @@
     text-shadow: none;
     align-self: flex-start;
     margin-top: 0.5em;
-    padding: 0.5em 1.05em 0.55em;
+    padding: 0.67em 1.05em 0.38em;
     font-size: clamp(calc(var(--gl-unit) * 0.6875), 2.3cqi, calc(var(--gl-unit) * 0.8125));
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -1056,6 +1056,27 @@
     display: block;
   }
 
+  /* In fullscreen, while playing, the controls rest at a lower strength after a few quiet seconds (see text.ts). */
+  .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-controls {
+    transition: opacity 300ms var(--gl-ease);
+  }
+
+  .gl:is(:fullscreen, [data-gl-fullscreen])[data-gl-quiet] .gl-controls {
+    opacity: 0.44;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-controls {
+      transition: none;
+    }
+  }
+
+  @media (prefers-contrast: more), (forced-colors: active) {
+    .gl:is(:fullscreen, [data-gl-fullscreen])[data-gl-quiet] .gl-controls {
+      opacity: 1;
+    }
+  }
+
   .gl-foot {
     display: flex;
     flex-wrap: wrap;
@@ -1100,6 +1121,15 @@
 
   .gl-button > * {
     grid-area: 1 / 1;
+    /* The labels are capitals with no descenders: centre the capitals, not the line box. */
+    translate: 0 0.077em;
+  }
+
+  @supports (text-box: trim-both cap alphabetic) {
+    .gl-button > * {
+      translate: none;
+      text-box: trim-both cap alphabetic;
+    }
   }
 
   @media (hover: hover) {
