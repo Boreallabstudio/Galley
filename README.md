@@ -1,6 +1,8 @@
 # Galley
 
-A skin for [Video.js 10](https://videojs.org) where the transcript is the player.
+A skin for [Video.js 10](https://videojs.org) where the transcript is the player, made for people who watch with subtitles on.
+
+A galley is a printer's proof: the text, set and marked, before it goes to press.
 
 Galley sets a video as a page of text. Words ink in as they are spoken, a pencil rule runs under the line you are hearing, and choosing any word plays from there. The seek bar is a sentence: hover it and the card above shows the words spoken at that moment. Chapters become numbered section heads, and notes sit in the margin beside the words they belong to. Before the first play the picture is a title page; at the end it becomes a contents page that seeks.
 
