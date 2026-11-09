@@ -58,7 +58,9 @@ function hideNativeCues(media: MediaLike) {
   if (!shadow || shadow.querySelector('style[data-galley]')) return;
   const style = document.createElement('style');
   style.dataset.galley = '';
+  // The plate fills its frame, as a plain <video> does under skin.css; these elements default to `contain`.
   style.textContent =
+    'video{object-fit:var(--media-object-fit,cover);object-position:var(--media-object-position,center)}' +
     'video::-webkit-media-text-track-container{display:none}video::cue{color:transparent;background:transparent}';
   shadow.append(style);
 }
