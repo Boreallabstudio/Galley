@@ -1670,32 +1670,64 @@
     }
   }
 
-  /* A phone on its side has no room to stack, so fullscreen sets a spread. */
+  /* A phone on its side has no room to stack, so fullscreen sets a spread: the picture at full height beside the
+     text, and the controls on one line beneath both. */
   @media (orientation: landscape) and (max-height: 32rem) {
     .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-page {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-columns: auto minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr) auto;
       grid-template-areas:
         'plate text'
         'foot foot';
       column-gap: calc(var(--gl-unit) * 1.25);
-      padding-top: calc(var(--gl-unit) * 0.75);
+      padding-top: calc(var(--gl-unit) * 0.5);
+    }
+
+    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-plate {
+      justify-content: center;
+      width: auto;
+      max-width: none;
     }
 
     .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-frame {
       align-self: center;
       width: auto;
-      max-width: 100%;
-      height: calc(100svh - var(--gl-unit) * 7.5);
+      max-width: 55vw;
+      height: calc(100dvh - var(--gl-unit) * 5.25 - env(safe-area-inset-bottom));
       max-height: none;
+      aspect-ratio: var(--gl-plate-ratio);
+    }
+
+    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-figcaption {
+      display: none;
     }
 
     .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-text {
+      height: auto;
       margin-top: 0;
     }
 
+    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-foot {
+      flex-wrap: nowrap;
+      margin-top: calc(var(--gl-unit) * 0.25);
+      padding-block: calc(var(--gl-unit) * 0.25);
+    }
 
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-figcaption .gl-chapter,
+    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-foot::before {
+      display: none;
+    }
+
+    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-time-slider {
+      flex: 1 1 0;
+      order: 0;
+      margin: 0 calc(var(--gl-unit) * 0.5);
+    }
+
+    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-sound {
+      margin-inline-start: 0;
+    }
+
+    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-tick-number,
     .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-volume-slider,
     .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-long {
       display: none;
