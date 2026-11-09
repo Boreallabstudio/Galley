@@ -60,6 +60,7 @@ class GalleyTextElement extends UIElement {
   #returnTime!: HTMLElement;
   #findInput!: HTMLInputElement;
   #findCount!: HTMLElement;
+  #findSteps: HTMLButtonElement[] = [];
   #matches: { line: number; word: number; length: number }[] = [];
   #match = -1;
 
@@ -94,6 +95,7 @@ class GalleyTextElement extends UIElement {
     this.#listen(this.#abort.signal);
 
     const container = this.closest('media-container');
+    if (container) this.#fillWindowWhereNoFullscreen(container as HTMLElement, this.#abort.signal);
     // Focus the player takes after a tap or click is not drawn; focus reached by keyboard is.
     container?.addEventListener('pointerdown', () => container.setAttribute('data-gl-pointer', ''), { signal: this.#abort.signal, capture: true });
     container?.addEventListener('keydown', () => container.removeAttribute('data-gl-pointer'), { signal: this.#abort.signal, capture: true });
@@ -244,7 +246,15 @@ class GalleyTextElement extends UIElement {
     find.innerHTML =
       '<input class="gl-find-input" type="search" placeholder="Find a word" aria-label="Find in the text" ' +
       'aria-describedby="" autocomplete="off" spellcheck="false" enterkeyhint="go">' +
-      '<span class="gl-find-count" aria-live="polite"></span>';
+      '<span class="gl-find-count" aria-live="polite"></span>' +
+      '<button type="button" class="gl-find-step" data-step="-1" aria-label="Previous match" hidden>‹</button>' +
+      '<button type="button" class="gl-find-step" data-step="1" aria-label="Next match" hidden>›</button>';
+    // On a phone there are no arrow keys: these step between matches, and keep the keyboard open while they do.
+    for (const button of find.querySelectorAll<HTMLButtonElement>('.gl-find-step')) {
+      button.addEventListener('pointerdown', (event) => event.preventDefault());
+      button.addEventListener('click', () => this.#goToMatch(this.#match + Number(button.dataset.step)));
+    }
+    this.#findSteps = [...find.querySelectorAll<HTMLButtonElement>('.gl-find-step')];
     this.#findInput = find.querySelector('input')!;
     this.#findCount = find.querySelector('.gl-find-count')!;
     this.#findInput.removeAttribute('aria-describedby');
@@ -280,6 +290,7 @@ class GalleyTextElement extends UIElement {
     for (const word of this.querySelectorAll('.is-match, .is-match-current')) word.classList.remove('is-match', 'is-match-current');
     this.#matches = [];
     this.#match = -1;
+    for (const button of this.#findSteps) button.hidden = true;
     const terms = normalize(query).split(' ').filter(Boolean);
     if (!terms.length) {
       this.#findCount.textContent = '';
@@ -314,6 +325,7 @@ class GalleyTextElement extends UIElement {
       this.#findCount.textContent = 'Not found';
       return;
     }
+    for (const button of this.#findSteps) button.hidden = starts.length < 2;
     const time = this.#edition?.time ?? 0;
     const next = starts.findIndex((match) => this.#lines[match.line].cue.words[match.word].start >= time - 0.5);
     this.#goToMatch(next < 0 ? 0 : next);
@@ -605,6 +617,44 @@ class GalleyTextElement extends UIElement {
   }
 
 
+
+  /**
+   * iPhone browsers only let the bare <video> go fullscreen, which would leave the text behind. There, Fullscreen
+   * and F make the player fill the window instead, transcript and all, and turning the phone sets the spread.
+   */
+  #fillWindowWhereNoFullscreen(container: HTMLElement, signal: AbortSignal) {
+    const doc = document as Document & { webkitFullscreenEnabled?: boolean };
+    if (doc.fullscreenEnabled || doc.webkitFullscreenEnabled) return;
+    const toggle = (event: Event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const on = !container.hasAttribute('data-gl-fullscreen');
+      container.toggleAttribute('data-gl-fullscreen', on);
+      document.documentElement.style.overflow = on ? 'hidden' : '';
+      const button = container.querySelector('media-fullscreen-button');
+      button?.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen');
+      if (on) {
+        const record = this.#lines[Math.max(0, this.#current)];
+        requestAnimationFrame(() => record && this.#scrollTo(record.element, 'anchor'));
+      }
+    };
+    container.addEventListener(
+      'click',
+      (event) => {
+        if ((event.target as HTMLElement).closest('media-fullscreen-button')) toggle(event);
+      },
+      { signal, capture: true }
+    );
+    container.addEventListener(
+      'keydown',
+      (event) => {
+        const key = (event as KeyboardEvent).key;
+        if ((event.target as HTMLElement).closest('input, textarea')) return;
+        if (key === 'f' || key === 'F' || (key === 'Escape' && container.hasAttribute('data-gl-fullscreen'))) toggle(event);
+      },
+      { signal, capture: true }
+    );
+  }
 
   #focusPlayer() {
     const container = this.closest<HTMLElement>('media-container');
