@@ -6,6 +6,11 @@
 <media-poster class="gl-poster">
 <img alt="" decoding="async" class="gl-poster-image">
 </media-poster>
+<div class="gl-titlepage" aria-hidden="true">
+<span class="gl-titlepage-kicker">A reading of <media-time class="gl-titlepage-time" type="duration"></media-time></span>
+<media-title class="gl-titlepage-title"></media-title>
+<span class="gl-titlepage-begin">Begin reading</span>
+</div>
 <galley-line class="gl-overlay-line"></galley-line>
 <media-buffering-indicator class="gl-buffering">
 <span class="gl-buffering-label">Loading</span>
@@ -98,10 +103,11 @@
 <media-playback-rate-button class="gl-button gl-rate">
 </media-playback-rate-button>
 <media-captions-button class="gl-button gl-captions">
-<media-text token="menu.captions">Captions</media-text>
+<media-text token="menu.captions" class="gl-long">Captions</media-text>
+<span class="gl-short" aria-hidden="true">CC</span>
 </media-captions-button>
 <media-fullscreen-button class="gl-button gl-fullscreen">
-<span class="gl-when-windowed">Fullscreen</span>
+<span class="gl-when-windowed"><span class="gl-long">Fullscreen</span><span class="gl-short">Full</span></span>
 <span class="gl-when-fullscreen">Exit</span>
 </media-fullscreen-button>
 </media-controls-content>
@@ -113,9 +119,9 @@
 </media-hotkey>
 <media-hotkey keys="m" action="toggleMuted">
 </media-hotkey>
-<media-hotkey keys="ArrowRight" action="seekStep">
+<media-hotkey keys="ArrowRight" action="seekStep" value="5">
 </media-hotkey>
-<media-hotkey keys="ArrowLeft" action="seekStep">
+<media-hotkey keys="ArrowLeft" action="seekStep" value="-5">
 </media-hotkey>
 <media-hotkey keys="l" action="seekStep" value="10">
 </media-hotkey>

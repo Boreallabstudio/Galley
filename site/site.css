@@ -171,6 +171,35 @@ h1 em {
   --media-accent-color: light-dark(#a8361c, #f08467);
 }
 
+/* On a laptop the whole player, controls included, fits on the first screen: short screens get a narrower player. */
+@media (min-width: 52rem) {
+  .masthead {
+    padding-top: clamp(1rem, 1.8vw, 2rem);
+  }
+
+  .hero {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    margin-block: clamp(1rem, 2.2vw, 1.75rem) clamp(1rem, 1.8vw, 1.5rem);
+  }
+
+  h1 {
+    max-width: none;
+    font-size: clamp(2.25rem, 0.75rem + 2.9vw, 3.9rem);
+    white-space: nowrap;
+  }
+
+  .lede {
+    margin: 0;
+    font-size: clamp(1rem, 0.85rem + 0.3vw, 1.1875rem);
+  }
+
+  .stage-player {
+    max-width: max(36rem, calc((100svh - 22.5rem) * 2.72));
+    margin-inline: auto;
+  }
+}
+
 .stage-player .gl {
   box-shadow:
     0 1px 0 light-dark(rgb(255 255 255 / 0.6), rgb(255 255 255 / 0.04)) inset,

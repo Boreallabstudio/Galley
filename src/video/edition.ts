@@ -156,12 +156,17 @@ export function indexAt(items: { start: number }[], time: number): number {
   return found;
 }
 
-export function formatTime(seconds: number): string {
+/**
+ * Clock time, written the way Video.js writes the player's own time: minutes take two digits once the media runs
+ * ten minutes or longer, so the folio, the hint and the foot all read alike.
+ */
+export function formatTime(seconds: number, length = seconds): string {
   const total = Math.max(0, Math.floor(seconds));
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = String(total % 60).padStart(2, '0');
-  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+  if (h || length >= 3600) return `${h}:${String(m).padStart(2, '0')}:${s}`;
+  return `${length >= 600 ? String(m).padStart(2, '0') : m}:${s}`;
 }
 
 export function roman(value: number): string {

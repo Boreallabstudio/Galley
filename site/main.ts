@@ -30,4 +30,5 @@ i18n.append(player);
 document.getElementById('stage-player')!.append(i18n);
 
 const skin = player.querySelector<HTMLElement>('.gl');
-skin?.style.setProperty('--gl-plate-ratio', '4 / 3');
+// The archive film carries thin black edges; a slightly narrower plate trims them.
+skin?.style.setProperty('--gl-plate-ratio', MUX_ID ? '946 / 720' : '4 / 3');

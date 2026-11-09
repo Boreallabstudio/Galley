@@ -16,7 +16,7 @@
 @layer galley {
   .gl {
     --gl-unit: var(--media-scale-unit, 16px);
-    --gl-font: var(--media-font-family, 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif);
+    --gl-font: var(--media-font-family, 'Newsreader Variable', 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif);
     --gl-paper: light-dark(#f4efe6, #15130f);
     --gl-paper-raised: light-dark(#fbf8f2, #1f1c17);
     --gl-ink: light-dark(#1c1915, #f0e9dc);
@@ -91,6 +91,26 @@
     }
   }
 
+  /* No captions: the picture alone, full width. */
+  .gl[data-no-text] .gl-text {
+    display: none;
+  }
+
+  .gl[data-no-text] .gl-plate {
+    width: 100%;
+    max-width: calc(72svh * (var(--gl-plate-ratio)));
+    justify-self: center;
+  }
+
+  @container gl (width >= 46rem) {
+    .gl[data-no-text] .gl-page {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas:
+        'plate'
+        'foot';
+    }
+  }
+
   /* ---------- The plate (picture + figure caption) ---------- */
 
   .gl-plate {
@@ -154,6 +174,78 @@
     height: 100%;
     object-fit: var(--media-object-fit, cover);
     object-position: var(--media-object-position, center);
+  }
+
+  /* Before the first play the picture is a frontispiece: the title set over it, and an invitation to begin. */
+  .gl-titlepage {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0.45em;
+    padding: 7cqi 7cqi 6cqi;
+    color: #f4efe6;
+    pointer-events: none;
+    background: linear-gradient(to top, rgb(13 12 10 / 0.84), rgb(13 12 10 / 0.5) 42%, rgb(13 12 10 / 0) 72%);
+    transition: opacity var(--gl-fade-duration) var(--gl-ease);
+  }
+
+  .gl-frame[data-started] .gl-titlepage {
+    opacity: 0;
+  }
+
+  /* The title is on the picture until playback starts, so the caption below does not repeat it. */
+  .gl-plate:has(.gl-frame:not([data-started])) .gl-title {
+    visibility: hidden;
+  }
+
+  .gl-titlepage-kicker {
+    font-size: clamp(calc(var(--gl-unit) * 0.6875), 2.3cqi, calc(var(--gl-unit) * 0.875));
+    font-variant-numeric: lining-nums;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.82;
+  }
+
+  .gl-titlepage-time {
+    letter-spacing: 0.04em;
+  }
+
+  .gl-titlepage-title {
+    max-width: 16ch;
+    font-size: clamp(calc(var(--gl-unit) * 1.4), 8.2cqi, calc(var(--gl-unit) * 3.1));
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .gl-titlepage-title:empty {
+    display: none;
+  }
+
+  .gl-titlepage-begin {
+    align-self: flex-start;
+    margin-top: 0.5em;
+    padding: 0.5em 1.05em 0.55em;
+    font-size: clamp(calc(var(--gl-unit) * 0.6875), 2.3cqi, calc(var(--gl-unit) * 0.8125));
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #1c1915;
+    background: #f4efe6;
+    border-radius: 999px;
+  }
+
+  .gl[data-no-text] .gl-titlepage-begin {
+    display: none;
+  }
+
+  .gl-titlepage-begin::after {
+    content: ' →';
   }
 
   .gl-figcaption {
@@ -304,7 +396,8 @@
     grid-area: text;
     position: relative;
     display: block;
-    height: clamp(calc(var(--gl-unit) * 14), 90cqi, calc(var(--gl-unit) * 26));
+    /* Stacked, the text takes what the screen has left after the picture and the controls, so all three fit. */
+    height: clamp(calc(var(--gl-unit) * 8.5), calc(100svh - 100cqi / (var(--gl-plate-ratio)) - var(--gl-unit) * 12), calc(var(--gl-unit) * 22));
     min-height: 0;
     margin-top: calc(var(--gl-unit) * 0.5);
     font-size: var(--gl-text-size);
@@ -321,7 +414,6 @@
     position: absolute;
     inset: 0;
     overflow-y: auto;
-    overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: var(--gl-rule-strong) transparent;
     -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.2em, #000 calc(100% - 2.6em), transparent 100%);
@@ -333,7 +425,8 @@
 
     position: relative;
     display: grid;
-    grid-template-columns: var(--gl-gutter) minmax(0, 1fr);
+    /* A reading measure of about 68 characters, however wide the stacked page gets. */
+    grid-template-columns: var(--gl-gutter) minmax(0, 34em);
     column-gap: 0.25em;
     align-content: start;
     padding: 1.75em calc(var(--gl-unit) * 0.5) 70% 0;
@@ -777,16 +870,87 @@
     margin-inline-start: auto;
   }
 
-  /* On a narrow page the buttons share the second row evenly. */
+  .gl-short {
+    display: none;
+  }
+
+  /* On a narrow page the time shares the rule's row and the buttons take short labels, so the foot is two rows. */
   @container gl (width < 30rem) {
     .gl-foot {
       justify-content: space-between;
+      column-gap: calc(var(--gl-unit) * 0.25);
     }
 
-    .gl-rate,
-    .gl-captions,
-    .gl-fullscreen {
-      flex: 1 1 auto;
+    .gl-time {
+      order: -3;
+      font-size: calc(var(--gl-unit) * 0.8125);
+    }
+
+    .gl-time-slider {
+      flex: 1 1 0;
+      order: -2;
+      margin-inline-start: calc(var(--gl-unit) * 0.5);
+    }
+
+    /* A zero-height break after the rule's row. */
+    .gl-foot::before {
+      content: '';
+      flex: 1 0 100%;
+      order: -1;
+      height: 0;
+    }
+
+    /* The section heads in the text already name the chapter. */
+    .gl-figcaption .gl-chapter {
+      display: none;
+    }
+
+    .gl-sound {
+      margin-inline-start: 0;
+    }
+
+    .gl-play {
+      min-width: calc(var(--gl-unit) * 4.5);
+    }
+
+    .gl-button {
+      padding: 0 calc(var(--gl-unit) * 0.55);
+    }
+
+    .gl-long {
+      display: none;
+    }
+
+    .gl-short {
+      display: inline;
+    }
+  }
+
+  @container gl (width < 21rem) {
+    .gl-rate {
+      display: none;
+    }
+
+    .gl-play {
+      min-width: calc(var(--gl-unit) * 3.75);
+    }
+
+    .gl-button {
+      padding: 0 calc(var(--gl-unit) * 0.45);
+      font-size: calc(var(--gl-unit) * 0.75);
+      letter-spacing: 0.06em;
+    }
+  }
+
+  /* Thumb-sized targets on touch screens. */
+  @media (pointer: coarse) {
+    .gl-button,
+    .gl-slider {
+      min-height: calc(var(--gl-unit) * 2.75);
+    }
+
+    .gl-slider {
+      height: calc(var(--gl-unit) * 2.75);
     }
   }
 
@@ -822,6 +986,11 @@
     height: 1px;
     background: var(--gl-rule-strong);
     transition: height 140ms var(--gl-ease);
+  }
+
+  /* The unplayed seek rule is drawn in the unread ink, so it holds 3:1 against the paper. */
+  .gl-time-slider .gl-track {
+    background: var(--gl-unread);
   }
 
   /* A small gap between chapters, like the space between sections. */
@@ -902,7 +1071,6 @@
   .gl-preview {
     position: absolute;
     bottom: calc(100% + 4px);
-    left: var(--media-slider-pointer);
     z-index: 5;
     display: grid;
     grid-template-columns: auto 1fr;
@@ -918,8 +1086,12 @@
     border-radius: calc(var(--gl-radius) * 2);
     pointer-events: none;
     opacity: 0;
-    translate: calc(-50% + var(--gl-peek-shift, 0px)) 0;
     transition: opacity 120ms var(--gl-ease);
+  }
+
+  /* Galley places the card itself (see galley-peek), so it can use the whole width of the foot. */
+  .gl-time-slider .gl-preview {
+    left: var(--gl-card-left, 0px) !important;
   }
 
   .gl-time-slider[data-pointing] .gl-preview,
@@ -1014,9 +1186,22 @@
 
   .gl-dialog-close {
     justify-self: start;
+    min-width: calc(var(--gl-unit) * 4.5);
     margin-top: 0.4em;
     color: var(--gl-on-ink);
     background: var(--gl-ink);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .gl-dialog-close button {
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-radius: inherit;
   }
 
   .gl-announcer {
@@ -1051,9 +1236,53 @@
     max-height: calc(100vh - var(--gl-unit) * 9);
   }
 
+  /* Stacked in fullscreen: picture, then the text taking the rest, then the controls. */
   @container gl (width < 46rem) {
+    .gl:fullscreen .gl-page {
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+
     .gl:fullscreen .gl-text {
       height: auto;
+    }
+
+    .gl:fullscreen .gl-frame {
+      max-height: 45svh;
+    }
+  }
+
+  /* A phone on its side has no room to stack, so fullscreen sets a spread. */
+  @media (orientation: landscape) and (max-height: 32rem) {
+    .gl:fullscreen .gl-page {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto;
+      grid-template-areas:
+        'plate text'
+        'foot foot';
+      column-gap: calc(var(--gl-unit) * 1.25);
+      padding-top: calc(var(--gl-unit) * 0.75);
+    }
+
+    .gl:fullscreen .gl-frame {
+      align-self: center;
+      width: auto;
+      max-width: 100%;
+      height: calc(100svh - var(--gl-unit) * 7.5);
+      max-height: none;
+    }
+
+    .gl:fullscreen .gl-text {
+      margin-top: 0;
+    }
+
+    .gl:fullscreen .gl-figcaption .gl-chapter,
+    .gl:fullscreen .gl-volume-slider,
+    .gl:fullscreen .gl-long {
+      display: none;
+    }
+
+    .gl:fullscreen .gl-short {
+      display: inline;
     }
   }
 
@@ -1070,6 +1299,11 @@
     .gl *::after {
       transition-duration: 0ms !important;
       scroll-behavior: auto !important;
+    }
+
+    /* The word being said is underlined whole, not swept. */
+    .gl-line.is-current .gl-word.is-saying {
+      background-size: 100% 0.085em;
     }
   }
 

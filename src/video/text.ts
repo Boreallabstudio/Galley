@@ -48,6 +48,7 @@ class GalleyTextElement extends UIElement {
   #returnTime!: HTMLElement;
 
   #lines: LineRecord[] = [];
+  #cuesEnd = 0;
   #notes: NoteRecord[] = [];
   #current = -2;
   #currentWord = -1;
@@ -148,13 +149,16 @@ class GalleyTextElement extends UIElement {
     this.#notes = [];
     this.#current = -2;
 
+    // Without captions there is nothing to set, so the player closes up to the picture alone.
+    this.closest('.gl')?.toggleAttribute('data-no-text', !cues.length);
     if (!cues.length) {
-      content.innerHTML = '<p class="gl-loading">This video has no captions to read.</p>';
+      content.innerHTML = '';
       return;
     }
 
     let chapterIndex = 0;
     let noteIndex = 0;
+    this.#cuesEnd = cues.length ? cues[cues.length - 1].end : 0;
     const paragraphs = paragraphsOf(cues);
 
     paragraphs.forEach((paragraph, paragraphIndex) => {
@@ -176,7 +180,7 @@ class GalleyTextElement extends UIElement {
       const folio = document.createElement('span');
       folio.className = 'gl-folio';
       folio.setAttribute('aria-hidden', 'true');
-      folio.textContent = formatTime(paragraph[0].start);
+      folio.textContent = formatTime(paragraph[0].start, this.#length());
 
       const p = document.createElement('p');
       p.className = 'gl-para';
@@ -287,7 +291,7 @@ class GalleyTextElement extends UIElement {
         const cue = this.#lines[Number(line.dataset.index)]?.cue;
         const time = cue?.words[Number(word.dataset.word)]?.start;
         if (time == null) return;
-        this.#hint.textContent = formatTime(time);
+        this.#hint.textContent = formatTime(time, this.#length());
         this.#hint.style.setProperty('--gl-hint-top', `${word.offsetTop}px`);
         this.#hint.dataset.visible = '';
       },
@@ -404,7 +408,7 @@ class GalleyTextElement extends UIElement {
     if (!timeState) return;
     timeState.seek(time + 0.01);
     this.#follow(true);
-    if (playback?.paused) void playback.play();
+    if (playback?.paused) Promise.resolve(playback.play()).catch(() => {});
   }
 
   #follow(on: boolean) {
@@ -424,7 +428,7 @@ class GalleyTextElement extends UIElement {
     const visible = line.bottom > scroller.top + 8 && line.top < scroller.bottom - 8;
     this.#return.hidden = visible;
     this.#return.dataset.direction = line.top < scroller.top ? 'up' : 'down';
-    this.#returnTime.textContent = formatTime(this.#edition?.time ?? record.cue.start);
+    this.#returnTime.textContent = formatTime(this.#edition?.time ?? record.cue.start, this.#length());
     if (visible) this.#following = true;
   }
 
@@ -442,6 +446,13 @@ class GalleyTextElement extends UIElement {
     }
     this.#programmaticScroll = performance.now();
     scroller.scrollTo({ top: Math.max(0, target), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  }
+
+  /** How long the media runs: its duration once known, otherwise the end of the last caption. */
+  #length(): number {
+    const duration = this.#edition?.media?.duration;
+    if (duration && Number.isFinite(duration)) return duration;
+    return this.#cuesEnd;
   }
 
   #update(time: number) {
@@ -462,13 +473,15 @@ class GalleyTextElement extends UIElement {
         const element = lines[i].element;
         element.classList.toggle('is-past', i < index);
         element.classList.toggle('is-current', i === index);
+        if (i === index) element.setAttribute('aria-current', 'true');
+        else element.removeAttribute('aria-current');
         if (i !== index) for (const word of lines[i].words) word.classList.remove('is-said', 'is-saying');
       }
       this.#current = index;
       this.#currentWord = -1;
 
       const focusInside = this.contains(document.activeElement);
-      if (!focusInside && index >= 0) this.#focusLine(index, false);
+      if (!focusInside) this.#focusLine(Math.max(index, 0), false);
 
       if (this.#following && index >= 0) this.#scrollTo(lines[index].element, 'anchor');
       else if (!this.#following) this.#updateReturn();
@@ -597,33 +610,35 @@ class GalleyPeekElement extends UIElement {
       if (this.isConnected) this.#cues = cues;
     });
 
-    const fromPointer = (event: PointerEvent) => {
-      const slider = this.#slider;
+    // The slider writes where the pointer is (mouse, touch or drag) into --media-slider-pointer on its own style.
+    const slider = this.#slider;
+    const update = () => {
       const duration = this.#edition?.media?.duration;
-      if (!slider || !duration || !Number.isFinite(duration)) return;
-      const rect = slider.getBoundingClientRect();
-      const rtl = getComputedStyle(slider).direction === 'rtl';
-      let fraction = (event.clientX - rect.left) / rect.width;
-      if (rtl) fraction = 1 - fraction;
-      this.#show(Math.min(Math.max(fraction, 0), 1) * duration);
-      this.#keepInside(event.clientX - rect.left, rect.width);
+      if (!duration || !Number.isFinite(duration)) return;
+      let percent = Number.NaN;
+      if (slider.hasAttribute('data-pointing') || slider.hasAttribute('data-dragging')) {
+        percent = parseFloat(slider.style.getPropertyValue('--media-slider-pointer'));
+        if (Number.isFinite(percent)) this.#show((Math.min(Math.max(percent, 0), 100) / 100) * duration);
+      } else if (slider.matches(':focus-within')) {
+        percent = (this.#edition!.time / duration) * 100;
+        this.#show(this.#edition!.time);
+      }
+      if (Number.isFinite(percent)) this.#place(percent);
     };
-    this.#slider.addEventListener('pointermove', fromPointer, { signal });
-    this.#slider.addEventListener('pointerdown', fromPointer, { signal });
+    const observer = new MutationObserver(update);
+    observer.observe(slider, { attributes: true, attributeFilter: ['style', 'data-pointing', 'data-dragging'] });
+    signal.addEventListener('abort', () => observer.disconnect());
 
-    // Keyboard and touch-free users: while the slider has focus the peek follows the playhead.
-    this.#slider.addEventListener(
+    // Keyboard users: while the slider has focus the card follows the playhead.
+    slider.addEventListener(
       'focusin',
       () => {
         this.#unsubscribe?.();
-        this.#unsubscribe = this.#edition!.subscribe((time) => {
-          if (!this.#slider?.matches(':focus-within') || this.#slider.hasAttribute('data-pointing')) return;
-          this.#show(time);
-        });
+        this.#unsubscribe = this.#edition!.subscribe(update);
       },
       { signal }
     );
-    this.#slider.addEventListener('focusout', () => this.#unsubscribe?.(), { signal });
+    slider.addEventListener('focusout', () => this.#unsubscribe?.(), { signal });
   }
 
   disconnectedCallback() {
@@ -633,15 +648,6 @@ class GalleyPeekElement extends UIElement {
     this.#unsubscribe?.();
   }
 
-  /** Slide the card sideways so it never hangs outside the slider's own width. */
-  #keepInside(x: number, width: number) {
-    const card = this.parentElement;
-    if (!card) return;
-    const half = card.offsetWidth / 2;
-    const shift = Math.max(half - x, 0) - Math.max(x + half - width, 0);
-    card.style.setProperty('--gl-peek-shift', `${Math.round(shift)}px`);
-  }
-
   #show(time: number) {
     const index = indexAt(this.#cues, time);
     if (index === this.#shown) return;
@@ -649,6 +655,26 @@ class GalleyPeekElement extends UIElement {
     const cue = this.#cues[index];
     this.textContent = cue ? cue.text : '';
     this.toggleAttribute('data-empty', !cue);
+  }
+
+  /**
+   * Centre the card over the point it describes, kept inside the whole foot rather than the rule alone: on a phone
+   * the rule shares its row with the time, and is narrower than the card.
+   */
+  #place(percent: number) {
+    const card = this.parentElement;
+    const slider = this.#slider;
+    const foot = slider?.closest<HTMLElement>('.gl-foot') ?? slider?.parentElement;
+    if (!card || !slider || !foot) return;
+    requestAnimationFrame(() => {
+      const s = slider.getBoundingClientRect();
+      const f = foot.getBoundingClientRect();
+      const width = card.offsetWidth;
+      const rtl = getComputedStyle(slider).direction === 'rtl';
+      const at = ((rtl ? 100 - percent : percent) / 100) * s.width;
+      const left = Math.min(Math.max(at - width / 2, f.left - s.left), f.right - s.left - width);
+      card.style.setProperty('--gl-card-left', `${Math.round(left)}px`);
+    });
   }
 }
 
@@ -698,7 +724,7 @@ class GalleyPlateElement extends UIElement {
         if (target.closest('button, [role="button"], media-error-dialog, a, input')) return;
         const playback = this.#playback.value;
         if (!playback) return;
-        if (playback.paused) void playback.play();
+        if (playback.paused) Promise.resolve(playback.play()).catch(() => {});
         else playback.pause();
       },
       { signal: this.#abort.signal }

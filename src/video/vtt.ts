@@ -27,6 +27,13 @@ export interface Cue {
 const TIMESTAMP = /(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{3})/;
 const TIMING_LINE = /^\s*(\S+)\s+-->\s+(\S+)/;
 const INLINE_TIME = /<((?:\d+:)?\d{1,2}:\d{2}[.,]\d{3})>/g;
+/** A token that continues the word before it: digit groups (",400", ".5") and hyphenated parts ("-1"). */
+const JOINS = /^(?:[,.]\d|-[\p{L}\p{N}])/u;
+
+/** The same rule for a cue's plain text. */
+function joinSplitWords(text: string): string {
+  return text.replace(/([\p{L}\p{N}]) (?=[,.]\d|-[\p{L}\p{N}])/gu, '$1');
+}
 
 export function parseTimestamp(value: string): number {
   const match = TIMESTAMP.exec(value);
@@ -55,6 +62,13 @@ function wordsOf(body: string, start: number, end: number): Word[] {
   const push = (chunk: string) => {
     for (const token of plainText(chunk).split(/\s+/)) {
       if (!token) continue;
+      // Speech-to-text often splits numbers and compounds ("5 ,400", "C -1"): set them back as one word.
+      const previous = pieces[pieces.length - 1];
+      if (previous && JOINS.test(token) && /[\p{L}\p{N}]$/u.test(previous.text)) {
+        previous.text += token;
+        at = null;
+        continue;
+      }
       pieces.push({ text: token, at });
       at = null;
     }
@@ -111,7 +125,7 @@ export function parseVTT(source: string): Cue[] {
       id: timingIndex === 1 ? lines[0].trim() : '',
       start,
       end,
-      text: plainText(body.replace(INLINE_TIME, '')).replace(/\s+/g, ' ').trim(),
+      text: joinSplitWords(plainText(body.replace(INLINE_TIME, '')).replace(/\s+/g, ' ').trim()),
       words: wordsOf(body, start, end),
     });
   }
