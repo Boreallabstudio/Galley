@@ -544,6 +544,19 @@ class GalleyTextElement extends UIElement {
       { signal }
     );
 
+    // When the page changes shape (fullscreen, turning the phone), the line being read keeps its place.
+    let width = scroller.clientWidth;
+    let height = scroller.clientHeight;
+    const reshape = new ResizeObserver(() => {
+      if (scroller.clientWidth === width && scroller.clientHeight === height) return;
+      width = scroller.clientWidth;
+      height = scroller.clientHeight;
+      const record = this.#lines[this.#current];
+      if (this.#following && record) requestAnimationFrame(() => this.#scrollTo(record.element, 'anchor'));
+    });
+    reshape.observe(scroller);
+    signal.addEventListener('abort', () => reshape.disconnect());
+
     // Reading ahead or back stops the page from following playback, until the reader returns.
     const release = () => {
       if (performance.now() - this.#programmaticScroll > 120) this.#follow(false);
