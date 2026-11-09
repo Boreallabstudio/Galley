@@ -17,14 +17,14 @@
   .gl {
     --gl-unit: var(--media-scale-unit, 16px);
     --gl-font: var(--media-font-family, 'Newsreader Variable', 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif);
-    --gl-paper: light-dark(#f4efe6, #15130f);
-    --gl-paper-raised: light-dark(#fbf8f2, #1f1c17);
-    --gl-ink: light-dark(#1c1915, #f0e9dc);
-    --gl-ink-2: light-dark(#5a5248, #b0a797);
-    --gl-unread: light-dark(#6f675b, #9a9283);
-    --gl-rule: light-dark(rgb(28 25 21 / 0.16), rgb(240 233 220 / 0.16));
-    --gl-rule-strong: light-dark(rgb(28 25 21 / 0.42), rgb(240 233 220 / 0.42));
-    --gl-accent: var(--media-accent-color, light-dark(#a8361c, #f08467));
+    --gl-paper: light-dark(#f2f4f5, #0e1114);
+    --gl-paper-raised: light-dark(#fbfcfc, #181c20);
+    --gl-ink: light-dark(#121519, #e9edf0);
+    --gl-ink-2: light-dark(#4b535c, #a9b1b9);
+    --gl-unread: light-dark(#646d77, #8f98a2);
+    --gl-rule: light-dark(rgb(18 21 25 / 0.16), rgb(233 237 240 / 0.16));
+    --gl-rule-strong: light-dark(rgb(18 21 25 / 0.42), rgb(233 237 240 / 0.42));
+    --gl-accent: var(--media-accent-color, light-dark(#2346c8, #8fa6ff));
     --gl-on-ink: var(--media-accent-text-color, var(--gl-paper));
     --gl-radius: var(--media-border-radius, 3px);
     --gl-plate-ratio: 16 / 9;
@@ -62,6 +62,11 @@
   .gl:focus-visible {
     outline: 2px solid var(--gl-accent);
     outline-offset: 2px;
+  }
+
+  /* After a tap or click Galley hands focus back to the player; that focus is not drawn, keyboard focus is. */
+  .gl[data-gl-pointer]:focus-visible {
+    outline: none;
   }
 
   /* ---------- The page ---------- */
@@ -128,8 +133,8 @@
     width: 100%;
     aspect-ratio: var(--gl-plate-ratio);
     overflow: hidden;
-    color: #f4efe6;
-    background: #0d0c0a;
+    color: #f2f4f5;
+    background: #090b0e;
     border-radius: var(--gl-radius);
     cursor: pointer;
     isolation: isolate;
@@ -186,10 +191,10 @@
     justify-content: flex-end;
     gap: 0.45em;
     padding: 7cqi 7cqi 6cqi;
-    color: #f4efe6;
+    color: #f2f4f5;
     pointer-events: none;
-    text-shadow: 0 1px 12px rgb(13 12 10 / 0.6);
-    background: linear-gradient(to top, rgb(13 12 10 / 0.9), rgb(13 12 10 / 0.66) 45%, rgb(13 12 10 / 0) 80%);
+    text-shadow: 0 1px 12px rgb(9 11 14 / 0.6);
+    background: linear-gradient(to top, rgb(9 11 14 / 0.9), rgb(9 11 14 / 0.66) 45%, rgb(9 11 14 / 0) 80%);
     transition: opacity var(--gl-fade-duration) var(--gl-ease);
   }
 
@@ -237,8 +242,8 @@
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: #1c1915;
-    background: #f4efe6;
+    color: #121519;
+    background: #f2f4f5;
     border-radius: 999px;
   }
 
@@ -420,8 +425,8 @@
   .gl-overlay-line .gl-line-text {
     max-width: 34em;
     padding: 0.18em 0.5em 0.24em;
-    color: rgb(244 239 230 / 0.62);
-    background: rgb(13 12 10 / 0.72);
+    color: rgb(242 244 245 / 0.62);
+    background: rgb(9 11 14 / 0.72);
     border-radius: var(--gl-radius);
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
@@ -432,7 +437,7 @@
   }
 
   .gl-overlay-line .gl-word.is-said {
-    color: #fffaf0;
+    color: #ffffff;
   }
 
   .gl-buffering {
@@ -443,8 +448,8 @@
     padding: 0.2em 0.65em;
     font-size: var(--gl-label-size);
     font-style: italic;
-    color: #f4efe6;
-    background: rgb(13 12 10 / 0.72);
+    color: #f2f4f5;
+    background: rgb(9 11 14 / 0.72);
     border-radius: 999px;
     opacity: 0;
     transition: opacity var(--gl-fade-duration) var(--gl-ease);
@@ -473,8 +478,8 @@
     padding: 0.25em 0.8em;
     font-size: calc(var(--gl-unit) * 0.875);
     font-variant-numeric: tabular-nums;
-    color: #f4efe6;
-    background: rgb(13 12 10 / 0.76);
+    color: #f2f4f5;
+    background: rgb(9 11 14 / 0.76);
     border-radius: 999px;
     opacity: 0;
     transition: opacity var(--gl-fade-duration) var(--gl-ease);
@@ -529,14 +534,15 @@
     }
   }
 
+  /* The text runs below its own top row, where Find sits, so nothing scrolls under the field. */
   .gl-scroller {
     position: absolute;
-    inset: 0;
+    inset: calc(var(--gl-unit) * 2.75) 0 0;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--gl-rule-strong) transparent;
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.2em, #000 calc(100% - 2.6em), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 2.2em, #000 calc(100% - 2.6em), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1.1em, #000 calc(100% - 2.6em), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 1.1em, #000 calc(100% - 2.6em), transparent 100%);
   }
 
   .gl-content {
@@ -548,7 +554,7 @@
     grid-template-columns: var(--gl-gutter) minmax(0, 34em);
     column-gap: 0.25em;
     align-content: start;
-    padding: 1.75em calc(var(--gl-unit) * 0.5) 70% 0;
+    padding: 0.9em calc(var(--gl-unit) * 0.5) 70% 0;
     line-height: 1.58;
     hanging-punctuation: first;
   }
@@ -659,13 +665,15 @@
     position: absolute;
     top: 0;
     right: 0;
+    left: 0;
     z-index: 3;
     display: flex;
     gap: 0.5em;
     align-items: baseline;
-    padding: 0.1em 0 0.3em 0.75em;
+    justify-content: flex-end;
+    height: calc(var(--gl-unit) * 2.75);
     font-size: calc(var(--gl-unit) * 0.8125);
-    background: linear-gradient(to left, var(--gl-paper) 85%, transparent);
+    background: var(--gl-paper);
   }
 
   .gl[data-no-text] .gl-find {
@@ -674,7 +682,7 @@
 
   .gl-find-input {
     width: 9.5em;
-    min-height: calc(var(--gl-unit) * 1.75);
+    min-height: calc(var(--gl-unit) * 2.5);
     padding: 0 0.1em;
     font: inherit;
     font-style: italic;
@@ -1193,20 +1201,6 @@
     }
   }
 
-  .gl-chapters {
-    position: absolute;
-    inset: 0;
-    display: block;
-  }
-
-  .gl-chapter-segment {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    clip-path: inset(0 calc(100% - var(--media-slider-chapter-end)) 0 var(--media-slider-chapter-start));
-  }
-
   .gl-track {
     position: absolute;
     right: 0;
@@ -1222,27 +1216,62 @@
     background: var(--gl-unread);
   }
 
-  /* A small gap between chapters, like the space between sections. */
-  .gl-chapter-segment .gl-track {
-    clip-path: inset(-2px calc(100% - var(--media-slider-chapter-end) + 3px) -2px calc(var(--media-slider-chapter-start) + 3px));
-  }
-
-  .gl-chapter-segment:first-child .gl-track {
-    clip-path: inset(-2px calc(100% - var(--media-slider-chapter-end) + 3px) -2px 0);
-  }
-
-  .gl-chapter-segment:last-child .gl-track {
-    clip-path: inset(-2px 0 -2px calc(var(--media-slider-chapter-start) + 3px));
-  }
-
-  .gl-chapter-segment:only-child .gl-track {
-    clip-path: none;
-  }
-
-  .gl-chapter-segment[data-highlighted] .gl-track,
+  .gl-time-slider:is([data-pointing], [data-dragging]) .gl-track,
   .gl-volume-slider[data-pointing] .gl-track,
   .gl-volume-slider[data-dragging] .gl-track {
     height: 3px;
+  }
+
+  /* The seek rule is one unbroken line, as a sentence is; chapters are set on it as section marks. */
+  .gl-marks {
+    position: absolute;
+    inset: 0;
+    display: block;
+    pointer-events: none;
+  }
+
+  .gl-mark {
+    position: absolute;
+    top: 50%;
+    left: var(--gl-at);
+    display: block;
+    width: 1px;
+    height: 7px;
+    background: var(--gl-unread);
+    translate: -50% -50%;
+  }
+
+  .gl-mark[data-read] {
+    background: var(--gl-accent);
+  }
+
+  .gl-mark-number {
+    position: absolute;
+    bottom: calc(100% + 3px);
+    left: 50%;
+    font-size: calc(var(--gl-unit) * 0.625);
+    font-variant-numeric: lining-nums;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    color: var(--gl-unread);
+    white-space: nowrap;
+    translate: -50% 0;
+  }
+
+  .gl-mark[data-read] .gl-mark-number {
+    color: var(--gl-accent);
+  }
+
+  /* On a narrow rule the numerals would crowd; the ticks alone mark the sections. */
+  @container gl (width < 46rem) {
+    .gl-mark-number {
+      display: none;
+    }
+  }
+
+  .gl-time-slider[data-gl-keyed] .gl-mark-number,
+  .gl-time-slider:is([data-pointing], [data-dragging]) .gl-mark-number {
+    opacity: 0.35;
   }
 
   .gl-buffer,
@@ -1323,9 +1352,33 @@
     left: var(--gl-card-left, 0px) !important;
   }
 
-  .gl-time-slider[data-pointing] .gl-preview,
-  .gl-time-slider[data-interactive]:not([data-pointing]) .gl-preview {
+  /* A pointer passing over the rule on its way to a button should not flash the card: it waits a beat. */
+  .gl-time-slider[data-pointing] .gl-preview {
     opacity: 1;
+    transition-delay: 120ms;
+  }
+
+  .gl-time-slider[data-dragging] .gl-preview,
+  .gl-time-slider[data-gl-keyed]:not([data-pointing]) .gl-preview {
+    opacity: 1;
+    transition-delay: 0ms;
+  }
+
+  /* From the keyboard the card tells the playhead's time, not where the pointer last was. */
+  .gl-preview-now {
+    display: none;
+  }
+
+  .gl-time-slider[data-gl-keyed]:not([data-pointing]) .gl-preview-time {
+    display: none;
+  }
+
+  .gl-time-slider[data-gl-keyed]:not([data-pointing]) .gl-preview-now {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
   }
 
   .gl-preview-time {
@@ -1370,7 +1423,7 @@
     position: absolute;
     inset: 0;
     z-index: 8;
-    background: rgb(13 12 10 / 0.6);
+    background: rgb(9 11 14 / 0.6);
   }
 
   .gl-dialog-backdrop:not([data-open]) {
@@ -1515,6 +1568,7 @@
       margin-top: 0;
     }
 
+
     .gl:fullscreen .gl-figcaption .gl-chapter,
     .gl:fullscreen .gl-volume-slider,
     .gl:fullscreen .gl-long {
@@ -1549,9 +1603,9 @@
 
   @media (prefers-contrast: more) {
     .gl {
-      --gl-unread: light-dark(#4a443b, #c4bcae);
-      --gl-ink-2: light-dark(#3d372f, #cfc7b9);
-      --gl-rule: light-dark(rgb(28 25 21 / 0.4), rgb(240 233 220 / 0.4));
+      --gl-unread: light-dark(#424a53, #bcc4cc);
+      --gl-ink-2: light-dark(#363d45, #c8d0d7);
+      --gl-rule: light-dark(rgb(18 21 25 / 0.4), rgb(233 237 240 / 0.4));
     }
   }
 
@@ -1581,6 +1635,14 @@
 
     .gl-track {
       background: CanvasText;
+    }
+
+    .gl-mark {
+      background: CanvasText;
+    }
+
+    .gl-mark[data-read] {
+      background: Highlight;
     }
   }
 }

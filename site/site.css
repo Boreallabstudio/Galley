@@ -3,12 +3,12 @@
 
 :root {
   color-scheme: light dark;
-  --ground: light-dark(#e7e0d1, #0f0e0c);
-  --paper: light-dark(#f4efe6, #15130f);
-  --ink: light-dark(#1c1915, #f0e9dc);
-  --ink-2: light-dark(#554d43, #b8afa0);
-  --rule: light-dark(rgb(28 25 21 / 0.18), rgb(240 233 220 / 0.18));
-  --accent: light-dark(#a8361c, #f08467);
+  --ground: light-dark(#e3e7ea, #0b0d10);
+  --paper: light-dark(#f2f4f5, #0e1114);
+  --ink: light-dark(#121519, #e9edf0);
+  --ink-2: light-dark(#4b535c, #aab2ba);
+  --rule: light-dark(rgb(18 21 25 / 0.18), rgb(233 237 240 / 0.18));
+  --accent: light-dark(#2346c8, #8fa6ff);
   --page: min(100% - 2 * clamp(1rem, 4vw, 3rem), 76rem);
   --text: min(100% - 2 * clamp(1rem, 4vw, 3rem), 44rem);
 }
@@ -54,7 +54,8 @@ a:hover {
   color: var(--accent);
 }
 
-:focus-visible {
+/* The page's own ring; inside the player the skin draws its own. */
+:focus-visible:not(.gl, .gl *) {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: 2px;
@@ -168,7 +169,7 @@ h1 em {
 }
 
 .stage-player {
-  --media-accent-color: light-dark(#a8361c, #f08467);
+  --media-accent-color: light-dark(#2346c8, #8fa6ff);
 }
 
 /* On a laptop the whole player, controls included, fits on the first screen: short screens get a narrower player. */
@@ -203,7 +204,7 @@ h1 em {
 .stage-player .gl {
   box-shadow:
     0 1px 0 light-dark(rgb(255 255 255 / 0.6), rgb(255 255 255 / 0.04)) inset,
-    0 24px 48px -28px light-dark(rgb(28 25 21 / 0.45), rgb(0 0 0 / 0.8));
+    0 24px 48px -28px light-dark(rgb(18 21 25 / 0.45), rgb(0 0 0 / 0.8));
 }
 
 .stage-cue {

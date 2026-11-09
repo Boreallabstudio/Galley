@@ -93,8 +93,12 @@ class GalleyTextElement extends UIElement {
 
     this.#listen(this.#abort.signal);
 
-    // [ and ] step back and forward a sentence from anywhere in the player.
     const container = this.closest('media-container');
+    // Focus the player takes after a tap or click is not drawn; focus reached by keyboard is.
+    container?.addEventListener('pointerdown', () => container.setAttribute('data-gl-pointer', ''), { signal: this.#abort.signal, capture: true });
+    container?.addEventListener('keydown', () => container.removeAttribute('data-gl-pointer'), { signal: this.#abort.signal, capture: true });
+
+    // [ and ] step back and forward a sentence from anywhere in the player.
     container?.addEventListener(
       'keydown',
       (event) => {
@@ -125,6 +129,8 @@ class GalleyTextElement extends UIElement {
     if (!slider || !this.#lines.length) return;
     let shown = -1;
     let wasPointing = false;
+    let hoverSince = 0;
+    let settle = 0;
 
     const clear = () => {
       if (shown >= 0) this.#lines[shown]?.element.classList.remove('is-previewed');
@@ -132,8 +138,23 @@ class GalleyTextElement extends UIElement {
     };
 
     const update = () => {
-      const pointing = slider.hasAttribute('data-pointing') || slider.hasAttribute('data-dragging');
+      const dragging = slider.hasAttribute('data-dragging');
+      const pointing = dragging || slider.hasAttribute('data-pointing');
       const duration = this.#edition?.media?.duration;
+      // A pointer crossing the rule on its way to a button is not looking for a place: wait 120 ms first.
+      if (pointing && !dragging && !wasPointing) {
+        const now = performance.now();
+        if (!hoverSince) hoverSince = now;
+        if (now - hoverSince < 120) {
+          clearTimeout(settle);
+          settle = window.setTimeout(update, 130 - (now - hoverSince));
+          return;
+        }
+      }
+      if (!pointing) {
+        hoverSince = 0;
+        clearTimeout(settle);
+      }
       if (pointing && duration && Number.isFinite(duration)) {
         const percent = parseFloat(slider.style.getPropertyValue('--media-slider-pointer'));
         if (!Number.isFinite(percent)) return;
@@ -234,11 +255,7 @@ class GalleyTextElement extends UIElement {
 
   /** Mark every place the query occurs, and go to the first one at or after the playhead. */
   #find(query: string) {
-    for (const match of this.#matches) {
-      for (let k = 0; k < match.length; k++) {
-        this.#lines[match.line]?.words[match.word + k]?.classList.remove('is-match', 'is-match-current');
-      }
-    }
+    for (const word of this.querySelectorAll('.is-match, .is-match-current')) word.classList.remove('is-match', 'is-match-current');
     this.#matches = [];
     this.#match = -1;
     const terms = normalize(query).split(' ').filter(Boolean);
@@ -545,6 +562,17 @@ class GalleyTextElement extends UIElement {
         event.stopPropagation();
         this.#jump(this.#lines[index].cue.start);
         return;
+      case ' ': {
+        // A line is a button to the browser, so Space would choose it; here it keeps its player meaning.
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.repeat) return;
+        const playback = this.#playback.value;
+        if (!playback) return;
+        if (playback.paused) Promise.resolve(playback.play()).catch(() => {});
+        else playback.pause();
+        return;
+      }
       default:
         return;
     }
@@ -792,7 +820,7 @@ class GalleyPeekElement extends UIElement {
       if (slider.hasAttribute('data-pointing') || slider.hasAttribute('data-dragging')) {
         percent = parseFloat(slider.style.getPropertyValue('--media-slider-pointer'));
         if (Number.isFinite(percent)) this.#show((Math.min(Math.max(percent, 0), 100) / 100) * duration);
-      } else if (slider.matches(':focus-within')) {
+      } else if (slider.hasAttribute('data-gl-keyed')) {
         percent = (this.#edition!.time / duration) * 100;
         this.#show(this.#edition!.time);
       }
@@ -802,16 +830,27 @@ class GalleyPeekElement extends UIElement {
     observer.observe(slider, { attributes: true, attributeFilter: ['style', 'data-pointing', 'data-dragging'] });
     signal.addEventListener('abort', () => observer.disconnect());
 
-    // Keyboard users: while the slider has focus the card follows the playhead.
+    // Keyboard users: each key that moves the playhead shows the card at the playhead; it goes 2 s after the last.
+    let hide = 0;
+    const done = () => {
+      clearTimeout(hide);
+      slider.removeAttribute('data-gl-keyed');
+      this.#unsubscribe?.();
+      this.#unsubscribe = null;
+    };
     slider.addEventListener(
-      'focusin',
-      () => {
-        this.#unsubscribe?.();
-        this.#unsubscribe = this.#edition!.subscribe(update);
+      'keydown',
+      (event) => {
+        if (!/^(Arrow|Page|Home$|End$)/.test(event.key)) return;
+        slider.setAttribute('data-gl-keyed', '');
+        if (!this.#unsubscribe) this.#unsubscribe = this.#edition!.subscribe(update);
+        clearTimeout(hide);
+        hide = window.setTimeout(done, 2000);
       },
-      { signal }
+      { signal, capture: true }
     );
-    slider.addEventListener('focusout', () => this.#unsubscribe?.(), { signal });
+    slider.addEventListener('focusout', done, { signal });
+    signal.addEventListener('abort', done);
   }
 
   disconnectedCallback() {
@@ -870,6 +909,46 @@ class GalleyChapterElement extends UIElement {
         current = index;
         this.innerHTML = `<span class="gl-chapter-number">${roman(index + 1)}</span> <span class="gl-chapter-title"></span>`;
         this.querySelector('.gl-chapter-title')!.textContent = chapters[index].text;
+      });
+    });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.#unsubscribe?.();
+    this.#unsubscribe = null;
+  }
+}
+
+/** <galley-marks>: section marks on the seek rule, one per chapter after the first, numbered as in the text. */
+class GalleyMarksElement extends UIElement {
+  #unsubscribe: (() => void) | null = null;
+
+  connectedCallback() {
+    super.connectedCallback();
+    const edition = editionFor(this);
+    if (!edition) return;
+    void edition.text.then(({ chapters }) => {
+      if (!this.isConnected || chapters.length < 2) return;
+      let duration = 0;
+      let marks: HTMLElement[] = [];
+      this.#unsubscribe?.();
+      this.#unsubscribe = edition.subscribe((time) => {
+        const length = edition.media?.duration ?? 0;
+        if (Number.isFinite(length) && length > 0 && length !== duration) {
+          duration = length;
+          this.replaceChildren();
+          marks = chapters.slice(1).map((chapter, index) => {
+            const mark = document.createElement('span');
+            mark.className = 'gl-mark';
+            mark.dataset.start = String(chapter.start);
+            mark.style.setProperty('--gl-at', `${Math.min(100, (chapter.start / duration) * 100)}%`);
+            mark.innerHTML = `<span class="gl-mark-number">${roman(index + 2)}</span>`;
+            this.append(mark);
+            return mark;
+          });
+        }
+        for (const mark of marks) mark.toggleAttribute('data-read', time + 0.001 >= Number(mark.dataset.start));
       });
     });
   }
@@ -966,6 +1045,7 @@ for (const [name, element] of [
   ['galley-peek', GalleyPeekElement],
   ['galley-plate', GalleyPlateElement],
   ['galley-contents', GalleyContentsElement],
+  ['galley-marks', GalleyMarksElement],
 ] as const) {
   if (!customElements.get(name)) customElements.define(name, element);
 }
