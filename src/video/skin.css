@@ -451,12 +451,18 @@
     color: #f2f4f5;
     background: rgb(9 11 14 / 0.72);
     border-radius: 999px;
+    visibility: hidden;
     opacity: 0;
-    transition: opacity var(--gl-fade-duration) var(--gl-ease);
+    transition:
+      opacity var(--gl-fade-duration) var(--gl-ease),
+      visibility 0s linear var(--gl-fade-duration);
   }
 
+  /* Hidden, it is gone from the accessibility tree too, so the figure is not named "Loading". */
   .gl-buffering[data-visible] {
+    visibility: visible;
     opacity: 1;
+    transition-delay: 0s;
   }
 
   .gl-buffering-label::after {
