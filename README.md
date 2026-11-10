@@ -1,21 +1,25 @@
 # Ascent
 
-A skin for [Video.js 10](https://videojs.org) that draws the timeline as a flight path.
+A skin for [Video.js 10](https://videojs.org) that puts the viewer at Mission Control.
 
-The film's progress is an orange line climbing across the lower part of the picture, with a craft at the playhead and the chapters marked as events along the way. Data sits at the edges of the frame: the title top left, the event in progress top right, and a large mission clock bottom right. Once the film has played for three seconds without input, the controls lift away and the path sinks and fades, so nothing is drawn over the picture except captions. Move the pointer, tap, press a key or pause and everything comes back.
+The film is the main screen and you are the flight controller. The film's progress is an orange flight path climbing across the lower part of the picture, with a craft at the playhead and the chapters marked as events along the way. Under it is your console desk: Flight, Propulsion, Comms, Screen, the next event and a large mission clock. A status board at the top polls Signal, Audio, Captions and Flight. Once the film has played for three seconds without input, the whole console lifts away and the path sinks and fades, so nothing is drawn over the picture except captions. Move the pointer, tap, press a key or pause and everything comes back.
 
 ## Controls
 
 - **Flight path**: click or drag anywhere along it to seek. It is a Video.js `<media-time-slider>`, so it also works from the keyboard and with screen readers.
 - **Events**: one per cue in the media's `kind="chapters"` track. Choose one to jump there. Without a chapters track, the path is drawn on its own.
-- **Bottom row**: play, mute, captions and fullscreen. How volume and speed appear depends on the player's width:
-  - 900 px and wider: two small thrusters in the row. Volume is an exhaust plume that grows from an engine nozzle; speed lights one shock diamond per rate from 0.5× to 2×.
-  - 520 to 899 px: the same thruster pops up on a small plate above the mute button and above a speed button, on hover, on keyboard focus, or on the first tap (the second tap acts).
-  - Under 520 px: mute toggles, and the speed button cycles through the rates. Under 380 px the speed button is left out (the `<` and `>` keys still work).
-  - Fullscreen uses the same row as the normal player.
+- **Flight**: the play key. On wide players it is one pill that reads Launch, Hold, Resume or Relaunch, following the film. The craft's engine flares at ignition and glows brighter at higher speeds.
+- **Propulsion**: mute, volume and speed. Volume and speed are engine dials: the engine seen from behind, with a glow in its throat that grows from an ember to white-hot and a ring that shows the level. Drag right or up for more, press a point on the ring to jump there, or use the wheel. How they appear depends on the player's width:
+  - 900 px and wider: two dials on the desk, each with its reading beside it.
+  - 520 to 899 px: the same dial pops up on a small glass plate above the mute key and above a speed key, on hover, on keyboard focus, or on the first tap (the second tap acts).
+  - Under 520 px: mute toggles, and the speed key cycles through the rates. Under 380 px the speed key is left out (the `<` and `>` keys still work).
+- **Comms** and **Screen**: captions and fullscreen. Fullscreen uses the same desk as the normal player.
+- **Next event** (1040 px and wider): a countdown to the next chapter. Choose it, or press N, to skip there.
 - **Mission clock**: shows time elapsed. Choose it to switch to time remaining.
-- **Captions** are drawn by the skin and rise with the controls to sit above the event labels, so they never run through the path.
-- Every button has a hit area of at least 44 × 44 px, and the hit areas never overlap. With reduced motion set, the controls appear and hide without the lift animation.
+- **Status board** (900 px and wider): four lamps. Signal reads Go, Hold while the film buffers, or Lost on an error. Audio and Captions read Go or Off. Flight reads Ready, Go, Hold or Complete. Green is used for the Go lamps only.
+- **Holds**: while the film buffers, the craft vents gas as on the pad before launch, the main screen dims, and the console stays up. Narrower players show a "Hold · buffering" line in place of the board.
+- **Captions** are drawn by the skin and rise with the console to sit above the event labels, so they never run through the path.
+- Every key has a hit area of at least 44 × 44 px, and the hit areas never overlap. With reduced motion set, the console appears and hides without the lift animation, and the glow, ignition and venting do not animate.
 
 ## Keys
 
@@ -28,11 +32,12 @@ The film's progress is an orange line climbing across the lower part of the pict
 | ↑ ↓ | Volume |
 | `<` `>` (or `,` `.`) | Slower / faster |
 | 1–9 | Jump to that event |
+| N | Skip to the next event |
 | M | Mute |
 | C | Captions |
 | F | Fullscreen |
 
-On a focused slider, the arrow keys move that slider. Escape closes an open pop-up ladder and puts focus back on its button.
+On a focused slider, the arrow keys move that slider. Escape closes an open pop-up dial and puts focus back on its key.
 
 ## Use it
 
@@ -66,7 +71,7 @@ npm run typecheck
 npm run build      # static build in dist/
 ```
 
-The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `ascent.ts` holds the custom elements (path, events, thrusters, clock, captions, idle behaviour), and `flight.ts` holds the shared geometry. The workbench in `apps/preview/` streams the film from Mux by its public playback ID (`apps/preview/src/frame/player.ts`), with the chapters and captions tracks served from `apps/preview/public/media/`.
+The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `ascent.ts` holds the custom elements (path, events, engine dials, status board, next event, clock, captions, idle behaviour and holds), and `flight.ts` holds the shared geometry and the glow colours. The workbench in `apps/preview/` streams the film from Mux by its public playback ID (`apps/preview/src/frame/player.ts`), with the chapters and captions tracks served from `apps/preview/public/media/`.
 
 ## Credits
 

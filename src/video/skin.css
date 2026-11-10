@@ -1,8 +1,9 @@
 /*
- * Ascent: a Video.js 10 skin that draws the timeline as a flight path.
+ * Ascent: a Video.js 10 skin that puts the viewer at Mission Control. The film is the main screen, the timeline is a
+ * flight path across it, and the controls are a console desk along the bottom edge.
  *
  * One dark look by design. Sizes follow the player, not the page: the root is a size container, and lengths are in
- * cqw / cqh. Breakpoints are container queries at 900, 760, 520, 420 and 380 px; fullscreen uses the same row.
+ * cqw / cqh. Breakpoints are container queries at 1040, 900, 760, 520, 420 and 380 px; fullscreen uses the same desk.
  *
  * `--lift` (set by <ascent-lift>) runs from 1, HUD showing, to 0, HUD away while the film plays.
  */
@@ -11,6 +12,8 @@
   --void: #05070b;
   --ink: #f4f1ea;
   --burn: #ff5b1f;
+  --go: #8be0a4;
+  --hair: rgba(244, 241, 234, 0.2);
   --plate: rgba(3, 5, 9, 0.62);
   --wide: 'Archivo Variable', 'Archivo', 'Arial Black', Arial, sans-serif;
   --mono: 'DM Mono', ui-monospace, Menlo, monospace;
@@ -121,6 +124,12 @@
   background:
     radial-gradient(ellipse 62% 70% at 50% 42%, transparent 45%, rgba(3, 5, 9, 0.55)),
     linear-gradient(rgba(3, 5, 9, 0.6), transparent 24%, transparent 40%, rgba(3, 5, 9, 0.5) 70%, rgba(3, 5, 9, 0.9));
+  transition: background-color 0.3s;
+}
+
+/* A hold (the film is buffering): the main screen dims while the craft vents. */
+.asc[data-hold] .asc-shade {
+  background-color: rgba(3, 5, 9, 0.5);
 }
 
 /* ---------- type ---------- */
@@ -185,7 +194,7 @@
 
 .asc-title media-title {
   display: block;
-  font-size: clamp(15px, 1.9cqw, 30px);
+  font-size: clamp(15px, 1.9cqw, 38px);
   font-weight: 700;
   letter-spacing: 0.2em;
   line-height: 1.2;
@@ -193,7 +202,7 @@
 
 .asc-title .asc-byline,
 .asc-now span {
-  font-size: clamp(9px, 0.88cqw, 13px);
+  font-size: clamp(9px, 0.88cqw, 16px);
   opacity: 0.78;
 }
 
@@ -207,7 +216,7 @@
 }
 
 .asc-now b {
-  font-size: clamp(11px, 1.22cqw, 18px);
+  font-size: clamp(11px, 1.22cqw, 23px);
   font-weight: 600;
 }
 
@@ -307,16 +316,16 @@
 }
 
 .asc-ev b {
-  font-size: clamp(9px, 0.95cqw, 14px);
+  font-size: clamp(9px, 0.95cqw, 18px);
   font-weight: 600;
 }
 
 .asc-ev.cur b {
-  font-size: clamp(10px, 1.08cqw, 16px);
+  font-size: clamp(10px, 1.08cqw, 20px);
 }
 
 .asc-ev i {
-  font-size: clamp(8px, 0.88cqw, 13px);
+  font-size: clamp(8px, 0.88cqw, 16px);
   font-style: normal;
   opacity: 0.85;
 }
@@ -336,34 +345,240 @@
   }
 }
 
-/* ---------- bottom row ---------- */
+/* ---------- status board: the go / no-go poll, top centre on wide players ---------- */
 
-.asc-row {
+.asc-board {
   position: absolute;
-  bottom: 3.4cqh;
-  left: 4.3cqw;
-  display: flex;
-  align-items: center;
-  gap: 1.5cqw;
+  top: 3.5cqw;
+  left: 50%;
+  display: none;
+  gap: 6px;
+  transform: translateX(-50%);
+  pointer-events: none !important;
 }
 
+.asc-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: clamp(80px, 7.7cqw, 150px);
+  padding: 6px 11px 7px;
+  border: 1px solid rgba(244, 241, 234, 0.18);
+  border-radius: 10px;
+  background: linear-gradient(rgba(20, 24, 31, 0.62), rgba(8, 10, 14, 0.62));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.asc-cell i {
+  font: 400 clamp(8px, 0.74cqw, 13px) var(--mono);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.asc-cell b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 clamp(9px, 0.86cqw, 15px) var(--wide);
+  font-stretch: 125%;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The lamp. Green is used here only, for Go. */
+.asc-cell b::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.asc-cell[data-s='go'] b::before {
+  border-color: var(--go);
+  background: var(--go);
+  box-shadow: 0 0 8px var(--go);
+}
+
+.asc-cell:is([data-s='hold'], [data-s='wait']) b {
+  color: var(--burn);
+}
+
+.asc-cell:is([data-s='hold'], [data-s='wait']) b::before {
+  background: var(--burn);
+  box-shadow: 0 0 8px var(--burn);
+}
+
+.asc-cell[data-s='hold'] b::before {
+  animation: asc-blink 1s steps(2) infinite;
+}
+
+.asc-cell[data-s='off'] b {
+  opacity: 0.55;
+}
+
+@keyframes asc-blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* ---------- the console desk ---------- */
+
+/* --desk is the desk's height; flight.ts keeps the path clear of it with the same numbers. */
+.asc-row {
+  --desk: 56px;
+
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--desk);
+  padding-inline: 4.3cqw;
+  border-top: 1px solid rgba(244, 241, 234, 0.36);
+  background: linear-gradient(rgba(5, 7, 11, 0.8), rgba(5, 7, 11, 0.94));
+}
+
+.asc-row::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 0;
+  left: 0;
+  border-top: 1px solid rgba(244, 241, 234, 0.13);
+  pointer-events: none;
+}
+
+/* Modules (Flight, Propulsion, Comms, Screen, Next event, Mission clock). Under 900 px they dissolve into one row. */
+.asc-mod {
+  display: contents;
+}
+
+.asc-mh,
+.asc-kl {
+  display: none;
+}
+
+.asc-mod.seq {
+  display: none;
+}
+
+.asc-clock {
+  display: block;
+  margin-left: auto;
+}
+
+@container (min-width: 760px) {
+  .asc-row {
+    --desk: 72px;
+  }
+}
+
+@container (min-width: 900px) {
+  .asc-row {
+    --desk: clamp(84px, 13.4cqh, 172px);
+
+    align-items: stretch;
+    gap: 0;
+    padding-inline: 2.6cqw;
+  }
+
+  .asc-mod {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1.15cqw;
+    padding: calc(var(--desk) * 0.2) 1.7cqw 0;
+    border-right: 1px solid rgba(244, 241, 234, 0.17);
+  }
+
+  .asc-mod.clk {
+    margin-left: auto;
+    padding-top: 0;
+    border-right: 0;
+    border-left: 1px solid rgba(244, 241, 234, 0.17);
+  }
+
+  .asc-mh {
+    position: absolute;
+    top: calc(var(--desk) * 0.115);
+    left: 1.7cqw;
+    display: block;
+    font: 400 clamp(8px, 0.76cqw, 14px) var(--mono);
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: 0.62;
+  }
+
+  .asc-kl {
+    position: relative;
+    display: block;
+    /* Wide enough for the longest word, Relaunch, so the desk never shifts when the label changes. */
+    min-width: 8.7em;
+    font: 700 clamp(9px, 0.9cqw, 17px) var(--wide);
+    font-stretch: 125%;
+    letter-spacing: 0.16em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .asc-clock {
+    margin-left: 0;
+  }
+}
+
+@container (min-width: 1040px) {
+  .asc-mod.seq {
+    display: flex;
+  }
+}
+
+/* Keys: slim glass, lit from above, with a light that follows the pointer and a real press. */
 .asc-b {
   position: relative;
   display: grid;
+  flex: none;
   place-items: center;
-  width: clamp(38px, 3.3cqw, 50px);
-  height: clamp(38px, 3.3cqw, 50px);
-  border: 0;
-  border-radius: 50%;
-  /* The ring is an inset shadow, not a border, so the hit area below measures from the drawn edge at any pixel
-     density (a 1.5px border rounds to 1px on standard screens and would move it). */
-  box-shadow: inset 0 0 0 1.5px var(--ink);
-  background: rgba(3, 5, 9, 0.35);
+  width: clamp(40px, 3.5cqw, 70px);
+  height: clamp(40px, 3.5cqw, 70px);
+  border: 1px solid var(--hair);
+  border-radius: clamp(11px, 1.05cqw, 21px);
+  background: linear-gradient(rgba(244, 241, 234, 0.14), rgba(244, 241, 234, 0.045));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 8px 20px rgba(0, 0, 0, 0.32);
   color: var(--ink);
   cursor: pointer;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  backdrop-filter: blur(14px) saturate(1.3);
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s,
+    transform 0.12s;
 }
 
-/* Every button's hit area reaches 4px past its ring: 44px at the 36px phone size, and with the 8px gap there the hit
+/* The pointer light: <ascent-keys> writes --mx / --my as the pointer moves over a key. */
+.asc-b::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.3), transparent 62%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+/* Every key's hit area reaches 4px past its edge: 44px at the 36px phone size, and with the 8px gap there the hit
    areas meet edge to edge without overlapping. */
 .asc-b::after {
   content: '';
@@ -371,26 +586,67 @@
   inset: -4px;
 }
 
+.asc-b:hover {
+  border-color: rgba(244, 241, 234, 0.42);
+}
+
+.asc-b:hover::before {
+  opacity: 1;
+}
+
+.asc-b:active {
+  transform: scale(0.95);
+}
+
 .asc-b svg {
-  width: 50%;
-  height: 50%;
+  position: relative;
+  width: 46%;
+  height: 46%;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
+/* The play key: one ink pill that reads Launch, Hold, Resume or Relaunch on wide players. */
 .asc-b.play {
-  width: clamp(46px, 4.3cqw, 66px);
-  height: clamp(46px, 4.3cqw, 66px);
-  background: var(--ink);
+  width: clamp(46px, 4.1cqw, 80px);
+  height: clamp(46px, 4.1cqw, 80px);
+  border-color: transparent;
+  border-radius: 99px;
+  background: linear-gradient(#fffdf8, #e9e4d9);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 0 rgba(255, 91, 31, 0);
   color: var(--void);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.asc-b.play::before {
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 91, 31, 0.34), transparent 64%);
+}
+
+.asc-b.play:hover {
+  border-color: transparent;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 4px rgba(255, 91, 31, 0.28);
 }
 
 .asc-b.play svg {
-  width: 40%;
-  height: 40%;
+  flex: none;
+  width: clamp(15px, 1.45cqw, 28px);
+  height: clamp(15px, 1.45cqw, 28px);
+  stroke-width: 2;
+}
+
+.asc-b.play .asc-i-play {
+  fill: currentColor;
+  stroke-width: 1.4;
 }
 
 .asc-b.play:not([data-paused]) .asc-i-play,
@@ -400,17 +656,33 @@
   display: none;
 }
 
-/* The replay arrow is an open stroke, so it is drawn a little larger than the solid triangle. */
-.asc-b.play .asc-i-replay {
-  width: 46%;
-  height: 46%;
+@container (min-width: 900px) {
+  .asc-b.play {
+    display: flex;
+    align-items: center;
+    gap: 0.75cqw;
+    width: auto;
+    padding: 0 1.5cqw 0 1.25cqw;
+  }
 }
 
-/* Pressed states: muted (or silent), captions on. */
+/* Pressed keys (muted or silent, captions on) are brighter glass. Muted also turns the icon warm. */
 .asc-b.mute:is([data-muted], [data-volume-level='off']),
 .asc-b.cc[data-active] {
-  background: var(--ink);
-  color: var(--void);
+  border-color: rgba(244, 241, 234, 0.55);
+  background: linear-gradient(rgba(244, 241, 234, 0.3), rgba(244, 241, 234, 0.14));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 8px 20px rgba(0, 0, 0, 0.32),
+    0 0 16px rgba(244, 241, 234, 0.12);
+}
+
+.asc-b.mute:is([data-muted], [data-volume-level='off']) {
+  color: #ff8a5c;
+}
+
+.asc-b.cc:not([data-active]) svg {
+  opacity: 0.55;
 }
 
 .asc-b.mute:is([data-muted], [data-volume-level='off']) .asc-i-on,
@@ -420,12 +692,15 @@
 
 .asc-b.rate {
   width: auto;
-  padding: 0 12px;
-  border-radius: 99px;
+  padding: 0 13px;
   font: 400 13px var(--mono);
 }
 
-/* Mute and speed each sit in a wrapper with a pop-up thruster above them (mid-size players only). */
+.asc-b.rate ascent-rate {
+  position: relative;
+}
+
+/* Mute and speed each sit in a wrapper with a pop-up engine dial above them (mid-size players only). */
 .asc-wrap {
   position: relative;
   display: flex;
@@ -435,7 +710,7 @@
   display: none;
 }
 
-/* A bridge over the gap, so the pointer can travel from the button up to its pop-up. */
+/* A bridge over the gap, so the pointer can travel from the key up to its pop-up. */
 .asc-wrap::before {
   content: '';
   position: absolute;
@@ -445,23 +720,35 @@
   height: 16px;
 }
 
-/* Thrusters: the drawing (viewBox 0 0 110 28) with its readout beside it. --asc-thr-width is the drawing's width,
-   --asc-thr-left where it starts inside the control; the volume slider below is placed from both. */
-ascent-ladder {
-  --asc-thr-left: 0px;
-
+/* Engine dials for volume and speed: the engine seen from behind. The glow in its throat grows from an ember to
+   white-hot, and the ring around it shows the level. The readout sits beside the drawing. */
+ascent-engine {
   position: relative;
   align-items: center;
-  cursor: ew-resize;
+  cursor: grab;
   touch-action: none;
+}
+
+ascent-engine[data-dragging] {
+  cursor: grabbing;
 }
 
 .asc-thr-svg {
   display: block;
   flex: none;
-  width: var(--asc-thr-width);
   height: auto;
   overflow: visible;
+}
+
+/* The glow breathes while the film plays. */
+.asc:has(.asc-b.play:not([data-paused])) .asc-thr-svg .tg {
+  animation: asc-glow 1.7s ease-in-out infinite;
+}
+
+@keyframes asc-glow {
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .asc-thr-read {
@@ -469,27 +756,19 @@ ascent-ladder {
   letter-spacing: 0.04em;
 }
 
-/* The volume thruster's <media-volume-slider> spans the drawn range, x 27–100 of 110, and the control's full height. */
+/* The volume dial's <media-volume-slider> is its accessible slider and takes the keys. Pointer and wheel are read by
+   the dial itself, so they pass through. */
 .asc-thr-hit {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(var(--asc-thr-left) + var(--asc-thr-width) * 27 / 110);
+  inset: 0;
   display: block;
-  width: calc(var(--asc-thr-width) * 73 / 110);
-}
-
-/* A little past each end; values there clamp to 0 and 100. */
-.asc-thr-hit::before {
-  content: '';
-  position: absolute;
-  inset: 0 -8px;
+  pointer-events: none;
 }
 
 .asc-thr-thumb {
   position: absolute;
   top: 50%;
-  left: var(--media-slider-fill, 0%);
+  left: 50%;
   display: block;
   width: 1px;
   height: 1px;
@@ -500,38 +779,32 @@ ascent-ladder {
   outline: none;
 }
 
-/* Pop-up: a small plate with a caret, above its button. */
+/* Pop-up: a small glass plate above its key. */
 .asc-pop {
-  --asc-thr-width: 110px;
-  --asc-thr-left: 12px;
-
   position: absolute;
   bottom: calc(100% + 14px);
   left: -8px;
   display: flex;
   gap: 8px;
-  width: 186px;
+  width: 132px;
   padding: 10px 12px;
-  border: 1.2px solid var(--ink);
-  background: rgba(3, 5, 9, 0.95);
+  border: 1px solid rgba(244, 241, 234, 0.22);
+  border-radius: 16px;
+  background: rgba(14, 17, 23, 0.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 14px 34px rgba(0, 0, 0, 0.5);
   visibility: hidden;
   opacity: 0;
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
   transition:
     opacity 0.16s,
     visibility 0.16s;
 }
 
-.asc-pop::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 22px;
-  width: 10px;
-  height: 10px;
-  border-right: 1.2px solid var(--ink);
-  border-bottom: 1.2px solid var(--ink);
-  background: rgb(3, 5, 9);
-  transform: rotate(45deg);
+.asc-pop .asc-thr-svg {
+  width: 56px;
 }
 
 .asc-pop .asc-thr-read {
@@ -547,40 +820,54 @@ ascent-ladder {
 }
 
 @container (min-width: 520px) and (max-width: 899.9px) {
-  /* Keyboard focus opens it; focus left behind by a tap does not, so the touch pop-up can close on its timer. */
+  /* Keyboard focus opens it; focus left behind by a tap does not, so the touch pop-up can close on its timer. A drag
+     that leaves the plate keeps it open until the pointer is released. */
   .asc-wrap:hover .asc-pop,
   .asc-wrap:has(:focus-visible) .asc-pop,
+  .asc-wrap:has([data-dragging]) .asc-pop,
   .asc-wrap[data-open] .asc-pop {
     visibility: visible;
     opacity: 1;
   }
 }
 
-/* Inline thrusters for volume and speed: wide players only (900 px and up), in fullscreen too. */
+/* Inline dials: wide players only (900 px and up), in fullscreen too. */
 .asc-jet {
-  --asc-thr-width: clamp(104px, 11.5cqw, 168px);
-
   display: none;
-  gap: 1cqw;
-  /* At least 44px of hit height without changing the row's layout. */
+  gap: 0.7cqw;
+  /* At least 44px of hit height without changing the desk's layout. */
   padding-block: 9px;
   margin-block: -9px;
   border-radius: 6px;
 }
 
+.asc-jet .asc-thr-svg {
+  width: clamp(46px, 4.6cqw, 84px);
+}
+
 .asc-jet .asc-thr-read {
   min-width: 3.1em;
-  font-size: clamp(12px, 1.1cqw, 16px);
+  font-size: clamp(12px, 1.1cqw, 20px);
   text-shadow: 0 1px 6px rgba(2, 5, 10, 0.95);
+}
+
+.asc-jet .asc-thr-read::before {
+  content: 'Vol';
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.72em;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.asc-jet.spd .asc-thr-read::before {
+  content: 'Rate';
 }
 
 @container (min-width: 900px) {
   .asc-jet {
     display: flex;
-  }
-
-  .asc-row {
-    gap: 1.9cqw;
   }
 }
 
@@ -591,14 +878,56 @@ ascent-ladder {
   outline-offset: 3px;
 }
 
-/* mission clock */
-.asc-clock {
-  position: absolute;
-  right: 4.6cqw;
-  bottom: 3.2cqh;
-  display: block;
+/* Next event: a countdown to the next chapter; choosing it skips there. */
+.asc-nx {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35cqw;
+  margin: -6px -5px !important;
+  padding: 6px 5px !important;
+  border-radius: 4px;
+  text-align: left;
 }
 
+.asc-nx b {
+  display: flex;
+  align-items: center;
+  gap: 0.6cqw;
+  font: 400 clamp(13px, 1.3cqw, 26px) var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.asc-nx svg {
+  width: 1.1em;
+  height: 1.1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.8;
+}
+
+.asc-nx .lab {
+  max-width: 15cqw;
+  overflow: hidden;
+  font-size: clamp(8px, 0.8cqw, 15px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.78;
+}
+
+.asc-nx:disabled {
+  cursor: default;
+}
+
+.asc-nx:disabled svg {
+  opacity: 0.25;
+}
+
+/* mission clock */
 .asc-clock button {
   display: flex;
   flex-direction: column;
@@ -607,20 +936,91 @@ ascent-ladder {
   text-align: right;
 }
 
+.asc-clock button:focus-visible {
+  outline-offset: 1px;
+}
+
 .asc-clock span {
-  font-size: clamp(8px, 0.88cqw, 13px);
+  font-size: clamp(8px, 0.88cqw, 16px);
   opacity: 0.78;
 }
 
 .asc-clock b {
   font-family: var(--wide);
-  font-size: clamp(30px, 6.2cqw, 96px);
+  font-size: clamp(30px, 4.7cqw, 100px);
   font-weight: 300;
   font-stretch: 125%;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   line-height: 0.9;
   text-shadow: 0 2px 14px rgba(2, 5, 10, 0.8);
+}
+
+/* ---------- the craft: engine glow, ignition, and venting during a hold ---------- */
+
+.craft-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 0.4s;
+}
+
+.asc[data-ignite] .craft-glow {
+  animation: asc-ignite 0.8s ease-out;
+}
+
+@keyframes asc-ignite {
+  0% {
+    transform: scale(1);
+  }
+
+  22% {
+    transform: scale(2.5);
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* A hold: gas vents from the craft, as on the pad before launch. */
+.asc-vent {
+  display: none;
+}
+
+.asc[data-hold] .asc-vent {
+  display: block;
+}
+
+.asc-vp {
+  fill: var(--ink);
+  opacity: 0.3;
+  transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5)) scale(calc(var(--s) * 0.6));
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: asc-vent 2.6s linear infinite;
+  animation-delay: var(--d);
+}
+
+@keyframes asc-vent {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 0;
+  }
+
+  8% {
+    opacity: 0.7;
+  }
+
+  55% {
+    transform: translate(calc(var(--dx) * 0.8), calc(var(--dy) * 0.18)) scale(calc(var(--s) * 0.62));
+    opacity: 0.42;
+  }
+
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(var(--s));
+    opacity: 0;
+  }
 }
 
 /* ---------- captions: rise with the HUD so they never sit on the path ---------- */
@@ -631,7 +1031,7 @@ ascent-ladder {
   bottom: 6cqh;
   left: 10cqw;
   display: block;
-  font: 400 clamp(14px, 2.1cqw, 32px) / 1.3 var(--text);
+  font: 400 clamp(14px, 2.1cqw, 40px) / 1.3 var(--text);
   text-align: center;
   text-shadow:
     0 0 6px rgba(0, 0, 0, 0.9),
@@ -655,24 +1055,39 @@ ascent-ladder {
   bottom: auto;
 }
 
-/* ---------- loading and errors ---------- */
+/* ---------- holds and errors ---------- */
 
-/* The label sits top centre, level with the title, where no event label can be. */
+/* The hold label, top centre on players too narrow for the status board. On wide players the board's Signal lamp
+   shows the hold, and this stays for assistive technology only. */
 .asc-load {
   position: absolute;
-  inset: 0;
+  top: 4.4cqh;
+  right: 0;
+  left: 0;
   display: none;
-  place-items: start center;
-  padding-top: calc(4.2cqw + 0.3em);
-  background: rgba(3, 5, 9, 0.5);
-  font: 400 13px var(--mono);
+  font: 400 clamp(10px, 1cqw, 13px) var(--mono);
   letter-spacing: 0.2em;
+  text-align: center;
+  text-shadow: 0 1px 8px rgba(2, 5, 10, 0.95);
   text-transform: uppercase;
   pointer-events: none;
 }
 
 .asc-load[data-visible] {
-  display: grid;
+  display: block;
+}
+
+@container (min-width: 900px) {
+  .asc-board {
+    display: flex;
+  }
+
+  .asc-load {
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
 }
 
 .asc-dialog-backdrop {
@@ -690,9 +1105,15 @@ ascent-ladder {
   gap: 10px;
   width: min(420px, 84cqw);
   padding: 22px 24px;
-  border: 1.5px solid var(--ink);
-  background: rgba(3, 5, 9, 0.95);
+  border: 1px solid rgba(244, 241, 234, 0.22);
+  border-radius: 16px;
+  background: rgba(14, 17, 23, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 14px 34px rgba(0, 0, 0, 0.5);
   transform: translate(-50%, -50%);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
 }
 
 .asc-dialog-backdrop:not([data-open]),
@@ -717,11 +1138,17 @@ ascent-ladder {
 .asc-dialog-close {
   align-self: flex-start;
   margin-top: 6px;
-  padding: 6px 14px;
-  border: 1.5px solid var(--ink);
+  padding: 7px 16px;
+  border: 1px solid var(--hair);
   border-radius: 99px;
+  background: linear-gradient(rgba(244, 241, 234, 0.14), rgba(244, 241, 234, 0.045));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
   font: 400 13px var(--mono);
   cursor: pointer;
+}
+
+.asc-dialog-close:hover {
+  border-color: rgba(244, 241, 234, 0.42);
 }
 
 /* ---------- sizes ---------- */
@@ -752,6 +1179,15 @@ ascent-ladder {
     left: 6cqw;
   }
 
+  /* The hold label takes the caption's place under the title row while the film buffers. */
+  .asc-load {
+    top: 21cqh;
+  }
+
+  .asc[data-hold][data-capup] .asc-cap {
+    visibility: hidden;
+  }
+
   .asc-ev.cur::before {
     height: 16px;
   }
@@ -760,10 +1196,9 @@ ascent-ladder {
     height: 10px;
   }
 
-  .asc-row {
-    bottom: 4cqh;
-    left: 4.3cqw;
-    gap: 8px;
+  /* The first label starts at the left edge and runs under its neighbours; a longer stem lifts it clear of theirs. */
+  .asc-ev.first.cur::after {
+    height: 30px;
   }
 
   .asc-now span,
@@ -788,12 +1223,14 @@ ascent-ladder {
     font-size: 12px;
   }
 
-  .asc-clock {
-    bottom: 4cqh;
+  .asc-clock b {
+    font-size: clamp(22px, 6.6cqw, 40px);
   }
 
-  .asc-clock b {
-    font-size: clamp(24px, 7.4cqw, 44px);
+  /* The clock is one line here; keep its toggle 44px tall. */
+  .asc-clock button {
+    justify-content: center;
+    min-height: 44px;
   }
 }
 
@@ -832,7 +1269,7 @@ ascent-ladder {
   }
 }
 
-/* The narrowest players drop the speed pill, so the row never runs into the clock. */
+/* The narrowest players drop the speed key, so the row never runs into the clock. */
 @container (max-width: 380px) {
   .asc-wrap.spd {
     display: none;

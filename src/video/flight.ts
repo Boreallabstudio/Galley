@@ -15,16 +15,23 @@ export interface Geometry {
   rise: number;
 }
 
+/** Height of the console desk along the bottom edge, matching the container queries in skin.css. */
+export function deskHeight(width: number, height: number): number {
+  if (width < 760) return 56;
+  if (width < 900) return 72;
+  return Math.min(172, Math.max(84, height * 0.134));
+}
+
 /**
- * The path for a skin `width` by `height` pixels. `lift` 1 is the raised path with the HUD showing; `lift` 0 is a flat
- * line on the bottom edge, which the skin fades out entirely while the film plays.
+ * The path for a skin `width` by `height` pixels. `lift` 1 is the raised path, clear of the console desk, with the
+ * HUD showing; `lift` 0 is a flat line on the bottom edge, which the skin fades out entirely while the film plays.
  */
 export function geometry(width: number, height: number, lift: number): Geometry {
   const small = width < 760;
   const x0 = width * 0.043 * lift;
   const x1 = width - width * 0.043 * lift;
-  if (small) return { x0, x1, y0: height - 3 - (height * 0.08 + 50) * lift, rise: height * 0.15 * lift };
-  return { x0, x1, y0: height - 3 - height * 0.15 * lift, rise: height * 0.235 * lift };
+  const clear = deskHeight(width, height) + (small ? 14 : Math.max(20, height * 0.045));
+  return { x0, x1, y0: height - 3 - clear * lift, rise: height * (small ? 0.15 : 0.21) * lift };
 }
 
 export const pathX = (g: Geometry, t: number) => g.x0 + (g.x1 - g.x0) * t;
@@ -58,6 +65,28 @@ export function spoken(seconds: number): string {
 /** Playback rate as the skin writes it: 1.0×, 1.25×, 0.5×. */
 export function rateText(rate: number): string {
   return `${rate.toFixed((rate * 4) % 2 ? 2 : 1)}×`;
+}
+
+/** The engine-glow ramp: a dull ember at the low end, white-hot at full. */
+const HEAT: readonly (readonly [number, string])[] = [
+  [0, '#a8320c'],
+  [0.34, '#ff5b1f'],
+  [0.62, '#ff9448'],
+  [0.84, '#ffd9bf'],
+  [1, '#fff6ec'],
+];
+const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+/** The glow colour at `p`, 0–1 along the ramp. */
+export function heat(p: number): string {
+  let i = 1;
+  while (i < HEAT.length - 1 && p > HEAT[i][0]) i++;
+  const [p0, c0] = HEAT[i - 1];
+  const [p1, c1] = HEAT[i];
+  const k = Math.min(1, Math.max(0, (p - p0) / (p1 - p0)));
+  const a = channels(c0);
+  const b = channels(c1);
+  return `#${a.map((x, j) => Math.round(x + (b[j] - x) * k).toString(16).padStart(2, '0')).join('')}`;
 }
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;

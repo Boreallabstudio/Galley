@@ -2,6 +2,7 @@ import {
   PlayerController,
   playerContext,
   selectBuffer,
+  selectError,
   selectPlayback,
   selectPlaybackRate,
   selectTextTrack,
@@ -15,6 +16,7 @@ import {
   clock,
   findMedia,
   geometry,
+  heat,
   type Lift,
   liftFor,
   pathData,
@@ -130,13 +132,33 @@ abstract class PathElement extends UIElement {
   protected abstract draw(): void;
 }
 
+/** The gas that vents from the craft during a hold: forty puffs, left and right, on a fixed pseudo-random spread. */
+function ventPuffs(): string {
+  let seed = 7;
+  const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  let puffs = '';
+  for (let i = 0; i < 40; i++) {
+    const side = i % 2 ? 1 : -1;
+    const dx = side * (60 + random() * 110);
+    const dy = -(19 + random() * 54);
+    const scale = 2.4 + random() * 2;
+    puffs += `<circle class="asc-vp" cx="${side * 9}" cy="11" r="5" style="--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px;--s:${scale.toFixed(1)};--d:${(-i * 0.065).toFixed(2)}s"/>`;
+  }
+  return puffs;
+}
+
 /**
  * <ascent-flight>: the flight path. A dotted course still to fly, the buffered stretch ahead, the flown part in orange
- * with a glow, a dot for each chapter and the craft at the playhead. Purely visual (`aria-hidden`); the
- * `<media-time-slider>` underneath it carries the interaction, and its thumb is moved onto the craft here.
+ * with a glow, a dot for each chapter and the craft at the playhead. The craft's engine glow is an ember when paused
+ * and grows with the playback rate; during a hold (`data-hold` on the skin) the craft vents gas. Purely visual
+ * (`aria-hidden`); the `<media-time-slider>` underneath it carries the interaction, and its thumb is moved onto the
+ * craft here.
  */
 class AscentFlightElement extends PathElement {
   #buffer = new PlayerController(this, playerContext, selectBuffer);
+  #playback = new PlayerController(this, playerContext, selectPlayback);
+  #rate = new PlayerController(this, playerContext, selectPlaybackRate);
+  #burn!: SVGCircleElement;
   #svg!: SVGSVGElement;
   #rest!: SVGPathElement;
   #under!: SVGPathElement;
@@ -155,15 +177,17 @@ class AscentFlightElement extends PathElement {
   #build() {
     this.setAttribute('aria-hidden', 'true');
     const glow = nextId('asc-glow');
+    const vapour = nextId('asc-vapour');
     this.innerHTML = `<svg xmlns="${SVG}">
-<defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs>
+<defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
+<filter id="${vapour}" filterUnits="userSpaceOnUse" x="-220" y="-170" width="440" height="260"><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="3" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="30" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation="3.4"/></filter></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
 <path class="rest" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 9" opacity=".55"/>
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".5"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
 <g class="dots"></g>
-<g class="craft"><circle r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
+<g class="craft"><g class="asc-vent" filter="url(#${vapour})">${ventPuffs()}</g><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
 </svg>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
@@ -175,6 +199,7 @@ class AscentFlightElement extends PathElement {
     this.#dots = q('.dots');
     this.#craft = q('.craft');
     this.#arrow = q('.arrow');
+    this.#burn = q('.craft-glow');
   }
 
   protected draw() {
@@ -211,11 +236,24 @@ class AscentFlightElement extends PathElement {
       ) *
         180) /
       Math.PI;
-    const scale = Math.max(0.62, Math.min(1, W / 1100)) * (0.35 + 0.65 * lift);
+    // Drawn sizes follow the player: smaller under 1100 px, larger on very big screens.
+    const size = Math.max(0.62, Math.min(1, W / 1100)) * Math.min(1.45, Math.max(1, W / 1600));
+    const big = Math.max(1, size);
+    this.#done.setAttribute('stroke-width', (4 * big).toFixed(2));
+    this.#glow.setAttribute('stroke-width', (10 * big).toFixed(2));
+    this.#rest.setAttribute('stroke-width', (2 * big).toFixed(2));
+    this.#buffered.setAttribute('stroke-width', (2 * big).toFixed(2));
+    this.#under.setAttribute('stroke-width', (5 * big).toFixed(2));
+    const scale = size * (0.35 + 0.65 * lift);
     const cx = pathX(g, t);
     const cy = pathY(g, t);
     this.#craft.setAttribute('transform', `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${scale.toFixed(3)})`);
     this.#arrow.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
+
+    // Engine glow: an ember when paused, brighter and wider with speed.
+    const burning = this.#playback.value ? !this.#playback.value.paused : false;
+    this.#burn.setAttribute('r', String(burning ? 18 + 8 * (this.#rate.value?.playbackRate ?? 1) : 17));
+    this.#burn.setAttribute('opacity', burning ? '.55' : '.3');
 
     // One dot per chapter.
     const chapters = duration > 0 ? this.chapters : [];
@@ -231,7 +269,7 @@ class AscentFlightElement extends PathElement {
       const dot = this.#dots.children[i];
       dot.setAttribute('cx', pathX(g, f).toFixed(1));
       dot.setAttribute('cy', pathY(g, f).toFixed(1));
-      dot.setAttribute('r', (6 * Math.max(0.7, Math.min(1, W / 1100))).toFixed(2));
+      dot.setAttribute('r', (6 * Math.max(0.7, size)).toFixed(2));
       dot.setAttribute('fill', past ? BURN : '#070a0f');
       dot.setAttribute('stroke', past ? BURN : INK);
       dot.setAttribute('opacity', String(lift * (past ? 1 : 0.7)));
@@ -344,83 +382,85 @@ class AscentNowElement extends UIElement {
   }
 }
 
-/* ---------- thrusters ---------- */
+/* ---------- engine dials ---------- */
 
-interface ThrusterDrawing {
+interface DialDrawing {
   set(fraction: number, reading: string): void;
+  /** The value a press at this point asks for, read from its angle around the dial. */
   fractionAt(event: PointerEvent): number;
 }
 
-/** The value range on the thruster drawing (viewBox 0 0 110 28): from just past the nozzle to near the end. */
-const THR_X0 = 27;
-const THR_X1 = 100;
-const THR_C = 14;
-const NOZZLE_EXIT = 16.4;
+/** The dial drawing (viewBox -2 -2 52 52, centre 24 24): a 270° ring that starts at the lower left. */
+const DIAL_R = 21;
+const DIAL_SEGMENTS = 30;
+const DIAL_START = 135;
+const DIAL_SWEEP = 270;
+const HOT = '#fff6ec';
 
-/** An exhaust plume from the nozzle exit (x 16) to `x`, `h` high at the exit, tapering to a point. */
-function plume(x: number, h: number): string {
-  const l = x - 16;
-  const f = (n: number) => n.toFixed(1);
-  return (
-    `M16 ${f(THR_C - h)}C${f(16 + l * 0.4)} ${f(THR_C - h * 1.05)} ${f(16 + l * 0.78)} ${f(THR_C - h * 0.42)} ${f(x)} ${THR_C}` +
-    `C${f(16 + l * 0.78)} ${f(THR_C + h * 0.42)} ${f(16 + l * 0.4)} ${f(THR_C + h * 1.05)} 16 ${f(THR_C + h)}Z`
-  );
-}
+const dialPoint = (angle: number, radius: number) => {
+  const a = (angle * Math.PI) / 180;
+  return `${(24 + radius * Math.cos(a)).toFixed(1)} ${(24 + radius * Math.sin(a)).toFixed(1)}`;
+};
 
 /**
- * Draw a thruster slider into `host`, with a readout beside it: a solid engine nozzle at the left and the value
- * along the exhaust, x 27–100 of 110.
+ * Draw an engine dial into `host`, with a readout beside it: the engine seen from behind. A glass body holds a dark
+ * throat, and the glow in the throat grows from nothing, to a small ember, to white-hot at full. The ring around the
+ * body lights up to the value in the same heat colours, and a tick on the body marks it.
  *
- * `stops` = 0 (volume): an orange plume with a pale hot core runs from the nozzle to the value, where a ring knob
- * sits; a dotted guide and an end tick show the rest of the range. At zero there is no plume.
- * `stops` > 0 (speed): a shock diamond per stop, lit up to the value and hollow beyond, over a thin exhaust band,
- * with a ring around the current one.
+ * `stops` > 0 (speed) adds a small tick outside the ring for each stop.
  */
-function drawThruster(host: HTMLElement, stops: number): ThrusterDrawing {
-  const glow = nextId('asc-thr-glow');
-  const sx = (i: number) => THR_X0 + ((THR_X1 - THR_X0) * i) / (stops - 1);
-  let diamonds = '';
-  for (let i = 0; i < stops; i++) {
-    const cx = sx(i);
-    const hh = 5.4 - i * 0.28;
-    diamonds += `<path d="M${(cx - 5).toFixed(1)} ${THR_C}L${cx.toFixed(1)} ${(THR_C - hh).toFixed(1)}L${(cx + 5).toFixed(1)} ${THR_C}L${cx.toFixed(1)} ${(THR_C + hh).toFixed(1)}Z" stroke-width="1.2" stroke-linejoin="round"/>`;
+function drawDial(host: HTMLElement, stops: number): DialDrawing {
+  const id = nextId('asc-dial');
+  let segments = '';
+  for (let i = 0; i < DIAL_SEGMENTS; i++) {
+    const from = DIAL_START + (DIAL_SWEEP * i) / DIAL_SEGMENTS;
+    const to = DIAL_START + DIAL_SWEEP * Math.min(1, (i + 1) / DIAL_SEGMENTS + 0.01);
+    segments += `<path class="sg" d="M${dialPoint(from, DIAL_R)}A${DIAL_R} ${DIAL_R} 0 0 1 ${dialPoint(to, DIAL_R)}" stroke="${heat((i + 0.5) / DIAL_SEGMENTS)}"/>`;
   }
-  const guide = stops
-    ? ''
-    : `<path class="tr" fill="none" stroke="${INK}" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="1.5 5" opacity=".6"/><path d="M104.5 9.5V18.5" stroke="${INK}" stroke-width="1.3" stroke-linecap="round" opacity=".6"/>`;
-  const knob = stops
-    ? `<circle r="8.2" fill="none" stroke="${INK}" stroke-width="1.4"/>`
-    : `<circle r="7" fill="rgba(3,5,9,.6)" stroke="${INK}" stroke-width="1.4"/><circle r="2.4" fill="${INK}"/>`;
+  let ticks = '';
+  for (let i = 0; i < stops; i++) {
+    const angle = DIAL_START + (DIAL_SWEEP * i) / (stops - 1);
+    ticks += `<path d="M${dialPoint(angle, DIAL_R + 2.2)}L${dialPoint(angle, DIAL_R + 4.2)}" stroke="${INK}" stroke-width="1.1" stroke-linecap="round" opacity=".6"/>`;
+  }
   host.insertAdjacentHTML(
     'afterbegin',
-    `<svg class="asc-thr-svg" viewBox="0 0 110 28" aria-hidden="true"><defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs>${guide}<path class="tg" fill="${BURN}" opacity=".45" filter="url(#${glow})"/><path class="tp" fill="${BURN}"/><path class="tc" fill="#ffd9bf" opacity=".92"/><g class="ts">${diamonds}</g><rect x="2" y="10.5" width="5" height="7" rx="1.6" fill="${INK}"/><path d="M6.5 12.6H8.5C11 12.2 14 10 ${NOZZLE_EXIT} 6V22C14 18 11 15.8 8.5 15.4H6.5Z" fill="${INK}"/><g class="tk">${knob}</g></svg><span class="asc-thr-read" aria-hidden="true"></span>`
+    `<svg class="asc-thr-svg" viewBox="-2 -2 52 52" aria-hidden="true"><defs><filter id="${id}-bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3.6"/></filter><filter id="${id}-core" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5"/></filter><linearGradient id="${id}-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${INK}" stop-opacity=".2"/><stop offset="1" stop-color="${INK}" stop-opacity=".05"/></linearGradient></defs><circle class="tg" cx="24" cy="24" r="12" filter="url(#${id}-bloom)"/><path d="M${dialPoint(DIAL_START, DIAL_R)}A${DIAL_R} ${DIAL_R} 0 1 1 ${dialPoint(DIAL_START + DIAL_SWEEP, DIAL_R)}" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round" opacity=".2"/><g fill="none" stroke-width="2.6" stroke-linecap="round">${segments}</g>${ticks}<circle cx="24" cy="24" r="16.5" fill="rgba(10,13,18,.82)"/><circle cx="24" cy="24" r="16.5" fill="url(#${id}-glass)" stroke="${INK}" stroke-opacity=".24"/><circle cx="24" cy="24" r="10.5" fill="rgba(2,3,5,.85)" stroke="${INK}" stroke-opacity=".28"/><circle class="to" cx="24" cy="24" filter="url(#${id}-core)"/><circle class="tc" cx="24" cy="24" fill="${HOT}"/><path class="tk" stroke="${INK}" stroke-width="1.7" stroke-linecap="round"/></svg><span class="asc-thr-read" aria-hidden="true"></span>`
   );
   const svg = host.querySelector('svg')!;
   const q = (selector: string) => svg.querySelector(selector)!;
   const reading = host.querySelector('.asc-thr-read')!;
-  const shocks = [...svg.querySelectorAll('.ts path')];
+  const lit = [...svg.querySelectorAll('.sg')];
+  const bloom = q('.tg');
+  const glow = q('.to');
+  const core = q('.tc');
+  const tick = q('.tk');
   return {
     set(fraction, text) {
       const f = Math.min(1, Math.max(0, fraction));
-      const x = THR_X0 + (THR_X1 - THR_X0) * f;
-      const on = stops > 0 || f > 0;
-      q('.tp').setAttribute('d', on ? plume(x, stops ? 3.2 : 7.2) : '');
-      q('.tg').setAttribute('d', on ? plume(x, stops ? 4.4 : 7.2) : '');
-      q('.tc').setAttribute('d', on && !stops ? plume(16 + (x - 16) * 0.6, 2.8) : '');
-      if (!stops) q('.tr').setAttribute('d', `M${(x + 10).toFixed(1)} ${THR_C}H104`);
-      q('.tk').setAttribute('transform', `translate(${x.toFixed(1)} ${THR_C})`);
+      const on = f > 0.004;
+      lit.forEach((segment, i) => segment.setAttribute('opacity', on && (i + 0.5) / DIAL_SEGMENTS <= f + 1e-6 ? '1' : '0'));
+      bloom.setAttribute('fill', heat(f * 0.85));
+      bloom.setAttribute('r', (11 + 8 * f).toFixed(1));
+      bloom.setAttribute('opacity', (on ? 0.2 + 0.7 * f : 0).toFixed(2));
+      glow.setAttribute('r', (1.6 + 7.6 * f).toFixed(1));
+      glow.setAttribute('fill', heat(f));
+      glow.setAttribute('opacity', on ? '1' : '0');
+      core.setAttribute('r', (0.6 + 4.6 * f * f).toFixed(1));
+      core.setAttribute('opacity', (on ? 0.35 + 0.65 * f : 0).toFixed(2));
+      const angle = DIAL_START + DIAL_SWEEP * f;
+      tick.setAttribute('d', `M${dialPoint(angle, 12.4)}L${dialPoint(angle, 15.4)}`);
       reading.textContent = text;
-      shocks.forEach((shock, i) => {
-        const lit = i / (stops - 1) <= f + 1e-6;
-        shock.setAttribute('fill', lit ? BURN : '#05070b');
-        shock.setAttribute('stroke', lit ? '#ffb08c' : INK);
-        shock.setAttribute('opacity', lit ? '1' : '.75');
-      });
     },
-    fractionAt({ clientX }) {
+    fractionAt({ clientX, clientY }) {
       const rect = svg.getBoundingClientRect();
-      const k = rect.width / 110;
-      return ((clientX - rect.left) / k - THR_X0) / (THR_X1 - THR_X0);
+      const box = svg.viewBox.baseVal;
+      const x = box.x + (clientX - rect.left) / (rect.width / box.width);
+      const y = box.y + (clientY - rect.top) / (rect.height / box.height);
+      let angle = (Math.atan2(y - 24, x - 24) * 180) / Math.PI;
+      if (angle < DIAL_START - 45) angle += 360;
+      // The open quarter at the bottom: its right half is full, its left half is zero.
+      if (angle > DIAL_START + DIAL_SWEEP) return angle < DIAL_START + DIAL_SWEEP + 45 ? 1 : 0;
+      return (angle - DIAL_START) / DIAL_SWEEP;
     },
   };
 }
@@ -428,25 +468,28 @@ function drawThruster(host: HTMLElement, stops: number): ThrusterDrawing {
 const DEFAULT_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 /**
- * <ascent-ladder kind="volume">: the volume thruster. A horizontal `<media-volume-slider>` inside it, laid exactly
- * over the drawn range, is the accessible slider and takes pointer, wheel and keys; this element only draws.
+ * <ascent-engine kind="volume">: the volume dial. The `<media-volume-slider>` inside it is the accessible slider and
+ * takes the keys; this element draws, and reads the pointer and the wheel.
  *
- * <ascent-ladder kind="speed">: the speed thruster. Video.js 10 has no playback-rate slider, so this element is the
+ * <ascent-engine kind="speed">: the speed dial. Video.js 10 has no playback-rate slider, so this element is the
  * slider itself (`role="slider"`), setting the rate through the player's playback-rate feature and snapping to the
  * player's rates.
  *
- * `size="jet"` is the inline control in the bottom row of wide players. `size="pop"` puts the same drawing on a small
- * plate that pops up above the mute button or the speed pill in mid-size players. On touch, the first tap on that
- * button opens the pop-up and the second performs the button's action.
+ * Both turn the same way: drag right or up for more, left or down for less; a press without a drag jumps to that
+ * point on the ring; the wheel steps.
+ *
+ * `size="jet"` is the inline control on the console desk of wide players. `size="pop"` puts the same drawing on a
+ * small glass plate that pops up above the mute key or the speed key in mid-size players. On touch, the first tap on
+ * that key opens the pop-up and the second performs the key's action.
  */
-class AscentLadderElement extends UIElement {
+class AscentEngineElement extends UIElement {
   static properties = { kind: { type: String }, size: { type: String } };
   kind = 'volume';
   size = 'jet';
 
   #volume = new PlayerController(this, playerContext, selectVolume);
   #rate = new PlayerController(this, playerContext, selectPlaybackRate);
-  #drawing: ThrusterDrawing | null = null;
+  #drawing: DialDrawing | null = null;
   #abort: AbortController | null = null;
 
   get #speed() {
@@ -457,7 +500,8 @@ class AscentLadderElement extends UIElement {
     super.connectedCallback();
     this.#abort?.abort();
     this.#abort = new AbortController();
-    if (!this.#drawing) this.#drawing = drawThruster(this, this.#speed ? DEFAULT_RATES.length : 0);
+    if (!this.#drawing) this.#drawing = drawDial(this, this.#speed ? DEFAULT_RATES.length : 0);
+    this.#bindPointer(this.#abort.signal);
     if (this.#speed) this.#bindSpeed(this.#abort.signal);
     if (this.size === 'pop') this.#bindPopTouch(this.#abort.signal);
   }
@@ -554,40 +598,92 @@ class AscentLadderElement extends UIElement {
     this.#setRate(rates[Math.min(rates.length - 1, Math.max(0, index + by))]);
   }
 
-  #bindSpeed(signal: AbortSignal) {
-    this.setAttribute('role', 'slider');
-    this.setAttribute('tabindex', '0');
-    this.setAttribute('aria-label', 'Playback speed');
-    this.setAttribute('aria-orientation', 'horizontal');
-    this.setAttribute('aria-valuemin', '0.5');
-    this.setAttribute('aria-valuemax', '2');
+  /** Where the dial stands, 0–1. */
+  get #fraction(): number {
+    if (this.#speed) return ((this.#pending ?? this.#rate.value?.playbackRate ?? 1) - 0.5) / 1.5;
+    const volume = this.#volume.value;
+    return volume ? (volume.muted ? 0 : volume.volume) : 1;
+  }
 
-    const fromPointer = (event: PointerEvent) => {
-      const f = Math.min(1, Math.max(0, this.#drawing!.fractionAt(event)));
+  #setFraction(fraction: number) {
+    const f = Math.min(1, Math.max(0, fraction));
+    if (this.#speed) {
       this.#setRate(0.5 + 1.5 * f);
-    };
+      return;
+    }
+    const volume = this.#volume.value;
+    if (!volume) return;
+    volume.setVolume(f);
+    if (f > 0 && volume.muted) volume.setMuted(false);
+  }
+
+  /** Pointer and wheel, the same for both dials. */
+  #bindPointer(signal: AbortSignal) {
+    let down = false;
+    let moved = false;
+    let x0 = 0;
+    let y0 = 0;
+    let f0 = 0;
     this.addEventListener(
       'pointerdown',
       (event) => {
         if (event.button !== 0) return;
+        down = true;
+        moved = false;
+        x0 = event.clientX;
+        y0 = event.clientY;
+        f0 = this.#fraction;
         this.setPointerCapture(event.pointerId);
         this.setAttribute('data-dragging', '');
-        fromPointer(event);
       },
       { signal }
     );
-    this.addEventListener('pointermove', (event) => this.hasAttribute('data-dragging') && fromPointer(event), { signal });
-    const end = () => this.removeAttribute('data-dragging');
-    this.addEventListener('pointerup', end, { signal });
-    this.addEventListener('pointercancel', end, { signal });
+    this.addEventListener(
+      'pointermove',
+      (event) => {
+        if (!down) return;
+        const travel = event.clientX - x0 - (event.clientY - y0);
+        if (Math.abs(travel) > 3) moved = true;
+        if (moved) this.#setFraction(f0 + travel / 120);
+      },
+      { signal }
+    );
+    this.addEventListener(
+      'pointerup',
+      (event) => {
+        if (down && !moved) this.#setFraction(this.#drawing!.fractionAt(event));
+        down = false;
+        this.removeAttribute('data-dragging');
+      },
+      { signal }
+    );
+    this.addEventListener(
+      'pointercancel',
+      () => {
+        down = false;
+        this.removeAttribute('data-dragging');
+      },
+      { signal }
+    );
     this.addEventListener(
       'wheel',
       (event) => {
         event.preventDefault();
-        this.#step(event.deltaY < 0 ? 1 : -1);
+        const up = event.deltaY < 0;
+        if (this.#speed) this.#step(up ? 1 : -1);
+        else this.#setFraction(this.#fraction + (up ? 0.05 : -0.05));
       },
       { signal, passive: false }
     );
+  }
+
+  #bindSpeed(signal: AbortSignal) {
+    this.setAttribute('role', 'slider');
+    this.setAttribute('tabindex', '0');
+    this.setAttribute('aria-label', 'Playback speed');
+    this.setAttribute('aria-valuemin', '0.5');
+    this.setAttribute('aria-valuemax', '2');
+
     this.addEventListener(
       'keydown',
       (event) => {
@@ -634,7 +730,142 @@ class AscentRateElement extends UIElement {
   }
 }
 
-/** <ascent-clock>: the mission clock, bottom right. Choosing it switches between time elapsed and time remaining. */
+/** <ascent-play-label>: the word on the play key. Launch before the film has started, Hold while it plays, Resume
+ * when paused, Relaunch at the end. Decoration (`aria-hidden`): the `<media-play-button>` around it carries the name. */
+class AscentPlayLabelElement extends UIElement {
+  #playback = new PlayerController(this, playerContext, selectPlayback);
+  #time = new PlayerController(this, playerContext, selectTime);
+
+  protected update(changed: PropertyValues) {
+    super.update(changed);
+    const playback = this.#playback.value;
+    const launched = (playback?.started ?? false) || (this.#time.value?.currentTime ?? 0) > 0.5;
+    const text = playback?.ended ? 'Relaunch' : playback && !playback.paused ? 'Hold' : launched ? 'Resume' : 'Launch';
+    if (this.textContent !== text) this.textContent = text;
+  }
+}
+
+/**
+ * <ascent-board>: the go / no-go board, top centre on wide players. Four lamps follow the film: Signal (Go, Hold
+ * while it buffers, Lost on an error), Audio, Captions and Flight (Ready, Go, Hold, Complete). Decoration
+ * (`aria-hidden`): each fact is already announced by the control or the status region that owns it.
+ */
+class AscentBoardElement extends UIElement {
+  #playback = new PlayerController(this, playerContext, selectPlayback);
+  #time = new PlayerController(this, playerContext, selectTime);
+  #volume = new PlayerController(this, playerContext, selectVolume);
+  #tracks = new PlayerController(this, playerContext, selectTextTrack);
+  #error = new PlayerController(this, playerContext, selectError);
+  #cells: Record<string, HTMLElement> = {};
+  #watch: MutationObserver | null = null;
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.setAttribute('aria-hidden', 'true');
+    if (!this.childElementCount) {
+      for (const name of ['Signal', 'Audio', 'Captions', 'Flight']) {
+        const cell = document.createElement('span');
+        cell.className = 'asc-cell';
+        cell.append(document.createElement('i'), document.createElement('b'));
+        cell.firstElementChild!.textContent = name;
+        this.#cells[name] = cell;
+        this.append(cell);
+      }
+    }
+    // The hold is set on the skin by <ascent-lift>.
+    const root = skinRoot(this);
+    this.#watch?.disconnect();
+    this.#watch = new MutationObserver(() => this.requestUpdate());
+    if (root) this.#watch.observe(root, { attributes: true, attributeFilter: ['data-hold'] });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.#watch?.disconnect();
+    this.#watch = null;
+  }
+
+  #set(name: string, state: 'go' | 'hold' | 'wait' | 'off', text: string) {
+    const cell = this.#cells[name];
+    if (!cell) return;
+    cell.dataset.s = state;
+    if (cell.lastElementChild!.textContent !== text) cell.lastElementChild!.textContent = text;
+  }
+
+  protected update(changed: PropertyValues) {
+    super.update(changed);
+    const playback = this.#playback.value;
+    const volume = this.#volume.value;
+    const held = skinRoot(this)?.hasAttribute('data-hold') ?? false;
+    const lost = Boolean(this.#error.value?.error);
+    const quiet = volume ? volume.muted || volume.volume === 0 : false;
+    const captions = this.#tracks.value?.subtitlesShowing ?? false;
+    const playing = playback ? !playback.paused : false;
+    const launched = (playback?.started ?? false) || (this.#time.value?.currentTime ?? 0) > 0.5;
+    this.#set('Signal', lost || held ? 'hold' : 'go', lost ? 'Lost' : held ? 'Hold' : 'Go');
+    this.#set('Audio', quiet ? 'off' : 'go', quiet ? 'Off' : 'Go');
+    this.#set('Captions', captions ? 'go' : 'off', captions ? 'Go' : 'Off');
+    if (playback?.ended) this.#set('Flight', 'off', 'Complete');
+    else if (playing) this.#set('Flight', 'go', 'Go');
+    else if (launched) this.#set('Flight', 'wait', 'Hold');
+    else this.#set('Flight', 'off', 'Ready');
+  }
+}
+
+/**
+ * <ascent-next>: the Next event module on the console desk. A countdown to the next chapter with its name; choosing
+ * it (or pressing N) skips there. In the last chapter it counts down to the end of the film and is disabled. Hidden
+ * without chapters.
+ */
+class AscentNextElement extends UIElement {
+  #time = new PlayerController(this, playerContext, selectTime);
+  #tracks = new PlayerController(this, playerContext, selectTextTrack);
+  #button?: HTMLButtonElement;
+  #count?: HTMLElement;
+  #name?: HTMLElement;
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.#button) return;
+    this.innerHTML = `<i class="asc-mh" aria-hidden="true">Next event</i><button type="button" class="asc-nx"><b><span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5.5v13l9-6.5zM18.5 5.5v13"/></svg></b><span class="lab"></span></button>`;
+    this.#button = this.querySelector('button')!;
+    this.#count = this.querySelector('b span')!;
+    this.#name = this.querySelector('.lab')!;
+    this.#button.addEventListener('click', () => this.skip());
+  }
+
+  get #next(): Chapter | undefined {
+    const now = this.#time.value?.currentTime ?? 0;
+    return (this.#tracks.value?.chaptersCues ?? []).find((chapter) => chapter.startTime > now + 0.05);
+  }
+
+  /** Fly to the next event, if there is one. */
+  skip() {
+    const next = this.#next;
+    if (!next) return;
+    void this.#time.value?.seek(next.startTime + 0.01);
+    liftFor(this)?.wake();
+  }
+
+  protected update(changed: PropertyValues) {
+    super.update(changed);
+    const chapters = this.#tracks.value?.chaptersCues ?? [];
+    this.hidden = !chapters.length;
+    if (!chapters.length || !this.#button || !this.#count || !this.#name) return;
+    const time = this.#time.value;
+    const duration = time && Number.isFinite(time.duration) && time.duration > 0 ? time.duration : chapters[chapters.length - 1].endTime;
+    const next = this.#next;
+    this.#count.textContent = `T− ${clock((next ? next.startTime : duration) - (time?.currentTime ?? 0))}`;
+    const name = next ? next.text : 'End of film';
+    if (this.#name.textContent !== name) {
+      this.#name.textContent = name;
+      this.#button.disabled = !next;
+      this.#button.setAttribute('aria-label', next ? `Skip to the next event, ${next.text}` : 'No next event');
+    }
+  }
+}
+
+/** <ascent-clock>: the mission clock, at the right end of the console desk. Choosing it switches between time elapsed and time remaining. */
 class AscentClockElement extends UIElement {
   #time = new PlayerController(this, playerContext, selectTime);
   #remaining = false;
@@ -756,8 +987,9 @@ class AscentCaptionsElement extends UIElement {
 }
 
 /**
- * <ascent-keys>: the keys Video.js hotkeys do not cover. Digits 1–9 fly to that event. It also keeps Page Up and
- * Page Down (the hotkeys, and the time slider's own keys) at a tenth of the film.
+ * <ascent-keys>: the keys Video.js hotkeys do not cover. Digits 1–9 fly to that event and N to the next one. It also
+ * keeps Page Up and Page Down (the hotkeys, and the time slider's own keys) at a tenth of the film, and moves the
+ * light on each glass key to follow the pointer.
  */
 class AscentKeysElement extends UIElement {
   #time = new PlayerController(this, playerContext, selectTime);
@@ -775,13 +1007,31 @@ class AscentKeysElement extends UIElement {
       'keydown',
       (event) => {
         if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-        if (!/^[1-9]$/.test(event.key)) return;
         if ((event.target as Element).closest('input, textarea, select, [contenteditable]')) return;
+        if (event.key === 'n' || event.key === 'N') {
+          const next = root.querySelector<AscentNextElement>('ascent-next');
+          if (!next || next.hidden) return;
+          event.preventDefault();
+          next.skip();
+          return;
+        }
+        if (!/^[1-9]$/.test(event.key)) return;
         const chapter = (this.#tracks.value?.chaptersCues ?? [])[Number(event.key) - 1];
         if (!chapter) return;
         event.preventDefault();
         void this.#time.value?.seek(chapter.startTime + 0.01);
         liftFor(this)?.wake();
+      },
+      { signal: this.#abort.signal }
+    );
+    root?.addEventListener(
+      'pointermove',
+      (event) => {
+        const key = (event.target as Element).closest?.<HTMLElement>('.asc-b');
+        if (!key) return;
+        const rect = key.getBoundingClientRect();
+        key.style.setProperty('--mx', `${(((event.clientX - rect.left) / rect.width) * 100).toFixed(0)}%`);
+        key.style.setProperty('--my', `${(((event.clientY - rect.top) / rect.height) * 100).toFixed(0)}%`);
       },
       { signal: this.#abort.signal }
     );
@@ -812,6 +1062,10 @@ class AscentKeysElement extends UIElement {
  * Three seconds into playing without any of those, it lifts away and the path sinks to the bottom edge and fades out,
  * leaving only the film (and captions). With reduced motion the change is instant.
  *
+ * It also calls the hold: while the film buffers (the `<media-buffering-indicator>` is showing) the skin carries
+ * `data-hold`, the HUD stays up, the craft vents and the Signal lamp reads Hold. And it marks ignition: `data-ignite`
+ * for a moment each time the film starts playing, which flares the craft's engine.
+ *
  * A tap on the picture plays or pauses, unless the HUD was away: then the tap only brings it back.
  */
 class AscentLiftElement extends UIElement {
@@ -824,6 +1078,7 @@ class AscentLiftElement extends UIElement {
   #frame = 0;
   #paused: boolean | null = null;
   #wokeByPress = false;
+  #ignite = 0;
 
   connectedCallback() {
     super.connectedCallback();
@@ -858,7 +1113,17 @@ class AscentLiftElement extends UIElement {
     root.addEventListener('click', (event) => this.#onClick(event), { signal });
     root.style.setProperty('--lift', '1');
     root.toggleAttribute('data-capup', true);
+    const indicator = root.querySelector('media-buffering-indicator');
+    const hold = new MutationObserver(() => {
+      const held = indicator?.hasAttribute('data-visible') ?? false;
+      if (held === root.hasAttribute('data-hold')) return;
+      root.toggleAttribute('data-hold', held);
+      this.#wake();
+    });
+    if (indicator) hold.observe(indicator, { attributes: true, attributeFilter: ['data-visible'] });
     signal.addEventListener('abort', () => {
+      hold.disconnect();
+      clearTimeout(this.#ignite);
       clearTimeout(this.#timer);
       cancelAnimationFrame(this.#frame);
       this.#frame = 0;
@@ -875,6 +1140,12 @@ class AscentLiftElement extends UIElement {
     super.update(changed);
     const paused = this.#isPaused;
     if (paused !== this.#paused) {
+      if (this.#paused && !paused && !reducedMotion()) {
+        const root = this.#root;
+        root?.setAttribute('data-ignite', '');
+        clearTimeout(this.#ignite);
+        this.#ignite = window.setTimeout(() => root?.removeAttribute('data-ignite'), 820);
+      }
       this.#paused = paused;
       this.#wake();
     }
@@ -909,7 +1180,7 @@ class AscentLiftElement extends UIElement {
 
   #sleep(checkHeld = false) {
     const root = this.#root;
-    if (!root || this.#isPaused) return;
+    if (!root || this.#isPaused || root.hasAttribute('data-hold')) return;
     if (checkHeld) {
       const dragging = root.querySelector('[data-dragging]');
       let keyboard = false;
@@ -949,7 +1220,10 @@ for (const [name, element] of [
   ['ascent-flight', AscentFlightElement],
   ['ascent-events', AscentEventsElement],
   ['ascent-now', AscentNowElement],
-  ['ascent-ladder', AscentLadderElement],
+  ['ascent-engine', AscentEngineElement],
+  ['ascent-play-label', AscentPlayLabelElement],
+  ['ascent-board', AscentBoardElement],
+  ['ascent-next', AscentNextElement],
   ['ascent-rate', AscentRateElement],
   ['ascent-clock', AscentClockElement],
   ['ascent-captions', AscentCaptionsElement],
