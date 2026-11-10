@@ -764,7 +764,6 @@ class AscentCaptionsElement extends UIElement {
   #media: HTMLMediaElement | null = null;
   #abort: AbortController | null = null;
   #attempts = 0;
-  #placeFrame = 0;
 
   connectedCallback() {
     super.connectedCallback();
@@ -779,7 +778,6 @@ class AscentCaptionsElement extends UIElement {
     super.disconnectedCallback();
     this.#abort?.abort();
     this.#abort = null;
-    cancelAnimationFrame(this.#placeFrame);
   }
 
   /** Custom media elements may upgrade a frame or two after the template mounts. */
@@ -800,45 +798,7 @@ class AscentCaptionsElement extends UIElement {
     tracks.addEventListener('change', render, { signal });
     // Active cues settle a tick after a seek on streamed media; timeupdate catches that too.
     for (const type of ['seeked', 'timeupdate']) media.addEventListener(type, render, { signal });
-    // With the HUD up, captions rise to just above the highest event label (see #place).
-    const resize = new ResizeObserver(() => this.#place());
-    resize.observe(root!);
-    const stop = liftFor(this)?.subscribe((value) => value >= 0.999 && this.#place());
-    signal.addEventListener('abort', () => {
-      resize.disconnect();
-      stop?.();
-    });
     render();
-    this.#place();
-  }
-
-  /**
-   * Measures how high the event labels stand with the HUD fully up and keeps that height in --asc-cap-up, so a
-   * caption clears the labels instead of running through them, but never rises into the title row. Two frames' wait
-   * lets the labels lay out first.
-   */
-  #place() {
-    cancelAnimationFrame(this.#placeFrame);
-    this.#placeFrame = requestAnimationFrame(() => {
-      this.#placeFrame = requestAnimationFrame(() => {
-        const root = skinRoot(this);
-        if (!root || (liftFor(this)?.value ?? 1) < 0.999) return;
-        const box = root.getBoundingClientRect();
-        let top = box.bottom;
-        for (const label of root.querySelectorAll<HTMLElement>('.asc-ev')) {
-          const rect = label.getBoundingClientRect();
-          if (rect.width && rect.height) top = Math.min(top, rect.top);
-        }
-        if (top >= box.bottom) return;
-        // On the smallest frames there may be no room above the labels: then stay clear of the title row instead.
-        let ceiling = box.top;
-        for (const head of root.querySelectorAll<HTMLElement>('.asc-title, .asc-now')) {
-          ceiling = Math.max(ceiling, head.getBoundingClientRect().bottom);
-        }
-        const up = Math.min(box.bottom - top + 6, box.bottom - ceiling - this.offsetHeight - 6);
-        this.style.setProperty('--asc-cap-up', `${Math.round(up)}px`);
-      });
-    });
   }
 
   protected update(changed: PropertyValues) {
@@ -861,9 +821,7 @@ class AscentCaptionsElement extends UIElement {
         break;
       }
     }
-    if (this.textContent === text) return;
-    this.textContent = text;
-    if (text) this.#place();
+    if (this.textContent !== text) this.textContent = text;
   }
 }
 
@@ -969,6 +927,7 @@ class AscentLiftElement extends UIElement {
     );
     root.addEventListener('click', (event) => this.#onClick(event), { signal });
     root.style.setProperty('--lift', '1');
+    root.toggleAttribute('data-capup', true);
     signal.addEventListener('abort', () => {
       clearTimeout(this.#timer);
       cancelAnimationFrame(this.#frame);
@@ -1048,6 +1007,7 @@ class AscentLiftElement extends UIElement {
       if (reducedMotion() || Math.abs(value - this.#target) <= 0.002) value = this.#target;
       else value += (this.#target - value) * 0.16;
       root.style.setProperty('--lift', value.toFixed(3));
+      root.toggleAttribute('data-capup', value > 0.5);
       lift.set(value);
       if (value !== this.#target) this.#frame = requestAnimationFrame(step);
     };
