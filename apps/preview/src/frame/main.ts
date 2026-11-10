@@ -1,5 +1,4 @@
 import '@videojs/html/i18n';
-import '@/skin.css';
 import './preview.css';
 import { playerStyles, type WorkbenchParams } from '../shell/params';
 import { applyMediaParams, initialParams, onParamsChange } from './frame';
@@ -13,6 +12,11 @@ wrapper.className = 'preview-player';
 i18n.append(createPlayer());
 wrapper.append(i18n);
 document.getElementById('root')!.append(wrapper);
+
+const credit = document.createElement('p');
+credit.className = 'preview-credit';
+credit.textContent = 'Film: Spring by Blender Studio, CC BY 4.0, cropped to 16:9 for this demo.';
+wrapper.append(credit);
 
 function render(params: WorkbenchParams): void {
   wrapper.removeAttribute('style');

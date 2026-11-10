@@ -2,11 +2,12 @@ import '@videojs/html/video/player';
 import '@/video/skin';
 import skinTemplate from '@/video/skin.html?raw';
 
-// What the preview plays: John F. Kennedy at Rice University, 12 September 1962 (public domain), with a word-timed
-// transcript, chapters and margin notes as ordinary WebVTT tracks.
-const SRC = './media/rice-1962.mp4';
-const POSTER = './media/rice-1962-poster.jpg';
-const TITLE = 'We choose to go to the Moon';
+// What the preview plays: Spring by Blender Studio (CC BY 4.0), cropped to 16:9, with chapters and captions as
+// ordinary WebVTT tracks. A plain <video> for now.
+const SRC = './spring-720-16x9.mp4';
+const POSTER = './media/spring-poster.jpg';
+const TITLE = 'Spring';
+const BYLINE = 'Blender Studio · 2019';
 
 const MEDIA_PLACEHOLDER = '<!-- Add a compatible media component here. -->';
 
@@ -18,14 +19,13 @@ export function createPlayer(): HTMLElement {
   player.innerHTML = skinTemplate.replace(
     MEDIA_PLACEHOLDER,
     `<video src="${SRC}" playsinline preload="metadata">
-      <track kind="captions" label="English" srclang="en" src="./media/rice-1962-en.vtt">
-      <track kind="chapters" label="English" srclang="en" src="./media/rice-1962-chapters.vtt" default>
-      <track kind="metadata" label="galley" srclang="en" src="./media/rice-1962-notes.vtt">
+      <track kind="chapters" label="Events" srclang="en" src="./media/spring-chapters.vtt" default>
+      <track kind="captions" label="English" srclang="en" src="./media/spring-captions.vtt" default>
     </video>`
   );
 
-  const skin = player.querySelector<HTMLElement>('.gl');
-  skin?.style.setProperty('--gl-plate-ratio', '4 / 3');
+  const byline = player.querySelector<HTMLElement>('[data-asc-byline]');
+  if (byline) byline.textContent = BYLINE;
 
   return player;
 }

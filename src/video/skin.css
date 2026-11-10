@@ -1,1895 +1,816 @@
 /*
- * Galley — a Video.js 10 skin where the transcript is the player.
+ * Ascent: a Video.js 10 skin that draws the timeline as a flight path.
  *
- * Public properties (shared with the packaged Video.js skins):
- *   --media-accent-color      the pencil: progress rule, reference marks, focus rings
- *   --media-font-family       the text face (default: Newsreader, then book serifs)
- *   --media-border-radius     the plate's corners
- *   --media-border-color      the hairline around the player
- *   --media-object-fit / --media-object-position
- *   --media-scale-unit        base size for spacing and type (default 16px)
- * Skin properties:
- *   --gl-plate-ratio          the picture's aspect ratio (default 16 / 9)
- *   --gl-paper / --gl-ink / --gl-unread   page colours; follow `color-scheme` through light-dark()
+ * One dark look by design. Sizes follow the player, not the page: the root is a size container, and lengths are in
+ * cqw / cqh. Breakpoints are container queries at 900, 760, 520 and 420 px; fullscreen brings the side ladders.
+ *
+ * `--lift` (set by <ascent-lift>) runs from 1, HUD showing, to 0, HUD away while the film plays.
  */
 
-@layer galley {
-  .gl {
-    --gl-unit: var(--media-scale-unit, 16px);
-    --gl-font: var(--media-font-family, 'Newsreader Variable', 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif);
-    --gl-paper: light-dark(#f2f4f5, #0e1114);
-    --gl-paper-raised: light-dark(#fbfcfc, #181c20);
-    --gl-ink: light-dark(#121519, #e9edf0);
-    --gl-ink-2: light-dark(#4b535c, #a9b1b9);
-    --gl-unread: light-dark(#646d77, #8f98a2);
-    --gl-rule: light-dark(rgb(18 21 25 / 0.16), rgb(233 237 240 / 0.16));
-    --gl-rule-strong: light-dark(rgb(18 21 25 / 0.42), rgb(233 237 240 / 0.42));
-    --gl-accent: var(--media-accent-color, light-dark(#2346c8, #8fa6ff));
-    --gl-on-ink: var(--media-accent-text-color, var(--gl-paper));
-    --gl-radius: var(--media-border-radius, 3px);
-    --gl-plate-ratio: 16 / 9;
+.asc {
+  --void: #05070b;
+  --ink: #f4f1ea;
+  --burn: #ff5b1f;
+  --plate: rgba(3, 5, 9, 0.62);
+  --wide: 'Archivo Variable', 'Archivo', 'Arial Black', Arial, sans-serif;
+  --mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --text: 'Sora Variable', 'Sora', 'Helvetica Neue', Arial, sans-serif;
+  --lift: 1;
 
-    --gl-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-    --gl-ink-duration: 260ms;
-    --gl-fade-duration: 220ms;
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  container-type: size;
+  background: #000;
+  color: var(--ink);
+  color-scheme: dark;
+  font-family: var(--wide);
+  line-height: 1.5;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 
-    --gl-text-size: clamp(calc(var(--gl-unit) * 1.0625), 1.55cqi, calc(var(--gl-unit) * 1.3125));
-    --gl-label-size: calc(var(--gl-unit) * 0.8125);
+.asc *,
+.asc *::before,
+.asc *::after {
+  box-sizing: border-box;
+}
 
-    container: gl / inline-size;
-    position: relative;
-    display: block;
-    box-sizing: border-box;
-    color: var(--gl-ink);
-    font-family: var(--gl-font);
-    font-optical-sizing: auto;
-    font-kerning: normal;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    background: var(--gl-paper);
-    border: 1px solid var(--media-border-color, var(--gl-rule));
-    border-radius: calc(var(--gl-radius) * 2);
-    overflow: hidden;
-    -webkit-tap-highlight-color: transparent;
-  }
+.asc:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+}
 
-  .gl *,
-  .gl *::before,
-  .gl *::after {
-    box-sizing: border-box;
-  }
+/* Video.js sets the native `hidden` on controls the media cannot use; keep it stronger than any display below. */
+.asc [hidden] {
+  display: none !important;
+}
 
-  .gl:focus-visible {
-    outline: 2px solid var(--gl-accent);
-    outline-offset: 2px;
-  }
+.asc:focus {
+  outline: none;
+}
 
-  /* After a tap or click Galley hands focus back to the player; that focus is not drawn, keyboard focus is. */
-  .gl[data-gl-pointer]:focus-visible {
-    outline: none;
-  }
+.asc :focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
 
-  /* ---------- The page ---------- */
+.asc button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
 
-  .gl-page {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      'plate'
-      'text'
-      'foot';
-    height: 100%;
-    padding: calc(var(--gl-unit) * 0.75);
-    padding-bottom: 0;
-  }
+/* ---------- the picture ---------- */
 
-  /* Wide players set the text beside the picture, as a spread. */
-  @container gl (width >= 46rem) {
-    .gl-page {
-      grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
-      grid-template-rows: minmax(0, 1fr) auto;
-      grid-template-areas:
-        'plate text'
-        'foot foot';
-      column-gap: calc(var(--gl-unit) * 1.75);
-      padding: calc(var(--gl-unit) * 1.25) calc(var(--gl-unit) * 1.25) 0;
-    }
-  }
+.asc > video,
+.asc > :is(mux-video, hls-video, dash-video) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
 
-  /* No captions: the picture alone, full width. */
-  .gl[data-no-text] .gl-text {
-    display: none;
-  }
+/* Ascent sets captions itself (<ascent-captions>), so the browser's own rendering is hidden. */
+.asc video::-webkit-media-text-track-container {
+  display: none;
+}
 
-  .gl[data-no-text] .gl-plate {
-    width: 100%;
-    max-width: calc(72svh * (var(--gl-plate-ratio)));
-    justify-self: center;
-  }
+.asc video::cue {
+  color: transparent;
+  background: transparent;
+}
 
-  @container gl (width >= 46rem) {
-    .gl[data-no-text] .gl-page {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-areas:
-        'plate'
-        'foot';
-    }
-  }
+.asc-poster {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
 
-  /* ---------- The plate (picture + figure caption) ---------- */
+.asc-poster:not([data-visible]) {
+  display: none;
+}
 
-  .gl-plate {
-    grid-area: plate;
-    display: flex;
-    flex-direction: column;
-    gap: calc(var(--gl-unit) * 0.5);
-    min-width: 0;
-    margin: 0;
-  }
+.asc-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 
-  .gl-frame {
-    position: relative;
-    display: block;
-    width: 100%;
-    aspect-ratio: var(--gl-plate-ratio);
-    overflow: hidden;
-    color: #f2f4f5;
-    background: #090b0e;
-    border-radius: var(--gl-radius);
-    cursor: pointer;
-    isolation: isolate;
-    container: glf / inline-size;
-  }
+.asc-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--lift);
+  background:
+    radial-gradient(ellipse 62% 70% at 50% 42%, transparent 45%, rgba(3, 5, 9, 0.55)),
+    linear-gradient(rgba(3, 5, 9, 0.6), transparent 24%, transparent 40%, rgba(3, 5, 9, 0.5) 70%, rgba(3, 5, 9, 0.9));
+}
 
-  .gl-frame > video,
-  .gl-frame > :is(mux-video, hls-video, hlsjs-video, dash-video, shaka-video, native-hls-video) {
-    position: absolute;
-    inset: 0;
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: var(--media-object-fit, cover);
-    object-position: var(--media-object-position, center);
-  }
+/* ---------- type ---------- */
 
-  /* The text is the caption, so the browser's own cue box stays out of the picture. */
-  .gl-frame video::-webkit-media-text-track-container {
-    display: none;
-  }
+.asc .lab {
+  font-family: var(--wide);
+  font-weight: 600;
+  font-stretch: 125%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow:
+    0 1px 6px rgba(2, 5, 10, 0.95),
+    0 0 2px rgba(2, 5, 10, 0.9);
+}
 
-  .gl-frame video::cue {
-    color: transparent;
-    background: transparent;
-  }
+.asc .num {
+  font-family: var(--mono);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 6px rgba(2, 5, 10, 0.95);
+}
 
-  .gl-poster {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    transition: opacity var(--gl-fade-duration) var(--gl-ease);
-  }
+.asc-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
-  .gl-poster:not([data-visible]) {
-    opacity: 0;
-    pointer-events: none;
-  }
+/* ---------- the HUD layer: fades with the lift, and stops taking the pointer once it is away ---------- */
 
-  .gl-poster-image {
-    width: 100%;
-    height: 100%;
-    object-fit: var(--media-object-fit, cover);
-    object-position: var(--media-object-position, center);
-  }
+.asc-fade {
+  opacity: var(--lift);
+  pointer-events: none;
+}
 
-  /* Before the first play the picture is a frontispiece: the title set over it, and an invitation to begin. */
-  .gl-titlepage {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    gap: 0.45em;
-    padding: 7cqi 7cqi 6cqi;
-    color: #f2f4f5;
-    pointer-events: none;
-    text-shadow: 0 1px 12px rgb(9 11 14 / 0.6);
-    background: linear-gradient(to top, rgb(9 11 14 / 0.9), rgb(9 11 14 / 0.66) 45%, rgb(9 11 14 / 0) 80%);
-    transition: opacity var(--gl-fade-duration) var(--gl-ease);
-  }
+.asc-fade > * {
+  pointer-events: auto;
+}
 
-  .gl-frame[data-started] .gl-titlepage {
-    opacity: 0;
-  }
+.asc[data-idle] .asc-fade > *,
+.asc[data-idle] .asc-seek {
+  pointer-events: none;
+}
 
-  /* The title is on the picture until playback starts, so the caption below does not repeat it. */
-  .gl-plate:has(.gl-frame:not([data-started])) .gl-title {
-    visibility: hidden;
-  }
+/* corner brackets */
+.asc-br {
+  position: absolute;
+  width: 2cqw;
+  height: 2cqw;
+  min-width: 16px;
+  min-height: 16px;
+  border: 1.5px solid var(--ink);
+  pointer-events: none !important;
+}
 
-  .gl-titlepage-kicker {
-    font-size: clamp(calc(var(--gl-unit) * 0.75), 2.3cqi, calc(var(--gl-unit) * 0.875));
-    font-weight: 600;
-    font-variant-numeric: lining-nums;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
+.asc-br.tl { top: 1.6cqw; left: 1.6cqw; border-right: 0; border-bottom: 0; }
+.asc-br.tr { top: 1.6cqw; right: 1.6cqw; border-left: 0; border-bottom: 0; }
+.asc-br.bl { bottom: 1.6cqw; left: 1.6cqw; border-right: 0; border-top: 0; }
+.asc-br.br { right: 1.6cqw; bottom: 1.6cqw; border-left: 0; border-top: 0; }
 
-  .gl-titlepage-time {
-    letter-spacing: 0.04em;
-  }
+/* header data */
+.asc-title,
+.asc-now {
+  position: absolute;
+  top: 4.2cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5cqw;
+  pointer-events: none !important;
+}
 
-  .gl-titlepage-title {
-    max-width: 16ch;
-    font-size: clamp(calc(var(--gl-unit) * 1.4), 8.2cqi, calc(var(--gl-unit) * 3.1));
-    font-style: italic;
-    font-weight: 400;
-    line-height: 1.02;
-    letter-spacing: -0.015em;
-    text-wrap: balance;
-  }
+.asc-title {
+  left: 4.3cqw;
+}
 
-  .gl-titlepage-title:empty {
-    display: none;
-  }
+.asc-title media-title {
+  display: block;
+  font-size: clamp(15px, 1.9cqw, 30px);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1.2;
+}
 
-  .gl-titlepage-begin {
-    text-shadow: none;
-    align-self: flex-start;
-    margin-top: 0.5em;
-    padding: 0.67em 1.05em 0.38em;
-    font-size: clamp(calc(var(--gl-unit) * 0.6875), 2.3cqi, calc(var(--gl-unit) * 0.8125));
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #121519;
-    background: #f2f4f5;
-    border-radius: 999px;
-  }
+.asc-title .asc-byline,
+.asc-now span {
+  font-size: clamp(9px, 0.88cqw, 13px);
+  opacity: 0.78;
+}
 
-  .gl[data-no-text] .gl-titlepage-begin {
-    display: none;
-  }
+.asc-byline:empty {
+  display: none;
+}
 
-  .gl-titlepage-begin::after {
-    content: ' →';
-  }
+.asc-now {
+  right: 4.3cqw;
+  text-align: right;
+}
 
-  /* When the speech ends, the picture becomes a contents page. */
-  .gl-endpage {
-    position: absolute;
-    inset: 0;
-    z-index: 4;
-    display: flex;
-    flex-direction: column;
-    justify-content: safe center;
-    gap: 0.4em;
-    padding: 6cqi 7cqi;
-    overflow-y: auto;
-    /* Everything inside is sized in em from this, so the page scales with the 4:3 plate and the
-       full contents fits from a phone up. */
-    font-size: clamp(11.5px, 3.3cqi, var(--gl-unit));
-    color: var(--gl-ink);
-    background: color-mix(in oklab, var(--gl-paper) 94%, transparent);
-    cursor: default;
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity var(--gl-fade-duration) var(--gl-ease),
-      visibility 0s linear var(--gl-fade-duration);
-  }
+.asc-now b {
+  font-size: clamp(11px, 1.22cqw, 18px);
+  font-weight: 600;
+}
 
-  .gl-frame[data-ended] .gl-endpage {
-    opacity: 1;
-    visibility: visible;
-    transition: opacity var(--gl-fade-duration) var(--gl-ease);
-  }
+/* ---------- flight path ---------- */
 
-  .gl-endpage-kicker {
-    font-size: 0.8125em;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--gl-accent);
-  }
+/* The interaction layer: a Video.js time slider over the lower part of the frame, spanning the path's x range. */
+.asc-seek {
+  position: absolute;
+  right: 4.3cqw;
+  bottom: 0;
+  left: 4.3cqw;
+  display: block;
+  height: 38cqh;
+  cursor: pointer;
+  touch-action: none;
+}
 
-  .gl-endpage-title-main {
-    font-size: clamp(1.25em, 6.4cqi, calc(var(--gl-unit) * 2.4));
-    font-style: italic;
-    line-height: 1.05;
-    text-wrap: balance;
-  }
+/* Its thumb is moved onto the craft by <ascent-flight>; focus shows as a heavier ring on the craft. */
+.asc-seek-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+}
 
-  .gl-endpage-again {
-    align-self: flex-start;
-    min-height: 3.1em;
-    margin: 0.4em 0 0.6em;
-    padding: 0 1.1em;
-    font: inherit;
-    font-size: 0.8125em;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--gl-on-ink);
-    cursor: pointer;
-    background: var(--gl-ink);
-    border: 0;
-    border-radius: 999px;
-  }
+.asc-seek-thumb:focus-visible {
+  outline: none;
+}
 
-  .gl-endpage-list {
-    display: none;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 1.25em;
-    margin: 0;
-    padding: 0.6em 0 0;
-    list-style: none;
-    border-top: 1px solid var(--gl-rule);
-  }
+.asc:has(.asc-seek-thumb:focus-visible) .craft-ring {
+  stroke-width: 3;
+  r: 22;
+}
 
-  .gl-endpage[data-has-chapters] .gl-endpage-list {
-    display: grid;
-  }
+.asc-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+  opacity: calc(var(--lift) * var(--lift));
+}
 
-  .gl-endpage-chapter {
-    display: flex;
-    gap: 0.6em;
-    align-items: baseline;
-    width: 100%;
-    min-height: 2.5em;
-    padding: 0.2em 0;
-    font: inherit;
-    font-size: 0.875em;
-    text-align: start;
-    color: var(--gl-ink);
-    cursor: pointer;
-    background: none;
-    border: 0;
-  }
+.asc-svg svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
 
-  .gl-endpage-number {
-    flex: none;
-    min-width: 2.75em;
-    font-size: 0.86em;
-    letter-spacing: 0.06em;
-    color: var(--gl-accent);
-  }
+/* events (chapters) */
+.asc-events {
+  display: block;
+}
 
-  @media (hover: hover) {
-    .gl-endpage-chapter:hover .gl-endpage-title {
-      text-decoration: underline;
-      text-decoration-color: var(--gl-accent);
-      text-underline-offset: 0.2em;
-    }
-  }
+.asc-ev {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25cqw;
+  padding-bottom: 1.1cqw !important;
+  white-space: nowrap;
+  opacity: 0.62;
+  transform: translate(-50%, -100%);
+}
 
-  .gl-endpage-again:focus-visible,
-  .gl-endpage-chapter:focus-visible {
-    outline: 2px solid var(--gl-accent);
-    outline-offset: 2px;
-  }
+.asc-ev.first {
+  align-items: flex-start;
+  transform: translate(0, -100%);
+}
 
+.asc-ev.past,
+.asc-ev:hover,
+.asc-ev:focus-visible {
+  opacity: 1;
+}
 
-  /* Phone-width plates: a tighter gutter keeps each chapter title on one line. */
-  @container glf (width < 380px) {
-    .gl-endpage-list {
-      column-gap: 0.75em;
-    }
-  }
+.asc-ev b {
+  font-size: clamp(9px, 0.95cqw, 14px);
+  font-weight: 600;
+}
 
-  /* The narrowest phones: tighter spacing so all eight chapters still fit without scrolling. */
-  @container glf (width < 320px) {
-    .gl-endpage {
-      gap: 0.25em;
-      padding-block: 3cqi;
-    }
+.asc-ev.cur b {
+  font-size: clamp(10px, 1.08cqw, 16px);
+}
 
-    .gl-endpage-again {
-      margin: 0.2em 0 0.35em;
-    }
-  }
+.asc-ev i {
+  font-size: clamp(8px, 0.88cqw, 13px);
+  font-style: normal;
+  opacity: 0.78;
+}
 
-  .gl-figcaption {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: calc(var(--gl-unit) * 0.25) calc(var(--gl-unit) * 1);
-    min-height: 1.4em;
-    font-size: calc(var(--gl-unit) * 0.875);
-    line-height: 1.35;
-    color: var(--gl-ink-2);
-  }
+.asc-ev::after {
+  content: '';
+  width: 1.3px;
+  height: 2.4cqw;
+  margin-top: 0.35cqw;
+  background: var(--ink);
+}
 
-  .gl-title {
-    min-width: 0;
-    overflow: hidden;
-    font-style: italic;
-    color: var(--gl-ink);
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
+/* ---------- bottom row ---------- */
 
-  /* The caption is always one line, so the text below never jumps when a longer chapter title arrives: the
-     film's title gives way first, then the chapter's. */
-  .gl-figcaption {
-    flex-wrap: nowrap;
-    container: glcap / inline-size;
-  }
+.asc-row {
+  position: absolute;
+  bottom: 3.4cqh;
+  left: 4.3cqw;
+  display: flex;
+  align-items: center;
+  gap: 1.5cqw;
+}
 
-  .gl-figcaption .gl-chapter {
-    flex-shrink: 0;
-    max-width: 100%;
-    margin-inline-start: auto;
-  }
+.asc-b {
+  display: grid;
+  place-items: center;
+  width: clamp(38px, 3.3cqw, 50px);
+  height: clamp(38px, 3.3cqw, 50px);
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: rgba(3, 5, 9, 0.35);
+  color: var(--ink);
+  cursor: pointer;
+}
 
-  /* Too narrow for both: the chapter stays whole and the film's title steps aside, rather than two ellipses. */
-  @container glcap (width < 27.5rem) {
-    .gl-figcaption:not(:has(.gl-find)) .gl-title {
-      display: none;
-    }
-  }
+.asc-b svg {
+  width: 50%;
+  height: 50%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
-  .gl-chapter {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
+.asc-b.play {
+  width: clamp(46px, 4.3cqw, 66px);
+  height: clamp(46px, 4.3cqw, 66px);
+  background: var(--ink);
+  color: var(--void);
+}
 
-  .gl-chapter {
-    font-size: var(--gl-label-size);
-    font-variant-numeric: lining-nums;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
+.asc-b.play svg {
+  width: 40%;
+  height: 40%;
+}
 
-  .gl-chapter-number {
-    color: var(--gl-accent);
-  }
+.asc-b.play:not([data-paused]):not([data-ended]) .asc-i-play,
+.asc-b.play:is([data-paused], [data-ended]) .asc-i-pause {
+  display: none;
+}
 
-  /* The line over the picture: an editorial subtitle when captions are on. */
-  .gl-overlay-line {
-    position: absolute;
-    inset: auto 0 0;
-    z-index: 3;
-    display: flex;
-    justify-content: center;
-    padding: 0 6% 4%;
-    pointer-events: none;
-    font-size: clamp(calc(var(--gl-unit) * 0.9), 4.6cqi, calc(var(--gl-unit) * 1.5));
-    font-style: italic;
-    line-height: 1.3;
-    text-align: center;
-    text-wrap: balance;
-    opacity: 0;
-    transition: opacity var(--gl-fade-duration) var(--gl-ease);
-  }
+/* Pressed states: muted (or silent), captions on. */
+.asc-b.mute:is([data-muted], [data-volume-level='off']),
+.asc-b.cc[data-active] {
+  background: var(--ink);
+  color: var(--void);
+}
 
-  .gl-overlay-line[data-showing]:not([data-empty]) {
-    opacity: 1;
-  }
+.asc-b.mute:is([data-muted], [data-volume-level='off']) .asc-i-on,
+.asc-b.mute:not([data-muted]):not([data-volume-level='off']) .asc-i-off {
+  display: none;
+}
 
-  .gl-overlay-line .gl-line-text {
-    max-width: 34em;
-    padding: 0.18em 0.5em 0.24em;
-    color: rgb(242 244 245 / 0.62);
-    background: rgb(9 11 14 / 0.72);
-    border-radius: var(--gl-radius);
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
+.asc-b.rate {
+  width: auto;
+  padding: 0 12px;
+  border-radius: 99px;
+  font: 400 13px var(--mono);
+}
 
-  .gl-overlay-line .gl-word {
-    transition: color var(--gl-ink-duration) var(--gl-ease);
-  }
+/* Mute and speed each sit in a wrapper with a pop-up ladder above them (mid-size players only). */
+.asc-wrap {
+  position: relative;
+  display: flex;
+}
 
-  .gl-overlay-line .gl-word.is-said {
-    color: #ffffff;
-  }
+.asc-wrap.spd {
+  display: none;
+}
 
-  .gl-buffering {
-    position: absolute;
-    top: calc(var(--gl-unit) * 0.75);
-    right: calc(var(--gl-unit) * 0.75);
-    z-index: 4;
-    padding: 0.2em 0.65em;
-    font-size: var(--gl-label-size);
-    font-style: italic;
-    color: #f2f4f5;
-    background: rgb(9 11 14 / 0.72);
-    border-radius: 999px;
-    visibility: hidden;
-    opacity: 0;
-    transition:
-      opacity var(--gl-fade-duration) var(--gl-ease),
-      visibility 0s linear var(--gl-fade-duration);
-  }
+/* A bridge over the gap, so the pointer can travel from the button up to its ladder. */
+.asc-wrap::before {
+  content: '';
+  position: absolute;
+  right: -12px;
+  bottom: 100%;
+  left: -12px;
+  height: 16px;
+}
 
-  /* Hidden, it is gone from the accessibility tree too, so the figure is not named "Loading". */
-  .gl-buffering[data-visible] {
+.asc-pop {
+  position: absolute;
+  bottom: calc(100% + 13px);
+  left: 50%;
+  display: block;
+  width: 64px;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateX(-50%);
+  transition:
+    opacity 0.16s,
+    visibility 0.16s;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.asc-pop svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.asc-pop text {
+  fill: var(--ink);
+  font-family: var(--mono);
+}
+
+@container (min-width: 520px) and (max-width: 899.9px) {
+  /* Keyboard focus opens it; focus left behind by a tap does not, so the touch pop-up can close on its timer. */
+  .asc-wrap:hover .asc-pop,
+  .asc-wrap:has(:focus-visible) .asc-pop,
+  .asc-wrap[data-open] .asc-pop {
     visibility: visible;
     opacity: 1;
-    transition-delay: 0s;
   }
+}
 
-  .gl-buffering-label::after {
-    content: '…';
-  }
+/* Inline "jet" sliders for volume and speed: wide players only (900 px and up), not in fullscreen. */
+.asc-jet {
+  --asc-jet-width: clamp(104px, 11.5cqw, 168px);
 
-  .gl-indicators {
-    position: absolute;
-    inset: 0;
-    z-index: 4;
-    display: grid;
-    place-items: start center;
-    padding-top: calc(var(--gl-unit) * 0.75);
-    pointer-events: none;
-  }
+  position: relative;
+  display: none;
+  align-items: center;
+  gap: 1cqw;
+  border-radius: 6px;
+  cursor: ew-resize;
+  touch-action: none;
+}
 
-  .gl-indicator {
-    grid-area: 1 / 1;
-    padding: 0.25em 0.8em;
-    font-size: calc(var(--gl-unit) * 0.875);
-    font-variant-numeric: tabular-nums;
-    color: #f2f4f5;
-    background: rgb(9 11 14 / 0.76);
-    border-radius: 999px;
-    opacity: 0;
-    transition: opacity var(--gl-fade-duration) var(--gl-ease);
-  }
+.asc-jet svg {
+  display: block;
+  width: var(--asc-jet-width);
+  height: auto;
+  overflow: visible;
+}
 
-  .gl-indicator[data-open] {
-    opacity: 1;
-  }
+.asc-jet-read {
+  min-width: 3.1em;
+  font: 400 clamp(12px, 1.1cqw, 16px) var(--mono);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 6px rgba(2, 5, 10, 0.95);
+}
 
-  .gl-indicator[data-ending-style] {
-    opacity: 0;
-  }
-
-  .gl-seek-indicator[data-direction='forward'] .gl-indicator-value::before {
-    content: '+';
-  }
-
-  .gl-seek-indicator[data-direction='backward'] .gl-indicator-value::before {
-    content: '−';
-  }
-
-  .gl-seek-indicator .gl-indicator-value::after {
-    content: ' s';
-  }
-
-  .gl-volume-indicator-fill {
+@container (min-width: 900px) {
+  .asc-jet {
     display: flex;
-    gap: 0.5em;
   }
 
-  .gl-indicator-label {
-    font-style: italic;
+  .asc-row {
+    gap: 1.9cqw;
+  }
+}
+
+.asc:fullscreen .asc-jet {
+  display: none;
+}
+
+/* The volume jet's <media-volume-slider> spans the drawn track, x 6–104 of 110. */
+.asc-jet-hit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--asc-jet-width) * 6 / 110);
+  display: block;
+  width: calc(var(--asc-jet-width) * 98 / 110);
+}
+
+.asc-jet-hit::before {
+  content: '';
+  position: absolute;
+  inset: 0 -6px;
+}
+
+.asc-jet-hit .asc-lad-thumb {
+  top: 50%;
+  bottom: auto;
+  left: var(--media-slider-fill, 0%);
+}
+
+.asc-jet:has(.asc-lad-thumb:focus-visible) {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* mission clock */
+.asc-clock {
+  position: absolute;
+  right: 4.6cqw;
+  bottom: 3.2cqh;
+  display: block;
+}
+
+.asc-clock button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6cqw;
+  text-align: right;
+}
+
+.asc-clock span {
+  font-size: clamp(8px, 0.88cqw, 13px);
+  opacity: 0.78;
+}
+
+.asc-clock b {
+  font-family: var(--wide);
+  font-size: clamp(30px, 6.2cqw, 96px);
+  font-weight: 300;
+  font-stretch: 125%;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 0.9;
+  text-shadow: 0 2px 14px rgba(2, 5, 10, 0.8);
+}
+
+/* ---------- ladders ---------- */
+
+/* The big side ladders: fullscreen only (the bottom row carries volume and speed otherwise). */
+.asc-lad {
+  position: absolute;
+  top: 22cqh;
+  display: none;
+  width: clamp(96px, 8.2cqw, 128px);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.asc:fullscreen .asc-lad {
+  display: block;
+}
+
+.asc-lad.vol {
+  left: 4.6cqw;
+}
+
+.asc-lad.spd {
+  right: 4.6cqw;
+}
+
+.asc-lad svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 1px 3px rgba(2, 5, 10, 0.95));
+}
+
+.asc-lad text {
+  fill: var(--ink);
+}
+
+.asc-lad .lab {
+  font-size: 13px;
+}
+
+/* The vertical <media-volume-slider> laid exactly over the drawn scale (side ladder: y 44–294 of 310). */
+.asc-lad-hit {
+  position: absolute;
+  top: 14.194%;
+  right: 0;
+  left: 0;
+  display: block;
+  height: 80.645%;
+}
+
+/* A larger hit area above and below the scale; values there clamp to the ends. */
+.asc-lad-hit::before {
+  content: '';
+  position: absolute;
+  inset: -22% 0 -6%;
+}
+
+/* Pop-up ladder: the scale runs y 36–106 of 128. */
+.asc-pop .asc-lad-hit {
+  top: 28.125%;
+  height: 54.688%;
+}
+
+.asc-pop .asc-lad-hit::before {
+  inset: -48% 0 -14%;
+}
+
+.asc-lad-thumb {
+  position: absolute;
+  bottom: var(--media-slider-fill, 0%);
+  left: 50%;
+  display: block;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.asc-lad-thumb:focus-visible {
+  outline: none;
+}
+
+:is(.asc-lad, .asc-pop):has(.asc-lad-thumb:focus-visible) {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* ---------- captions: rise with the HUD so they never sit on the path ---------- */
+
+.asc-cap {
+  position: absolute;
+  right: 10cqw;
+  bottom: calc(6cqh + var(--lift) * 34cqh);
+  left: 10cqw;
+  display: block;
+  font: 400 clamp(14px, 2.1cqw, 32px) / 1.3 var(--text);
+  text-align: center;
+  text-shadow:
+    0 0 6px rgba(0, 0, 0, 0.9),
+    0 2px 10px rgba(0, 0, 0, 0.8);
+  white-space: pre-line;
+  pointer-events: none;
+}
+
+.asc-cap:empty {
+  display: none;
+}
+
+/* ---------- loading and errors ---------- */
+
+.asc-load {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(3, 5, 9, 0.5);
+  font: 400 13px var(--mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.asc-load[data-visible] {
+  display: grid;
+}
+
+.asc-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 5, 9, 0.8);
+}
+
+.asc-dialog {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(420px, 84cqw);
+  padding: 22px 24px;
+  border: 1.5px solid var(--ink);
+  background: rgba(3, 5, 9, 0.95);
+  transform: translate(-50%, -50%);
+}
+
+.asc-dialog-backdrop:not([data-open]),
+.asc-dialog:not([data-open]) {
+  display: none;
+}
+
+.asc-dialog-kicker {
+  color: var(--burn);
+  font-size: 11px;
+}
+
+.asc-dialog-title {
+  font-size: 15px;
+}
+
+.asc-dialog-description {
+  font: 300 14px / 1.5 var(--text);
+  opacity: 0.85;
+}
+
+.asc-dialog-close {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--ink);
+  border-radius: 99px;
+  font: 400 13px var(--mono);
+  cursor: pointer;
+}
+
+/* ---------- sizes ---------- */
+
+@container (max-width: 899.9px) {
+  .asc-wrap.spd {
+    display: flex;
+  }
+}
+
+@container (max-width: 760px) {
+  .asc-ev b,
+  .asc-ev i {
+    display: none;
   }
 
-  /* ---------- The text ---------- */
-
-  .gl-text {
-    --gl-find-row: calc(var(--gl-unit) * 2.75);
-    --gl-find-in-caption: 0;
-
-    grid-area: text;
-    position: relative;
+  .asc-ev.cur b {
     display: block;
-    /* Stacked, the text takes what the screen has left after the picture and the controls, so all three fit. */
-    height: clamp(calc(var(--gl-unit) * 8.5), calc(100svh - 100cqi / (var(--gl-plate-ratio)) - var(--gl-unit) * 12), calc(var(--gl-unit) * 22));
-    min-height: 0;
-    margin-top: calc(var(--gl-unit) * 0.5);
-    font-size: var(--gl-text-size);
   }
 
-  @container gl (width >= 46rem) {
-    .gl-text {
-      height: auto;
-      margin-top: 0;
-    }
+  .asc-ev::after {
+    height: 10px;
   }
 
-  /* Stacked, Find lives in the caption line (see #placeFind), and the text keeps its whole height. */
-  @container gl (width < 46rem) {
-    .gl-text {
-      --gl-find-row: 0px;
-      --gl-find-in-caption: 1;
-    }
-
-    .gl-content {
-      padding-top: 1.1em;
-    }
+  .asc-row {
+    bottom: 4cqh;
+    left: 4.3cqw;
+    gap: 8px;
   }
 
-  .gl-figcaption {
-    position: relative;
+  .asc-now span,
+  .asc-title .asc-byline,
+  .asc-clock span {
+    display: none;
   }
 
-  .gl-figcaption .gl-find {
-    position: relative;
-    inset: auto;
-    order: 3;
-    height: auto;
-    margin-left: auto;
-    font-size: inherit;
-    background: none;
+  .asc-b {
+    width: 36px;
+    height: 36px;
   }
 
-  /* The caption line keeps the field's height whether Find is open or not, so nothing below it moves. */
-  .gl-figcaption:has(.gl-find) {
-    --gl-find-h: calc(var(--gl-unit) * 2);
-
-    min-height: var(--gl-find-h);
+  .asc-b.play {
+    width: 42px;
+    height: 42px;
   }
 
-  .gl-figcaption .gl-find-input {
-    width: 3.4em;
-    min-height: var(--gl-find-h);
+  .asc-b.rate {
+    width: auto;
+    padding: 0 9px;
+    font-size: 12px;
   }
 
-  @media (pointer: coarse) {
-    .gl-figcaption:has(.gl-find) {
-      --gl-find-h: calc(var(--gl-unit) * 2.75);
-    }
+  .asc-clock {
+    bottom: 4cqh;
   }
 
-  /* In use, the field opens across the whole caption line. */
-  .gl-figcaption:has(.gl-find-input:focus, .gl-find-input:not(:placeholder-shown)) .gl-find {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    justify-content: flex-start;
-    background: var(--gl-paper);
+  .asc-clock b {
+    font-size: clamp(24px, 7.4cqw, 44px);
+  }
+}
+
+@container (max-width: 420px) {
+  .asc-row {
+    gap: 6px;
   }
 
-  .gl-figcaption:has(.gl-find-input:focus, .gl-find-input:not(:placeholder-shown)) .gl-find-input {
-    flex: 1;
+  .asc-b {
+    width: 32px;
+    height: 32px;
+  }
+
+  .asc-b.play {
+    width: 38px;
+    height: 38px;
+  }
+
+  .asc-b.rate {
     width: auto;
   }
-
-  /* Before the first play the caption line carries only Find; the title is on the picture. */
-  @container gl (width < 46rem) {
-    .gl-plate:has(.gl-frame:not([data-started])) .gl-figcaption:has(.gl-find) {
-      display: flex;
-    }
-
-    .gl-plate:has(.gl-frame:not([data-started])) .gl-figcaption .gl-title {
-      visibility: hidden;
-    }
-  }
-
-  /* The text runs below its own top row, where Find sits, so nothing scrolls under the field. */
-  .gl-scroller {
-    position: absolute;
-    inset: var(--gl-find-row) 0 0;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--gl-rule-strong) transparent;
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1.1em, #000 calc(100% - 2.6em), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 1.1em, #000 calc(100% - 2.6em), transparent 100%);
-  }
-
-  .gl-content {
-    --gl-gutter: 3.1em;
-
-    position: relative;
-    display: grid;
-    /* A reading measure of about 68 characters, however wide the stacked page gets. */
-    grid-template-columns: var(--gl-gutter) minmax(0, 34em);
-    column-gap: 0.25em;
-    align-content: start;
-    padding: 0.9em calc(var(--gl-unit) * 0.5) 70% 0;
-    line-height: 1.58;
-    hanging-punctuation: first;
-  }
-
-  /* With room to spare, the notes take their own margin, as in a printed edition. */
-  @container gl (width >= 62rem) {
-    .gl-content {
-      grid-template-columns: var(--gl-gutter) minmax(0, 1fr) minmax(8.5em, 0.46fr);
-      column-gap: 0.25em 1.25em;
-    }
-  }
-
-  .gl-loading {
-    grid-column: 2;
-    margin: 0;
-    font-style: italic;
-    color: var(--gl-ink-2);
-  }
-
-  .gl-head {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: subgrid;
-    align-items: baseline;
-    margin: 0.5em 0 0.6em;
-    font-size: var(--gl-label-size);
-    font-weight: 600;
-    line-height: 1.3;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--gl-ink-2);
-  }
-
-  .gl-head:not(:first-child) {
-    margin-top: 1.6em;
-  }
-
-  .gl-head-number {
-    grid-column: 1;
-    padding-right: 0.9em;
-    text-align: right;
-    color: var(--gl-accent);
-  }
-
-  .gl-head-title {
-    grid-column: 2 / -1;
-  }
-
-  .gl-row {
-    display: contents;
-  }
-
-  .gl-folio {
-    grid-column: 1;
-    padding-top: 0.42em;
-    padding-right: 1.05em;
-    font-size: calc(var(--gl-label-size) * 0.94);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.2;
-    text-align: right;
-    color: var(--gl-ink-2);
-    transition: color var(--gl-ink-duration) var(--gl-ease);
-  }
-
-  .gl-row:has(.is-current) .gl-folio {
-    color: var(--gl-accent);
-  }
-
-  .gl-para {
-    grid-column: 2;
-    margin: 0 0 0.95em;
-    text-wrap: pretty;
-  }
-
-  .gl-row-first .gl-para::first-letter {
-    float: left;
-    margin: 0.06em 0.09em 0 0;
-    font-size: 3.15em;
-    font-weight: 500;
-    line-height: 0.82;
-    color: var(--gl-ink);
-  }
-
-  @supports (initial-letter: 2) or (-webkit-initial-letter: 2) {
-    .gl-row-first .gl-para::first-letter {
-      float: none;
-      margin: 0 0.08em 0 0;
-      font-size: inherit;
-      line-height: inherit;
-      -webkit-initial-letter: 2;
-      initial-letter: 2;
-    }
-  }
-
-  .gl-line {
-    cursor: pointer;
-    border-radius: 2px;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
-
-  .gl-line:focus {
-    outline: none;
-  }
-
-  /* Find a word: a quiet field in the top margin of the text. */
-  .gl-find {
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
-    z-index: 3;
-    display: flex;
-    gap: 0.5em;
-    align-items: baseline;
-    justify-content: flex-end;
-    height: calc(var(--gl-unit) * 2.75);
-    font-size: calc(var(--gl-unit) * 0.8125);
-    background: var(--gl-paper);
-  }
-
-  .gl[data-no-text] .gl-find {
-    display: none;
-  }
-
-  .gl-find-input {
-    width: 9.5em;
-    min-height: calc(var(--gl-unit) * 2.5);
-    padding: 0 0.1em;
-    font: inherit;
-    font-style: italic;
-    color: var(--gl-ink);
-    background: transparent;
-    border: 0;
-    border-bottom: 1px solid var(--gl-rule-strong);
-    border-radius: 0;
-    outline: none;
-    transition: width 160ms var(--gl-ease);
-    -webkit-appearance: none;
-    appearance: none;
-  }
-
-  .gl-find-input::placeholder {
-    color: var(--gl-unread);
-  }
-
-  .gl-find-input:focus {
-    width: 12em;
-    border-bottom: 2px solid var(--gl-accent);
-  }
-
-  .gl-find-input:focus-visible {
-    outline: 2px solid var(--gl-accent);
-    outline-offset: 2px;
-  }
-
-  .gl-find-input::-webkit-search-cancel-button {
-    -webkit-appearance: none;
-  }
-
-  .gl-find-count {
-    font-variant-numeric: tabular-nums lining-nums;
-    color: var(--gl-ink-2);
-    white-space: nowrap;
-  }
-
-  .gl-find-count:empty {
-    display: none;
-  }
-
-  /* A match is tinted like a highlighter pass over the word alone, stopping short of the space after it. */
-  .gl-word.is-match {
-    color: var(--gl-ink);
-    background-image: linear-gradient(color-mix(in oklab, var(--gl-accent) 16%, transparent), color-mix(in oklab, var(--gl-accent) 16%, transparent));
-    background-repeat: no-repeat;
-    background-position: 0 55%;
-    background-size: calc(100% - 0.26em) 1.15em;
-  }
-
-  .gl-word.is-match-current {
-    background-image: linear-gradient(color-mix(in oklab, var(--gl-accent) 34%, transparent), color-mix(in oklab, var(--gl-accent) 34%, transparent));
-  }
-
-  .gl-find-step {
-    min-width: calc(var(--gl-unit) * 1.75);
-    min-height: calc(var(--gl-unit) * 1.75);
-    padding: 0;
-    font: inherit;
-    font-size: 1.3em;
-    line-height: 1;
-    color: var(--gl-ink);
-    background: none;
-    border: 0;
-    border-radius: var(--gl-radius);
-    cursor: pointer;
-  }
-
-  .gl-find-step[hidden] {
-    display: none;
-  }
-
-  .gl-find-step:focus-visible {
-    outline: 2px solid var(--gl-accent);
-    outline-offset: 1px;
-  }
-
-  @media (pointer: coarse) {
-    .gl-find-step {
-      min-width: calc(var(--gl-unit) * 2.75);
-      min-height: calc(var(--gl-unit) * 2.75);
-    }
-  }
-
-  @media (pointer: coarse) {
-    .gl-find-input {
-      min-height: calc(var(--gl-unit) * 2.5);
-      font-size: 16px;
-    }
-  }
-
-  /* The line the seek bar points at, while the reader looks for a place. */
-  .gl-line.is-previewed {
-    background: color-mix(in oklab, var(--gl-accent) 16%, transparent);
-  }
-
-  .gl-line.is-previewed .gl-word {
-    color: var(--gl-ink);
-  }
-
-  .gl-line:focus-visible {
-    outline: 2px solid var(--gl-accent);
-    outline-offset: 2px;
-  }
-
-  /* Unread words wait in grey; the page inks itself as the speech arrives. */
-  .gl-word {
-    color: var(--gl-unread);
-    background-image: linear-gradient(var(--gl-accent), var(--gl-accent));
-    background-repeat: no-repeat;
-    background-position: 0 92%;
-    background-size: 0 0.085em;
-    transition: color var(--gl-ink-duration) var(--gl-ease);
-  }
-
-  .gl-line.is-past .gl-word,
-  .gl-line.is-current .gl-word:is(.is-said, .is-saying) {
-    color: var(--gl-ink);
-  }
-
-  /* The pencil rule under the line being spoken: this sentence is the seek bar's playhead. */
-  .gl-line.is-current .gl-word.is-said {
-    background-size: 100% 0.085em;
-  }
-
-  .gl-line.is-current .gl-word.is-saying {
-    background-size: calc(var(--gl-progress, 0) * 100%) 0.085em;
-  }
-
-  @media (hover: hover) {
-    .gl-word:hover {
-      color: var(--gl-ink);
-      text-decoration: underline dotted var(--gl-rule-strong);
-      text-decoration-thickness: 1px;
-      text-underline-offset: 0.22em;
-    }
-  }
-
-  .gl-mark {
-    margin-left: 0.04em;
-    margin-right: 0;
-    font-size: 0.62em;
-    font-weight: 600;
-    font-variant-numeric: lining-nums;
-    color: var(--gl-accent);
-  }
-
-  .gl-margin {
-    grid-column: 2;
-    display: grid;
-    gap: 0.5em;
-    align-content: start;
-    margin: -0.35em 0 0.95em;
-  }
-
-  .gl-margin:empty {
-    display: none;
-  }
-
-  @container gl (width >= 62rem) {
-    .gl-margin {
-      grid-column: 3;
-      margin: 0.2em 0 0;
-    }
-  }
-
-  .gl-note {
-    display: grid;
-    grid-template-columns: minmax(1.1em, max-content) minmax(0, 1fr);
-    padding-left: 0.6em;
-    font-size: 0.78em;
-    font-style: italic;
-    line-height: 1.42;
-    color: var(--gl-ink-2);
-    border-left: 1px solid var(--gl-rule);
-    transition:
-      color var(--gl-ink-duration) var(--gl-ease),
-      border-color var(--gl-ink-duration) var(--gl-ease);
-  }
-
-  .gl-note-number {
-    padding-right: 0.35em;
-    font-style: normal;
-    font-weight: 600;
-    font-size: 0.86em;
-    font-variant-numeric: lining-nums;
-    color: var(--gl-ink-2);
-  }
-
-  .gl-note.is-active {
-    color: var(--gl-ink);
-    border-left-color: var(--gl-accent);
-  }
-
-  .gl-note.is-active .gl-note-number {
-    color: var(--gl-accent);
-  }
-
-  .gl-hint {
-    position: absolute;
-    top: var(--gl-hint-top, 0);
-    left: 0;
-    width: var(--gl-gutter);
-    padding-top: 0.42em;
-    padding-right: 1.05em;
-    font-size: calc(var(--gl-label-size) * 0.94);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.2;
-    text-align: right;
-    color: var(--gl-ink);
-    background: var(--gl-paper);
-    pointer-events: none;
-    opacity: 0;
-  }
-
-  .gl-hint[data-visible] {
-    opacity: 1;
-  }
-
-  /* It sits in the soft fade at the foot of the text, with a margin of paper, so it never sits on a readable line. */
-  .gl-return {
-    position: absolute;
-    bottom: calc(var(--gl-unit) * 0.2);
-    left: 50%;
-    z-index: 2;
-    display: inline-flex;
-    gap: 0.5em;
-    align-items: baseline;
-    padding: 0.45em 1em 0.5em;
-    font: inherit;
-    font-size: calc(var(--gl-unit) * 0.875);
-    color: var(--gl-paper);
-    white-space: nowrap;
-    cursor: pointer;
-    background: var(--gl-ink);
-    border: 0;
-    border-radius: 999px;
-    box-shadow:
-      0 0 0 0.4em var(--gl-paper),
-      0 6px 18px -8px rgb(0 0 0 / 0.45);
-    translate: -50% 0;
-  }
-
-  .gl-return[hidden] {
-    display: none;
-  }
-
-  /* The top margin holds Find, so the way back always sits at the foot of the text; the arrow gives the direction. */
-  .gl-return[data-direction='up'] {
-    bottom: calc(var(--gl-unit) * 0.2);
-  }
-
-  .gl-return-time {
-    font-variant-numeric: tabular-nums;
-    opacity: 0.75;
-  }
-
-  .gl-return-time::after {
-    content: ' ↓';
-  }
-
-  .gl-return[data-direction='up'] .gl-return-time::after {
-    content: ' ↑';
-  }
-
-  .gl-return:focus-visible {
-    outline: 2px solid var(--gl-accent);
-    outline-offset: 2px;
-  }
-
-  /* ---------- The foot: controls set as words ---------- */
-
-  .gl-controls {
-    grid-area: foot;
-    display: block;
-  }
-
-  /* In fullscreen, while playing, the controls rest at a lower strength after a few quiet seconds (see text.ts). */
-  .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-controls {
-    transition: opacity 300ms var(--gl-ease);
-  }
-
-  .gl:is(:fullscreen, [data-gl-fullscreen])[data-gl-quiet] .gl-controls {
-    opacity: 0.44;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-controls {
-      transition: none;
-    }
-  }
-
-  @media (prefers-contrast: more), (forced-colors: active) {
-    .gl:is(:fullscreen, [data-gl-fullscreen])[data-gl-quiet] .gl-controls {
-      opacity: 1;
-    }
-  }
-
-  .gl-foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: calc(var(--gl-unit) * 0.25) calc(var(--gl-unit) * 0.5);
-    margin-top: calc(var(--gl-unit) * 0.75);
-    padding: calc(var(--gl-unit) * 0.6) 0 calc(var(--gl-unit) * 0.75);
-  }
-
-  @container gl (width >= 46rem) {
-    .gl-foot {
-      gap: calc(var(--gl-unit) * 0.25) calc(var(--gl-unit) * 0.75);
-      margin-top: calc(var(--gl-unit) * 0.75);
-      padding-bottom: calc(var(--gl-unit) * 0.9);
-    }
-  }
-
-  .gl-button {
-    position: relative;
-    display: inline-grid;
-    flex: none;
-    place-items: center;
-    min-width: calc(var(--gl-unit) * 2.5);
-    min-height: calc(var(--gl-unit) * 2.5);
-    padding: 0 calc(var(--gl-unit) * 0.7);
-    font: inherit;
-    font-size: var(--gl-label-size);
-    font-weight: 600;
-    line-height: 1;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--gl-ink);
-    cursor: pointer;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    transition:
-      background-color 140ms var(--gl-ease),
-      color 140ms var(--gl-ease);
-    user-select: none;
-  }
-
-  .gl-button > * {
-    grid-area: 1 / 1;
-    /* The labels are capitals with no descenders: centre the capitals, not the line box. */
-    translate: 0 0.077em;
-  }
-
-  @supports (text-box: trim-both cap alphabetic) {
-    .gl-button > * {
-      translate: none;
-      text-box: trim-both cap alphabetic;
-    }
-  }
-
-  @media (hover: hover) {
-    .gl-button:hover {
-      background: var(--gl-rule);
-    }
-  }
-
-  .gl-button:focus-visible {
-    outline: 2px solid var(--gl-accent);
-    outline-offset: 2px;
-  }
-
-  .gl-button[data-disabled] {
-    cursor: default;
-    opacity: 0.5;
-  }
-
-  /* Every state's label is laid out at once, so the button never changes width. */
-  .gl-play {
-    min-width: calc(var(--gl-unit) * 5.25);
-    color: var(--gl-on-ink);
-    background: var(--gl-ink);
-  }
-
-  @media (hover: hover) {
-    .gl-play:hover {
-      background: color-mix(in oklab, var(--gl-ink) 86%, var(--gl-paper));
-    }
-  }
-
-  .gl-play :is(.gl-when-paused, .gl-when-playing, .gl-when-ended),
-  .gl-mute :is(.gl-when-muted, .gl-when-unmuted),
-  .gl-fullscreen :is(.gl-when-windowed, .gl-when-fullscreen),
-  .gl[data-gl-fullscreen] .gl-fullscreen .gl-when-windowed {
-    visibility: hidden;
-  }
-
-  .gl-play[data-paused]:not([data-ended]) .gl-when-paused,
-  .gl-play:not([data-paused]):not([data-ended]) .gl-when-playing,
-  .gl-play[data-ended] .gl-when-ended,
-  .gl-mute[data-muted] .gl-when-muted,
-  .gl-mute:not([data-muted]) .gl-when-unmuted,
-  .gl-fullscreen[data-fullscreen] .gl-when-fullscreen,
-  .gl-fullscreen:not([data-fullscreen]) .gl-when-windowed,
-  .gl[data-gl-fullscreen] .gl-fullscreen .gl-when-fullscreen {
-    visibility: visible;
-  }
-
-  .gl-mute[data-muted] {
-    color: var(--gl-accent);
-  }
-
-  .gl-rate::before {
-    content: attr(data-rate) '×';
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
-    text-transform: none;
-  }
-
-  .gl-captions[data-active] {
-    color: var(--gl-on-ink);
-    background: var(--gl-accent);
-  }
-
-  .gl-captions[data-hidden],
-  .gl-captions[hidden],
-  .gl-rate[hidden],
-  .gl-fullscreen[hidden] {
-    display: none;
-  }
-
-  .gl-time {
-    display: inline-flex;
-    flex: none;
-    gap: 0.3em;
-    align-items: baseline;
-    font-size: calc(var(--gl-unit) * 0.875);
-    font-variant-numeric: tabular-nums lining-nums;
-    color: var(--gl-ink-2);
-  }
-
-  .gl-time-current {
-    color: var(--gl-ink);
-  }
-
-  .gl-time [data-unavailable] {
-    opacity: 0.5;
-  }
-
-  .gl-group {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    gap: calc(var(--gl-unit) * 0.25);
-  }
-
-  /* Sliders: a hairline rule and a pencil tick. */
-  .gl-slider {
-    position: relative;
-    display: flex;
-    align-items: center;
-    height: calc(var(--gl-unit) * 2.5);
-    cursor: pointer;
-    touch-action: none;
-    outline: none;
-  }
-
-  /* The seek rule runs the full width of the foot, above the buttons. */
-  .gl-time-slider {
-    flex: 1 1 100%;
-    order: -1;
-    min-width: 0;
-    margin-bottom: calc(var(--gl-unit) * 0.15);
-  }
-
-  .gl-sound {
-    margin-inline-start: auto;
-  }
-
-  .gl-short {
-    display: none;
-  }
-
-  /* On a narrow page the time shares the rule's row and the buttons take short labels, so the foot is two rows. */
-  @container gl (width < 30rem) {
-    .gl-foot {
-      justify-content: space-between;
-      column-gap: calc(var(--gl-unit) * 0.25);
-    }
-
-    .gl-time {
-      order: -3;
-      font-size: calc(var(--gl-unit) * 0.8125);
-    }
-
-    .gl-time-slider {
-      flex: 1 1 0;
-      order: -2;
-      margin-inline-start: calc(var(--gl-unit) * 0.5);
-    }
-
-    /* A zero-height break after the rule's row. */
-    .gl-foot::before {
-      content: '';
-      flex: 1 0 100%;
-      order: -1;
-      height: 0;
-    }
-
-    /* The section heads in the text already name the chapter. */
-    .gl-figcaption .gl-chapter {
-      display: none;
-    }
-
-    .gl-sound {
-      margin-inline-start: 0;
-    }
-
-    .gl-play {
-      min-width: calc(var(--gl-unit) * 4.5);
-    }
-
-    .gl-button {
-      padding: 0 calc(var(--gl-unit) * 0.55);
-    }
-
-    .gl-long {
-      display: none;
-    }
-
-    .gl-short {
-      display: inline;
-    }
-  }
-
-  @container gl (width < 21rem) {
-    .gl-rate {
-      display: none;
-    }
-
-    .gl-play {
-      min-width: calc(var(--gl-unit) * 3.75);
-    }
-
-    .gl-button {
-      padding: 0 calc(var(--gl-unit) * 0.45);
-      font-size: calc(var(--gl-unit) * 0.75);
-      letter-spacing: 0.06em;
-    }
-  }
-
-  /* Thumb-sized targets on touch screens. */
-  @media (pointer: coarse) {
-    .gl-button,
-    .gl-slider {
-      min-height: calc(var(--gl-unit) * 2.75);
-    }
-
-    .gl-slider {
-      height: calc(var(--gl-unit) * 2.75);
-    }
-  }
-
-  .gl-volume-slider {
-    width: calc(var(--gl-unit) * 4.5);
-  }
-
-  .gl-sound-short {
-    display: none;
-  }
-
-  /* Stacked players leave volume to the device and keep a plain mute button. */
-  @container gl (width < 46rem) {
-    .gl-volume-slider,
-    .gl-sound-long {
-      display: none;
-    }
-
-    .gl-sound-short {
-      display: inline;
-    }
-
-    /* A wide but short screen (a phone on its side) keeps the picture shorter than the screen. */
-    .gl-plate {
-      justify-self: center;
-      width: 100%;
-      max-width: calc(68svh * (var(--gl-plate-ratio)));
-    }
-
-    /* Before play the title is on the picture, so the empty caption line closes up. */
-    .gl-plate:has(.gl-frame:not([data-started])) .gl-figcaption {
-      display: none;
-    }
-  }
-
-  .gl-track {
-    position: absolute;
-    right: 0;
-    left: 0;
-    display: block;
-    height: 1px;
-    background: var(--gl-rule-strong);
-    transition: height 140ms var(--gl-ease);
-  }
-
-  /* The unplayed seek rule is drawn in the unread ink, so it holds 3:1 against the paper. */
-  .gl-time-slider .gl-track {
-    background: var(--gl-unread);
-  }
-
-  .gl-time-slider:is([data-pointing], [data-dragging]) .gl-track,
-  .gl-volume-slider[data-pointing] .gl-track,
-  .gl-volume-slider[data-dragging] .gl-track {
-    height: 3px;
-  }
-
-  /* The seek rule is one unbroken line, as a sentence is; chapters are set on it as section marks. */
-  .gl-marks {
-    position: absolute;
-    inset: 0;
-    display: block;
-    pointer-events: none;
-  }
-
-  .gl-tick {
-    position: absolute;
-    top: 50%;
-    left: var(--gl-at);
-    display: block;
-    width: 1px;
-    height: 7px;
-    background: var(--gl-unread);
-    translate: -50% -50%;
-  }
-
-  .gl-tick[data-read] {
-    background: var(--gl-accent);
-  }
-
-  .gl-tick-number {
-    position: absolute;
-    bottom: calc(100% + 3px);
-    left: 50%;
-    font-size: calc(var(--gl-unit) * 0.625);
-    font-variant-numeric: lining-nums;
-    line-height: 1;
-    letter-spacing: 0.06em;
-    color: var(--gl-unread);
-    white-space: nowrap;
-    translate: -50% 0;
-  }
-
-  .gl-tick[data-read] .gl-tick-number {
-    color: var(--gl-accent);
-  }
-
-  /* On a narrow rule the numerals would crowd; the ticks alone mark the sections. */
-  @container gl (width < 46rem) {
-    .gl-tick-number {
-      display: none;
-    }
-  }
-
-  .gl-time-slider[data-gl-keyed] .gl-tick-number,
-  .gl-time-slider:is([data-pointing], [data-dragging]) .gl-tick-number {
-    opacity: 0.35;
-  }
-
-  .gl-buffer,
-  .gl-fill {
-    position: absolute;
-    inset-block: 0;
-    left: 0;
-    display: block;
-  }
-
-  .gl-buffer {
-    width: var(--media-slider-buffer);
-    background: color-mix(in oklab, var(--gl-ink) 55%, transparent);
-  }
-
-  .gl-fill {
-    top: -0.5px;
-    bottom: -0.5px;
-    width: var(--media-slider-fill);
-    background: var(--gl-accent);
-  }
-
-  .gl-slider[data-dragging] .gl-fill {
-    width: var(--media-slider-pointer);
-  }
-
-  .gl-thumb {
-    position: absolute;
-    top: 50%;
-    left: var(--media-slider-fill);
-    z-index: 1;
-    display: block;
-    width: 3px;
-    height: calc(var(--gl-unit) * 0.95);
-    background: var(--gl-accent);
-    border-radius: 2px;
-    translate: -50% -50%;
-    transition: height 140ms var(--gl-ease);
-  }
-
-  .gl-slider[data-dragging] .gl-thumb {
-    left: var(--media-slider-pointer);
-  }
-
-  .gl-slider:is([data-pointing], [data-dragging]) .gl-thumb {
-    height: calc(var(--gl-unit) * 1.25);
-  }
-
-  .gl-slider:focus-visible .gl-thumb,
-  .gl-slider:has(:focus-visible) .gl-thumb {
-    outline: 2px solid var(--gl-accent);
-    outline-offset: 3px;
-  }
-
-  .gl-preview {
-    position: absolute;
-    bottom: calc(100% + 4px);
-    z-index: 5;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.1em 0.7em;
-    align-items: baseline;
-    width: max-content;
-    max-width: min(22em, 84cqi);
-    padding: 0.5em 0.85em 0.6em;
-    font-size: calc(var(--gl-unit) * 0.8125);
-    line-height: 1.35;
-    color: var(--gl-paper);
-    background: var(--gl-ink);
-    border-radius: calc(var(--gl-radius) * 2);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 120ms var(--gl-ease);
-  }
-
-  /* Galley places the card itself (see galley-peek), so it can use the whole width of the foot. */
-  .gl-time-slider .gl-preview {
-    left: var(--gl-card-left, 0px) !important;
-  }
-
-  /* A pointer passing over the rule on its way to a button should not flash the card: it waits a beat. */
-  .gl-time-slider[data-pointing] .gl-preview {
-    opacity: 1;
-    transition-delay: 120ms;
-  }
-
-  .gl-time-slider[data-dragging] .gl-preview,
-  .gl-time-slider[data-gl-keyed]:not([data-pointing]) .gl-preview {
-    opacity: 1;
-    transition-delay: 0ms;
-  }
-
-  /* From the keyboard the card tells the playhead's time, not where the pointer last was. */
-  .gl-preview-now {
-    display: none;
-  }
-
-  .gl-time-slider[data-gl-keyed]:not([data-pointing]) .gl-preview-time {
-    display: none;
-  }
-
-  .gl-time-slider[data-gl-keyed]:not([data-pointing]) .gl-preview-now {
-    display: block;
-    grid-column: 1;
-    grid-row: 1;
-    font-variant-numeric: tabular-nums;
-    opacity: 0.8;
-  }
-
-  .gl-preview-time {
-    grid-column: 1;
-    grid-row: 1;
-    font-variant-numeric: tabular-nums;
-    opacity: 0.8;
-  }
-
-  .gl-preview-chapter {
-    grid-column: 2;
-    grid-row: 1;
-    font-size: 0.86em;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.8;
-  }
-
-  .gl-preview-chapter:empty {
-    display: none;
-  }
-
-  .gl-peek {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    font-size: 1.08em;
-    font-style: italic;
-    text-wrap: balance;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .gl-peek[data-empty] {
-    display: none;
-  }
-
-  /* ---------- Error ---------- */
-
-  .gl-dialog-backdrop {
-    position: absolute;
-    inset: 0;
-    z-index: 8;
-    background: rgb(9 11 14 / 0.6);
-  }
-
-  .gl-dialog-backdrop:not([data-open]) {
-    display: none;
-  }
-
-  .gl-dialog {
-    position: absolute;
-    inset: 50% auto auto 50%;
-    z-index: 9;
-    display: grid;
-    gap: 0.5em;
-    width: min(88%, 26em);
-    padding: 1.1em 1.3em 1.2em;
-    color: var(--gl-ink);
-    background: var(--gl-paper-raised);
-    border-radius: calc(var(--gl-radius) * 2);
-    translate: -50% -50%;
-  }
-
-  .gl-dialog:not([data-open]) {
-    display: none;
-  }
-
-  .gl-dialog-kicker {
-    font-size: var(--gl-label-size);
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--gl-accent);
-  }
-
-  .gl-dialog-title {
-    font-size: 1.15em;
-    font-style: italic;
-  }
-
-  .gl-dialog-description {
-    margin: 0;
-    color: var(--gl-ink-2);
-    line-height: 1.45;
-  }
-
-  /* The player's own technical message stays available to screen readers, not set in the page. */
-  .gl-dialog-detail {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .gl-dialog-close {
-    justify-self: start;
-    min-width: calc(var(--gl-unit) * 4.5);
-    margin-top: 0.4em;
-    color: var(--gl-on-ink);
-    background: var(--gl-ink);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-
-  .gl-dialog-close button {
-    font: inherit;
-    letter-spacing: inherit;
-    text-transform: inherit;
-    color: inherit;
-    background: transparent;
-    border: 0;
-    border-radius: inherit;
-  }
-
-  .gl-announcer {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  /* ---------- Fullscreen: the spread fills the screen and the picture fits its height ---------- */
-
-  .gl:is(:fullscreen, [data-gl-fullscreen]) {
-    width: 100%;
-    height: 100%;
-    border: 0;
-    border-radius: 0;
-  }
-
-  /* iPhone browsers cannot put a page element in fullscreen, so Galley fills the window itself (see text.ts). */
-  .gl[data-gl-fullscreen] {
-    position: fixed;
-    inset: 0;
-    z-index: 2147483000;
-    height: 100dvh;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
-
-  .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-page {
-    grid-template-rows: minmax(0, 1fr) auto;
-    padding-inline: max(calc(var(--gl-unit) * 1.25), 3vw);
-  }
-
-  .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-plate {
-    justify-content: center;
-    min-height: 0;
-  }
-
-  .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-frame {
-    max-height: calc(100vh - var(--gl-unit) * 9);
-  }
-
-  /* Stacked in fullscreen: picture, then the text taking the rest, then the controls. */
-  @container gl (width < 46rem) {
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-page {
-      grid-template-rows: auto minmax(0, 1fr) auto;
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-text {
-      height: auto;
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-frame {
-      max-height: 45svh;
-    }
-  }
-
-  /* A phone on its side has no room to stack, so fullscreen sets a spread: the picture at full height beside the
-     text, and the controls on one line beneath both. */
-  @media (orientation: landscape) and (max-height: 32rem) {
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-page {
-      grid-template-columns: auto minmax(0, 1fr);
-      grid-template-rows: minmax(0, 1fr) auto;
-      grid-template-areas:
-        'plate text'
-        'foot foot';
-      column-gap: calc(var(--gl-unit) * 1.25);
-      padding-top: calc(var(--gl-unit) * 0.5);
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-plate {
-      justify-content: center;
-      width: auto;
-      max-width: none;
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-frame {
-      align-self: center;
-      width: auto;
-      max-width: 55vw;
-      height: calc(100dvh - var(--gl-unit) * 5.25 - env(safe-area-inset-bottom));
-      max-height: none;
-      aspect-ratio: var(--gl-plate-ratio);
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-figcaption {
-      display: none;
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-text {
-      height: auto;
-      margin-top: 0;
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-foot {
-      flex-wrap: nowrap;
-      margin-top: calc(var(--gl-unit) * 0.25);
-      padding-block: calc(var(--gl-unit) * 0.25);
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-foot::before {
-      display: none;
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-time-slider {
-      flex: 1 1 0;
-      order: 0;
-      margin: 0 calc(var(--gl-unit) * 0.5);
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-sound {
-      margin-inline-start: 0;
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-tick-number,
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-volume-slider,
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-long {
-      display: none;
-    }
-
-    .gl:is(:fullscreen, [data-gl-fullscreen]) .gl-short {
-      display: inline;
-    }
-  }
-
-  /* ---------- Preferences ---------- */
-
-  @media (prefers-reduced-motion: reduce) {
-    .gl {
-      --gl-ink-duration: 0ms;
-      --gl-fade-duration: 0ms;
-    }
-
-    .gl *,
-    .gl *::before,
-    .gl *::after {
-      transition-duration: 0ms !important;
-      scroll-behavior: auto !important;
-    }
-
-    /* The word being said is underlined whole, not swept. */
-    .gl-line.is-current .gl-word.is-saying {
-      background-size: 100% 0.085em;
-    }
-  }
-
-  @media (prefers-contrast: more) {
-    .gl {
-      --gl-unread: light-dark(#424a53, #bcc4cc);
-      --gl-ink-2: light-dark(#363d45, #c8d0d7);
-      --gl-rule: light-dark(rgb(18 21 25 / 0.4), rgb(233 237 240 / 0.4));
-    }
-  }
-
-  @media (forced-colors: active) {
-    .gl-word,
-    .gl-line.is-past .gl-word {
-      color: CanvasText;
-    }
-
-    .gl-line.is-current .gl-word.is-said,
-    .gl-line.is-current .gl-word.is-saying {
-      color: Highlight;
-    }
-
-    .gl-play,
-    .gl-captions[data-active],
-    .gl-return {
-      color: ButtonText;
-      background: ButtonFace;
-      border-color: ButtonText;
-    }
-
-    .gl-fill,
-    .gl-thumb {
-      background: Highlight;
-    }
-
-    .gl-track {
-      background: CanvasText;
-    }
-
-    .gl-tick {
-      background: CanvasText;
-    }
-
-    .gl-word.is-match {
-      background-image: none;
-      outline: 1px dotted CanvasText;
-    }
-
-    .gl-word.is-match-current {
-      outline: 2px solid Highlight;
-    }
-
-    .gl-tick[data-read] {
-      background: Highlight;
-    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asc * {
+    transition: none !important;
+    animation: none !important;
   }
 }
