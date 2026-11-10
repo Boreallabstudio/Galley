@@ -837,6 +837,15 @@ ascent-ladder {
   .asc-wrap.spd {
     display: none;
   }
+
+  /* Two caption lines still fit between the title row and the event labels. */
+  .asc[data-capup] .asc-cap {
+    top: 18.5cqh;
+    right: 4cqw;
+    left: 4cqw;
+    font-size: 12px;
+    line-height: 1.22;
+  }
 }
 
 /* Portrait (fullscreen on a phone held upright): the climb is steeper still, so every label stands higher. Stems
