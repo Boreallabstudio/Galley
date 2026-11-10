@@ -384,10 +384,24 @@ class AscentNowElement extends UIElement {
 
 /* ---------- engine dials ---------- */
 
+/** Where a press landed on a dial. */
+interface DialHit {
+  /**
+   * `turn`: on the dial, so the value follows the pointer's angle. `minus` / `plus`: the open quarter at the bottom,
+   * which steps. `centre`: too close to the middle to read an angle. `off`: beside the drawing (the readout).
+   */
+  zone: 'turn' | 'minus' | 'plus' | 'centre' | 'off';
+  /** The value at this angle around the ring, 0–1. */
+  fraction: number;
+  /** Left of the dial's centre line. */
+  left: boolean;
+  /** In the open quarter at the bottom, between the two ends of the ring. */
+  open: boolean;
+}
+
 interface DialDrawing {
   set(fraction: number, reading: string): void;
-  /** The value a press at this point asks for, read from its angle around the dial. */
-  fractionAt(event: PointerEvent): number;
+  hit(event: PointerEvent): DialHit;
 }
 
 /** The dial drawing (viewBox -2 -2 52 52, centre 24 24): a 270° ring that starts at the lower left. */
@@ -403,7 +417,7 @@ const dialPoint = (angle: number, radius: number) => {
 };
 
 /**
- * Draw an engine dial into `host`, with a readout beside it: the engine seen from behind. A glass body holds a dark
+ * Draw an engine dial into `host`, with a readout beside it: the engine seen from behind. A solid body holds a dark
  * throat, and the glow in the throat grows from nothing, to a small ember, to white-hot at full. The ring around the
  * body lights up to the value in the same heat colours, and a tick on the body marks it.
  *
@@ -424,7 +438,7 @@ function drawDial(host: HTMLElement, stops: number): DialDrawing {
   }
   host.insertAdjacentHTML(
     'afterbegin',
-    `<svg class="asc-thr-svg" viewBox="-2 -2 52 52" aria-hidden="true"><defs><filter id="${id}-bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3.6"/></filter><filter id="${id}-core" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5"/></filter><linearGradient id="${id}-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${INK}" stop-opacity=".2"/><stop offset="1" stop-color="${INK}" stop-opacity=".05"/></linearGradient></defs><circle class="tg" cx="24" cy="24" r="12" filter="url(#${id}-bloom)"/><path d="M${dialPoint(DIAL_START, DIAL_R)}A${DIAL_R} ${DIAL_R} 0 1 1 ${dialPoint(DIAL_START + DIAL_SWEEP, DIAL_R)}" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round" opacity=".2"/><g fill="none" stroke-width="2.6" stroke-linecap="round">${segments}</g>${ticks}<circle cx="24" cy="24" r="16.5" fill="rgba(10,13,18,.82)"/><circle cx="24" cy="24" r="16.5" fill="url(#${id}-glass)" stroke="${INK}" stroke-opacity=".24"/><circle cx="24" cy="24" r="10.5" fill="rgba(2,3,5,.85)" stroke="${INK}" stroke-opacity=".28"/><circle class="to" cx="24" cy="24" filter="url(#${id}-core)"/><circle class="tc" cx="24" cy="24" fill="${HOT}"/><path class="tk" stroke="${INK}" stroke-width="1.7" stroke-linecap="round"/></svg><span class="asc-thr-read" aria-hidden="true"></span>`
+    `<svg class="asc-thr-svg" viewBox="-2 -2 52 52" aria-hidden="true"><defs><filter id="${id}-bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3.6"/></filter><filter id="${id}-core" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5"/></filter><linearGradient id="${id}-cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b313b"/><stop offset="1" stop-color="#171b21"/></linearGradient></defs><circle class="tg" cx="24" cy="24" r="12" filter="url(#${id}-bloom)"/><path d="M${dialPoint(DIAL_START, DIAL_R)}A${DIAL_R} ${DIAL_R} 0 1 1 ${dialPoint(DIAL_START + DIAL_SWEEP, DIAL_R)}" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round" opacity=".2"/><g fill="none" stroke-width="2.6" stroke-linecap="round">${segments}</g>${ticks}<circle cx="24" cy="24" r="16.5" fill="url(#${id}-cap)" stroke="${INK}" stroke-opacity=".2"/><path d="M10.2 16.6A16 16 0 0 1 37.8 16.6" fill="none" stroke="#fff" stroke-opacity=".16" stroke-linecap="round"/><circle cx="24" cy="24" r="10.5" fill="rgba(2,3,5,.85)" stroke="${INK}" stroke-opacity=".28"/><circle class="to" cx="24" cy="24" filter="url(#${id}-core)"/><circle class="tc" cx="24" cy="24" fill="${HOT}"/><path class="tk" stroke="${INK}" stroke-width="1.7" stroke-linecap="round"/><g class="pm" fill="none" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"><path d="M16.6 45.2h4.2"/><path d="M27.2 45.2h4.2M29.3 43.1v4.2"/></g><circle class="gr" r="2.9" fill="${HOT}" stroke="#07090c" stroke-width="1.1"/></svg><span class="asc-thr-read" aria-hidden="true"></span>`
   );
   const svg = host.querySelector('svg')!;
   const q = (selector: string) => svg.querySelector(selector)!;
@@ -434,6 +448,7 @@ function drawDial(host: HTMLElement, stops: number): DialDrawing {
   const glow = q('.to');
   const core = q('.tc');
   const tick = q('.tk');
+  const grip = q('.gr');
   return {
     set(fraction, text) {
       const f = Math.min(1, Math.max(0, fraction));
@@ -449,18 +464,26 @@ function drawDial(host: HTMLElement, stops: number): DialDrawing {
       core.setAttribute('opacity', (on ? 0.35 + 0.65 * f : 0).toFixed(2));
       const angle = DIAL_START + DIAL_SWEEP * f;
       tick.setAttribute('d', `M${dialPoint(angle, 12.4)}L${dialPoint(angle, 15.4)}`);
+      const [gx, gy] = dialPoint(angle, DIAL_R).split(' ');
+      grip.setAttribute('cx', gx);
+      grip.setAttribute('cy', gy);
       reading.textContent = text;
     },
-    fractionAt({ clientX, clientY }) {
+    hit({ clientX, clientY }) {
       const rect = svg.getBoundingClientRect();
       const box = svg.viewBox.baseVal;
       const x = box.x + (clientX - rect.left) / (rect.width / box.width);
       const y = box.y + (clientY - rect.top) / (rect.height / box.height);
+      const left = x < 24;
+      const radius = Math.hypot(x - 24, y - 24);
       let angle = (Math.atan2(y - 24, x - 24) * 180) / Math.PI;
       if (angle < DIAL_START - 45) angle += 360;
       // The open quarter at the bottom: its right half is full, its left half is zero.
-      if (angle > DIAL_START + DIAL_SWEEP) return angle < DIAL_START + DIAL_SWEEP + 45 ? 1 : 0;
-      return (angle - DIAL_START) / DIAL_SWEEP;
+      const open = angle > DIAL_START + DIAL_SWEEP || angle < DIAL_START;
+      const fraction = open ? (left ? 0 : 1) : (angle - DIAL_START) / DIAL_SWEEP;
+      const off = clientX < rect.left - 4 || clientX > rect.right + 4;
+      const zone = off ? 'off' : radius < 5 ? 'centre' : open && radius > 12 ? (left ? 'minus' : 'plus') : 'turn';
+      return { zone, fraction, left, open };
     },
   };
 }
@@ -475,11 +498,13 @@ const DEFAULT_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
  * slider itself (`role="slider"`), setting the rate through the player's playback-rate feature and snapping to the
  * player's rates.
  *
- * Both turn the same way: drag right or up for more, left or down for less; a press without a drag jumps to that
- * point on the ring; the wheel steps.
+ * Both turn the same way, like a knob: press anywhere on the dial and the bright grip on the ring goes to the
+ * pointer and follows it round, even after the pointer leaves the dial. The minus and plus at the bottom step it, the
+ * wheel steps it, and on touch a tap steps it too (left half down, right half up), so nobody has to drag a small
+ * circle with a finger. A drag that starts on the readout beside the dial scrubs it: right or up for more.
  *
  * `size="jet"` is the inline control on the console desk of wide players. `size="pop"` puts the same drawing on a
- * small glass plate that pops up above the mute key or the speed key in mid-size players. On touch, the first tap on
+ * small solid plate that pops up above the mute key or the speed key in mid-size players. On touch, the first tap on
  * that key opens the pop-up and the second performs the key's action.
  */
 class AscentEngineElement extends UIElement {
@@ -617,22 +642,59 @@ class AscentEngineElement extends UIElement {
     if (f > 0 && volume.muted) volume.setMuted(false);
   }
 
+  /** One step: a tenth of the volume, or one speed stop. */
+  #nudge(direction: 1 | -1) {
+    if (this.#speed) this.#step(direction);
+    else this.#setFraction(Math.round((this.#fraction + direction * 0.1) * 10) / 10);
+  }
+
   /** Pointer and wheel, the same for both dials. */
   #bindPointer(signal: AbortSignal) {
     let down = false;
     let moved = false;
+    let turning = false;
+    let start: DialHit | null = null;
+    let touch = false;
     let x0 = 0;
     let y0 = 0;
     let f0 = 0;
+    let last = 0;
+    /** The end the dial is held at while the pointer is in, or has crossed, the open quarter. */
+    let pinned: 0 | 1 | null = null;
+    /**
+     * Follow the pointer's angle. A pointer that goes into the open quarter holds the dial at the end it came from,
+     * and the dial stays there until the pointer comes back out on that side, so it can never wrap from full to zero.
+     */
+    const turn = (hit: DialHit) => {
+      if (hit.zone === 'centre') return;
+      if (hit.open) {
+        pinned ??= last > 0.5 ? 1 : 0;
+        last = pinned;
+      } else {
+        if (pinned !== null && Math.abs(hit.fraction - pinned) > 0.5) return;
+        pinned = null;
+        last = hit.fraction;
+      }
+      this.#setFraction(last);
+    };
     this.addEventListener(
       'pointerdown',
       (event) => {
         if (event.button !== 0) return;
         down = true;
         moved = false;
+        touch = event.pointerType === 'touch';
         x0 = event.clientX;
         y0 = event.clientY;
-        f0 = this.#fraction;
+        f0 = last = this.#fraction;
+        pinned = null;
+        start = this.#drawing!.hit(event);
+        // A mouse or pen press on the dial takes the grip at once. A finger waits to see whether it is a tap.
+        turning = !touch && start.zone === 'turn';
+        if (turning) {
+          last = start.fraction;
+          this.#setFraction(last);
+        }
         this.setPointerCapture(event.pointerId);
         this.setAttribute('data-dragging', '');
       },
@@ -641,17 +703,25 @@ class AscentEngineElement extends UIElement {
     this.addEventListener(
       'pointermove',
       (event) => {
-        if (!down) return;
-        const travel = event.clientX - x0 - (event.clientY - y0);
-        if (Math.abs(travel) > 3) moved = true;
-        if (moved) this.#setFraction(f0 + travel / 120);
+        if (!down || !start) return;
+        const dx = event.clientX - x0;
+        const dy = event.clientY - y0;
+        if (!moved && Math.hypot(dx, dy) > (touch ? 8 : 3)) {
+          moved = true;
+          if (start.zone !== 'off') turning = true;
+        }
+        if (turning) turn(this.#drawing!.hit(event));
+        else if (moved) this.#setFraction(f0 + (dx - dy) / 120);
       },
       { signal }
     );
     this.addEventListener(
       'pointerup',
-      (event) => {
-        if (down && !moved) this.#setFraction(this.#drawing!.fractionAt(event));
+      () => {
+        if (down && !moved && start) {
+          if (start.zone === 'minus' || start.zone === 'plus') this.#nudge(start.zone === 'plus' ? 1 : -1);
+          else if (touch && start.zone !== 'off') this.#nudge(start.left ? -1 : 1);
+        }
         down = false;
         this.removeAttribute('data-dragging');
       },
@@ -827,7 +897,7 @@ class AscentNextElement extends UIElement {
   connectedCallback() {
     super.connectedCallback();
     if (this.#button) return;
-    this.innerHTML = `<i class="asc-mh" aria-hidden="true">Next event</i><button type="button" class="asc-nx"><b><span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5.5v13l9-6.5zM18.5 5.5v13"/></svg></b><span class="lab"></span></button>`;
+    this.innerHTML = `<i class="asc-mh" aria-hidden="true">Next event</i><button type="button" class="asc-nx"><b><span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5.5v13l9-6.5zM18.5 5.5v13"/></svg></b><span class="lab"></span><span class="asc-tip" aria-hidden="true">Skip to it <kbd>N</kbd></span></button>`;
     this.#button = this.querySelector('button')!;
     this.#count = this.querySelector('b span')!;
     this.#name = this.querySelector('.lab')!;
@@ -989,7 +1059,7 @@ class AscentCaptionsElement extends UIElement {
 /**
  * <ascent-keys>: the keys Video.js hotkeys do not cover. Digits 1–9 fly to that event and N to the next one. It also
  * keeps Page Up and Page Down (the hotkeys, and the time slider's own keys) at a tenth of the film, and moves the
- * light on each glass key to follow the pointer.
+ * light on each key to follow the pointer.
  */
 class AscentKeysElement extends UIElement {
   #time = new PlayerController(this, playerContext, selectTime);

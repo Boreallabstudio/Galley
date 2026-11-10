@@ -26,12 +26,14 @@
 <svg class="asc-i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16M16 4v16"/></svg>
 <svg class="asc-i-replay" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 8.25A7.5 7.5 0 1 1 4.5 12"/><path d="M5.5 3.8v4.45h4.45"/></svg>
 <ascent-play-label class="asc-kl" aria-hidden="true"></ascent-play-label>
+<span class="asc-tip" aria-hidden="true">Play or pause <kbd>Space</kbd></span>
 </media-play-button>
 </div>
 <div class="asc-mod">
 <i class="asc-mh" aria-hidden="true">Propulsion</i>
 <span class="asc-wrap vol">
 <media-mute-button class="asc-b mute">
+<i aria-hidden="true"></i>
 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5v5h3.2l4.3 3.6V5.9L6.2 9.5H3Z"/><path class="asc-i-on" d="M15 9.2a4 4 0 0 1 0 5.6M18 6.6a7.6 7.6 0 0 1 0 10.8"/><path class="asc-i-off" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>
 </media-mute-button>
 <ascent-engine class="asc-pop" kind="volume" size="pop">
@@ -44,6 +46,7 @@
 <media-volume-slider class="asc-thr-hit">
 <media-slider-thumb class="asc-thr-thumb"></media-slider-thumb>
 </media-volume-slider>
+<span class="asc-tip" aria-hidden="true">Volume: turn or scroll <kbd>↑</kbd><kbd>↓</kbd></span>
 </ascent-engine>
 <span class="asc-wrap spd">
 <media-playback-rate-button class="asc-b rate">
@@ -51,17 +54,23 @@
 </media-playback-rate-button>
 <ascent-engine class="asc-pop" kind="speed" size="pop"></ascent-engine>
 </span>
-<ascent-engine class="asc-jet spd" kind="speed" size="jet"></ascent-engine>
+<ascent-engine class="asc-jet spd" kind="speed" size="jet">
+<span class="asc-tip" aria-hidden="true">Speed: turn or scroll <kbd>&lt;</kbd><kbd>&gt;</kbd></span>
+</ascent-engine>
 </div>
 <div class="asc-mod">
 <i class="asc-mh" aria-hidden="true">Comms</i>
 <media-captions-button class="asc-b cc">
+<i aria-hidden="true"></i>
+<span class="asc-tip" aria-hidden="true">Captions <kbd>C</kbd></span>
 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5h18v13H3zM10.6 10.4a2.2 2.2 0 1 0 0 3.2M17 10.4a2.2 2.2 0 1 0 0 3.2"/></svg>
 </media-captions-button>
 </div>
 <div class="asc-mod">
 <i class="asc-mh" aria-hidden="true">Screen</i>
 <media-fullscreen-button class="asc-b full">
+<i aria-hidden="true"></i>
+<span class="asc-tip" aria-hidden="true">Full screen <kbd>F</kbd></span>
 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
 </media-fullscreen-button>
 </div>

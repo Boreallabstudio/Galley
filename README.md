@@ -9,9 +9,9 @@ The film is the main screen and you are the flight controller. The film's progre
 - **Flight path**: click or drag anywhere along it to seek. It is a Video.js `<media-time-slider>`, so it also works from the keyboard and with screen readers.
 - **Events**: one per cue in the media's `kind="chapters"` track. Choose one to jump there. Without a chapters track, the path is drawn on its own.
 - **Flight**: the play key. On wide players it is one pill that reads Launch, Hold, Resume or Relaunch, following the film. The craft's engine flares at ignition and glows brighter at higher speeds.
-- **Propulsion**: mute, volume and speed. Volume and speed are engine dials: the engine seen from behind, with a glow in its throat that grows from an ember to white-hot and a ring that shows the level. Drag right or up for more, press a point on the ring to jump there, or use the wheel. How they appear depends on the player's width:
+- **Propulsion**: mute, volume and speed. Volume and speed are engine dials: the engine seen from behind, with a glow in its throat that grows from an ember to white-hot and a ring that shows the level. They turn like a knob: press anywhere on a dial and the bright grip on its ring goes to the pointer and follows it round. The minus and plus under each dial step it, the wheel steps it, and on touch a tap on the left or right half steps it. How they appear depends on the player's width:
   - 900 px and wider: two dials on the desk, each with its reading beside it.
-  - 520 to 899 px: the same dial pops up on a small glass plate above the mute key and above a speed key, on hover, on keyboard focus, or on the first tap (the second tap acts).
+  - 520 to 899 px: the same dial pops up on a small solid plate above the mute key and above a speed key, on hover, on keyboard focus, or on the first tap (the second tap acts).
   - Under 520 px: mute toggles, and the speed key cycles through the rates. Under 380 px the speed key is left out (the `<` and `>` keys still work).
 - **Comms** and **Screen**: captions and fullscreen. Fullscreen uses the same desk as the normal player.
 - **Next event** (1040 px and wider): a countdown to the next chapter. Choose it, or press N, to skip there.
