@@ -74,8 +74,9 @@
 
 /* ---------- the picture ---------- */
 
-.asc > video,
-.asc > :is(mux-video, hls-video, dash-video) {
+/* A plain <video>. Video.js media elements (<mux-video>, <hls-video>) are display: contents and size their own inner
+   video to the frame. */
+.asc > video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -165,22 +166,6 @@
 .asc[data-idle] .asc-seek {
   pointer-events: none;
 }
-
-/* corner brackets */
-.asc-br {
-  position: absolute;
-  width: 2cqw;
-  height: 2cqw;
-  min-width: 16px;
-  min-height: 16px;
-  border: 1.5px solid var(--ink);
-  pointer-events: none !important;
-}
-
-.asc-br.tl { top: 1.6cqw; left: 1.6cqw; border-right: 0; border-bottom: 0; }
-.asc-br.tr { top: 1.6cqw; right: 1.6cqw; border-left: 0; border-bottom: 0; }
-.asc-br.bl { bottom: 1.6cqw; left: 1.6cqw; border-right: 0; border-top: 0; }
-.asc-br.br { right: 1.6cqw; bottom: 1.6cqw; border-left: 0; border-top: 0; }
 
 /* header data */
 .asc-title,
@@ -326,6 +311,13 @@
   height: 2.4cqw;
   margin-top: 0.35cqw;
   background: var(--ink);
+}
+
+/* 4:3 and taller (fullscreen on tablets and phones): the path climbs more steeply, so the first label stands higher. */
+@container (max-aspect-ratio: 3 / 2) {
+  .asc-ev.first::after {
+    height: 5.4cqw;
+  }
 }
 
 /* ---------- bottom row ---------- */
@@ -805,6 +797,18 @@
 
   .asc-b.rate {
     width: auto;
+  }
+}
+
+/* Portrait (fullscreen on a phone held upright): the climb is steeper still, so every label stands higher. Stems
+   follow the height here, because the climb does. */
+@container (max-aspect-ratio: 1 / 1) {
+  .asc-ev::after {
+    height: 6cqh;
+  }
+
+  .asc-ev.first::after {
+    height: 10cqh;
   }
 }
 

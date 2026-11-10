@@ -767,7 +767,8 @@ class AscentCaptionsElement extends UIElement {
     for (const track of tracks) watch(track);
     tracks.addEventListener('addtrack', (event) => event.track && watch(event.track), { signal });
     tracks.addEventListener('change', render, { signal });
-    media.addEventListener('seeked', render, { signal });
+    // Active cues settle a tick after a seek on streamed media; timeupdate catches that too.
+    for (const type of ['seeked', 'timeupdate']) media.addEventListener(type, render, { signal });
     render();
   }
 

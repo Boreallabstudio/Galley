@@ -35,16 +35,23 @@ On a focused slider, the arrow keys move that slider.
 
 ## Use it
 
-Put your media in place of the placeholder in `src/video/skin.html`, inside a Video.js player, and import `src/video/skin.ts`. That import brings the stylesheet and the self-hosted fonts: Archivo (with its width axis), DM Mono and Sora.
+Put your media in place of the placeholder in `src/video/skin.html`, inside a Video.js player, and import `src/video/skin.ts`. That import brings the stylesheet and the self-hosted fonts: Archivo (with its width axis), DM Mono and Sora. It has been tried with a plain `<video>` and with `<mux-video>` for a Mux stream, which the workbench uses.
 
 ```html
 <video-player content-title="Spring">
   <!-- src/video/skin.html, with the placeholder replaced by: -->
-  <video src="film.mp4" playsinline preload="metadata">
+  <mux-video playsinline preload="metadata" crossorigin="anonymous">
     <track kind="chapters" srclang="en" label="Events" src="chapters.vtt" default>
     <track kind="captions" srclang="en" label="English" src="captions.vtt" default>
-  </video>
+  </mux-video>
 </video-player>
+```
+
+```ts
+import '@videojs/html/media/mux-video';
+
+// The playback ID builds the stream URL; <mux-video> also supplies a poster frame (here at 30 s) to the skin.
+document.querySelector('mux-video')!.source = { playbackId: 'YOUR_PLAYBACK_ID', poster: { time: 30 } };
 ```
 
 The line under the title (`[data-asc-byline]`) is empty in the template; fill it from your page if you want one.
@@ -58,7 +65,7 @@ npm run typecheck
 npm run build      # static build in dist/
 ```
 
-The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `ascent.ts` holds the custom elements (path, events, ladders, clock, captions, idle behaviour), and `flight.ts` holds the shared geometry. The workbench in `apps/preview/` plays `apps/preview/public/spring-720-16x9.mp4`. The film is not kept in the repository, so add it there yourself.
+The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `ascent.ts` holds the custom elements (path, events, ladders, clock, captions, idle behaviour), and `flight.ts` holds the shared geometry. The workbench in `apps/preview/` streams the film from Mux by its public playback ID (`apps/preview/src/frame/player.ts`), with the chapters and captions tracks served from `apps/preview/public/media/`.
 
 ## Credits
 
