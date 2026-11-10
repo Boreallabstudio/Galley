@@ -17,7 +17,7 @@ The film is the main screen and you are the flight controller. The film's progre
 - **Next event** (1040 px and wider): a countdown to the next chapter. Choose it, or press N, to skip there.
 - **Mission clock**: shows time elapsed. Choose it to switch to time remaining.
 - **Status board** (900 px and wider): four lamps. Signal reads Go, Hold while the film buffers, or Lost on an error. Audio and Captions read Go or Off. Flight reads Ready, Go, Hold or Complete. Green is used for the Go lamps only.
-- **Holds**: while the film buffers, the craft vents gas as on the pad before launch, the main screen dims, and the console stays up. Narrower players show a "Hold · buffering" line in place of the board.
+- **Launch and holds**: pressing play fires the engine, with a flame and a roll of exhaust smoke behind the craft. While the film buffers the engine keeps firing, the main screen dims, and the console stays up. Narrower players show a "Hold · buffering" line in place of the board.
 - **Captions** are drawn by the skin and rise with the console to sit above the event labels, so they never run through the path.
 - Every key has a hit area of at least 44 × 44 px, and the hit areas never overlap. With reduced motion set, the console appears and hides without the lift animation, and the glow, ignition and venting do not animate.
 

@@ -522,8 +522,6 @@
   .asc-kl {
     position: relative;
     display: block;
-    /* Wide enough for the longest word, Relaunch, so the desk never shifts when the label changes. */
-    min-width: 8.7em;
     font: 700 clamp(9px, 0.9cqw, 17px) var(--wide);
     font-stretch: 125%;
     letter-spacing: 0.16em;
@@ -678,12 +676,13 @@
 
 .asc-b.play svg {
   flex: none;
-  width: clamp(15px, 1.45cqw, 28px);
-  height: clamp(15px, 1.45cqw, 28px);
-  stroke-width: 2;
+  width: clamp(17px, 1.6cqw, 30px);
+  height: clamp(17px, 1.6cqw, 30px);
+  stroke-width: 2.4;
 }
 
-.asc-b.play .asc-i-play {
+/* Play and pause are solid shapes, as heavy as the word beside them. */
+.asc-b.play :is(.asc-i-play, .asc-i-pause) {
   fill: currentColor;
   stroke-width: 1.4;
 }
@@ -696,11 +695,15 @@
 }
 
 @container (min-width: 900px) {
+  /* One fixed width, wide enough for Relaunch, with the icon and the word centred in it as a pair. */
   .asc-b.play {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.75cqw;
+    box-sizing: border-box;
     width: auto;
+    min-width: calc(3.5cqw + clamp(17px, 1.6cqw, 30px) + 8.7 * clamp(9px, 0.9cqw, 17px));
     padding: 0 1.5cqw 0 1.25cqw;
   }
 }
@@ -1111,7 +1114,7 @@ ascent-engine:hover .pm {
   text-shadow: 0 2px 14px rgba(2, 5, 10, 0.8);
 }
 
-/* ---------- the craft: engine glow, ignition, and venting during a hold ---------- */
+/* ---------- the craft: engine glow, ignition, and the launch smoke ---------- */
 
 .craft-glow {
   transform-box: fill-box;
@@ -1139,42 +1142,96 @@ ascent-engine:hover .pm {
 }
 
 /* A hold: gas vents from the craft, as on the pad before launch. */
+/* A launch: flame behind the craft and smoke rolling back from it. Shown for a moment at ignition, and for as long as
+   a hold lasts. */
 .asc-vent {
   display: none;
 }
 
-.asc[data-hold] .asc-vent {
+.asc[data-hold] .asc-vent,
+.asc[data-ignite] .asc-vent {
   display: block;
 }
 
+.asc[data-ignite]:not([data-hold]) .asc-vent {
+  animation: asc-burst 2.2s linear both;
+}
+
+@keyframes asc-burst {
+  0% {
+    opacity: 0;
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  60% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.asc-heat {
+  opacity: 0.4;
+}
+
+.asc-flame {
+  transform-box: fill-box;
+  transform-origin: right center;
+  animation: asc-flame 0.11s ease-in-out infinite alternate;
+}
+
+@keyframes asc-flame {
+  from {
+    transform: scale(0.86, 0.94);
+  }
+
+  to {
+    transform: scale(1.1, 1.06);
+  }
+}
+
+/* Without motion the smoke stands as a still cloud. */
 .asc-vp {
-  fill: var(--ink);
-  opacity: 0.3;
-  transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5)) scale(calc(var(--s) * 0.6));
+  fill: #e4e1da;
+  opacity: 0.34;
+  transform: translate(calc(var(--dx) * 0.6), calc(var(--dy) * 0.5)) scale(calc(var(--s) * 0.6));
   transform-box: fill-box;
   transform-origin: center;
-  animation: asc-vent 2.6s linear infinite;
+  animation: asc-vent 2.8s cubic-bezier(0.18, 0.6, 0.3, 1) infinite;
   animation-delay: var(--d);
 }
 
 @keyframes asc-vent {
   0% {
-    transform: translate(0, 0) scale(0.4);
+    fill: #fff3e4;
     opacity: 0;
+    transform: translate(0, 0) scale(0.45);
   }
 
-  8% {
-    opacity: 0.7;
+  5% {
+    opacity: 0.9;
   }
 
-  55% {
-    transform: translate(calc(var(--dx) * 0.8), calc(var(--dy) * 0.18)) scale(calc(var(--s) * 0.62));
-    opacity: 0.42;
+  28% {
+    fill: #ffe2cc;
+    opacity: 0.86;
+    transform: translate(calc(var(--dx) * 0.52), calc(var(--dy) * 0.22)) scale(calc(var(--s) * 0.5));
+  }
+
+  60% {
+    fill: #efece5;
+    opacity: 0.62;
   }
 
   100% {
-    transform: translate(var(--dx), var(--dy)) scale(var(--s));
+    fill: #d6d3cc;
     opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(var(--s));
   }
 }
 

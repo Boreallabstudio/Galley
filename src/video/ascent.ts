@@ -132,17 +132,24 @@ abstract class PathElement extends UIElement {
   protected abstract draw(): void;
 }
 
-/** The gas that vents from the craft during a hold: forty puffs, left and right, on a fixed pseudo-random spread. */
-function ventPuffs(): string {
-  let seed = 7;
+/**
+ * The smoke of a launch: forty-eight soft clouds thrown out behind the engine on a fixed pseudo-random spread. Each starts
+ * small and warm at the nozzle, rolls back and upward, swells and fades to grey. Drawn with the craft facing +x; the
+ * group that holds them is turned to the craft's heading.
+ */
+function launchSmoke(): string {
+  let seed = 11;
   const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const count = 48;
   let puffs = '';
-  for (let i = 0; i < 40; i++) {
-    const side = i % 2 ? 1 : -1;
-    const dx = side * (60 + random() * 110);
-    const dy = -(19 + random() * 54);
-    const scale = 2.4 + random() * 2;
-    puffs += `<circle class="asc-vp" cx="${side * 9}" cy="11" r="5" style="--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px;--s:${scale.toFixed(1)};--d:${(-i * 0.065).toFixed(2)}s"/>`;
+  for (let i = 0; i < count; i++) {
+    const spread = (random() * 2 - 1) * 0.5 - 0.12;
+    const reach = 84 + random() * 170;
+    const dx = -Math.cos(spread) * reach;
+    const dy = Math.sin(spread) * reach - (14 + random() * 34);
+    const scale = 3.2 + random() * 3.6;
+    const cy = (random() * 2 - 1) * 4;
+    puffs += `<circle class="asc-vp" cx="-30" cy="${cy.toFixed(1)}" r="6" style="--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px;--s:${scale.toFixed(1)};--d:${((-i * 2.8) / count).toFixed(2)}s"/>`;
   }
   return puffs;
 }
@@ -150,7 +157,8 @@ function ventPuffs(): string {
 /**
  * <ascent-flight>: the flight path. A dotted course still to fly, the buffered stretch ahead, the flown part in orange
  * with a glow, a dot for each chapter and the craft at the playhead. The craft's engine glow is an ember when paused
- * and grows with the playback rate; during a hold (`data-hold` on the skin) the craft vents gas. Purely visual
+ * and grows with the playback rate. At ignition (`data-ignite` on the skin) and during a hold (`data-hold`) the engine
+ * fires as at a launch: a flame behind the craft and smoke rolling back from it. Purely visual
  * (`aria-hidden`); the `<media-time-slider>` underneath it carries the interaction, and its thumb is moved onto the
  * craft here.
  */
@@ -168,6 +176,7 @@ class AscentFlightElement extends PathElement {
   #dots!: SVGGElement;
   #craft!: SVGGElement;
   #arrow!: SVGPathElement;
+  #vent!: SVGGElement;
 
   connectedCallback() {
     if (!this.#svg) this.#build();
@@ -180,14 +189,16 @@ class AscentFlightElement extends PathElement {
     const vapour = nextId('asc-vapour');
     this.innerHTML = `<svg xmlns="${SVG}">
 <defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
-<filter id="${vapour}" filterUnits="userSpaceOnUse" x="-220" y="-170" width="440" height="260"><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="3" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="30" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation="3.4"/></filter></defs>
+<filter id="${vapour}" filterUnits="userSpaceOnUse" x="-360" y="-260" width="440" height="420"><feGaussianBlur stdDeviation="6" result="b"/><feColorMatrix in="b" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 11 -4" result="g"/><feOffset in="g" dx="-3" dy="8" result="o"/><feComponentTransfer in="o" result="s"><feFuncR type="linear" slope=".6"/><feFuncG type="linear" slope=".6"/><feFuncB type="linear" slope=".64"/></feComponentTransfer><feMerge><feMergeNode in="s"/><feMergeNode in="g"/></feMerge><feGaussianBlur stdDeviation="1.5"/></filter>
+<filter id="${vapour}-f" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="1.6"/></filter>
+<linearGradient id="${vapour}-g" gradientUnits="userSpaceOnUse" x1="-15" y1="0" x2="-96" y2="0"><stop offset="0" stop-color="#fff6ec"/><stop offset=".28" stop-color="#ffd9bf"/><stop offset=".6" stop-color="#ff9448"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
 <path class="rest" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 9" opacity=".55"/>
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".5"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
 <g class="dots"></g>
-<g class="craft"><g class="asc-vent" filter="url(#${vapour})">${ventPuffs()}</g><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
+<g class="craft"><g class="asc-vent"><circle class="asc-heat" cx="-48" r="46" fill="${BURN}" filter="url(#${glow})"/><g filter="url(#${vapour})" opacity=".92">${launchSmoke()}</g><path class="asc-flame" d="M-15 -8.5C-36 -11 -64 -5 -96 0C-64 5 -36 11 -15 8.5Z" fill="url(#${vapour}-g)" filter="url(#${vapour}-f)"/><path class="asc-flame" d="M-15 -4C-30 -5 -46 -2 -60 0C-46 2 -30 5 -15 4Z" fill="#fff6ec"/></g><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
 </svg>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
@@ -199,6 +210,7 @@ class AscentFlightElement extends PathElement {
     this.#dots = q('.dots');
     this.#craft = q('.craft');
     this.#arrow = q('.arrow');
+    this.#vent = q('.asc-vent');
     this.#burn = q('.craft-glow');
   }
 
@@ -249,6 +261,7 @@ class AscentFlightElement extends PathElement {
     const cy = pathY(g, t);
     this.#craft.setAttribute('transform', `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${scale.toFixed(3)})`);
     this.#arrow.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
+    this.#vent.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
 
     // Engine glow: an ember when paused, brighter and wider with speed.
     const burning = this.#playback.value ? !this.#playback.value.paused : false;
@@ -1133,7 +1146,7 @@ class AscentKeysElement extends UIElement {
  * leaving only the film (and captions). With reduced motion the change is instant.
  *
  * It also calls the hold: while the film buffers (the `<media-buffering-indicator>` is showing) the skin carries
- * `data-hold`, the HUD stays up, the craft vents and the Signal lamp reads Hold. And it marks ignition: `data-ignite`
+ * `data-hold`, the HUD stays up, the engine fires and smokes and the Signal lamp reads Hold. And it marks ignition: `data-ignite`
  * for a moment each time the film starts playing, which flares the craft's engine.
  *
  * A tap on the picture plays or pauses, unless the HUD was away: then the tap only brings it back.
@@ -1214,7 +1227,7 @@ class AscentLiftElement extends UIElement {
         const root = this.#root;
         root?.setAttribute('data-ignite', '');
         clearTimeout(this.#ignite);
-        this.#ignite = window.setTimeout(() => root?.removeAttribute('data-ignite'), 820);
+        this.#ignite = window.setTimeout(() => root?.removeAttribute('data-ignite'), 2200);
       }
       this.#paused = paused;
       this.#wake();
