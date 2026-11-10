@@ -9,10 +9,10 @@ The film's progress is an orange line climbing across the lower part of the pict
 - **Flight path**: click or drag anywhere along it to seek. It is a Video.js `<media-time-slider>`, so it also works from the keyboard and with screen readers.
 - **Events**: one per cue in the media's `kind="chapters"` track. Choose one to jump there. Without a chapters track, the path is drawn on its own.
 - **Bottom row**: play, mute, captions and fullscreen. How volume and speed appear depends on the player's width:
-  - 900 px and wider: two small inline sliders, one for volume and one for speed, in the row.
-  - 520 to 899 px: a small ladder pops up over the mute button and over a speed button, on hover, on keyboard focus, or on the first tap (the second tap acts).
+  - 900 px and wider: two small thrusters in the row. Volume is an exhaust plume that grows from an engine nozzle; speed lights one shock diamond per rate from 0.5× to 2×.
+  - 520 to 899 px: the same thruster pops up on a small plate above the mute button and above a speed button, on hover, on keyboard focus, or on the first tap (the second tap acts).
   - Under 520 px: mute toggles, and the speed button cycles through the rates. Under 380 px the speed button is left out (the `<` and `>` keys still work).
-  - Fullscreen: large volume and speed ladders at the sides of the frame.
+  - Fullscreen uses the same row as the normal player.
 - **Mission clock**: shows time elapsed. Choose it to switch to time remaining.
 - **Captions** are drawn by the skin and rise with the controls to sit above the event labels, so they never run through the path.
 - Every button has a hit area of at least 44 × 44 px, and the hit areas never overlap. With reduced motion set, the controls appear and hide without the lift animation.
@@ -66,7 +66,7 @@ npm run typecheck
 npm run build      # static build in dist/
 ```
 
-The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `ascent.ts` holds the custom elements (path, events, ladders, clock, captions, idle behaviour), and `flight.ts` holds the shared geometry. The workbench in `apps/preview/` streams the film from Mux by its public playback ID (`apps/preview/src/frame/player.ts`), with the chapters and captions tracks served from `apps/preview/public/media/`.
+The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `ascent.ts` holds the custom elements (path, events, thrusters, clock, captions, idle behaviour), and `flight.ts` holds the shared geometry. The workbench in `apps/preview/` streams the film from Mux by its public playback ID (`apps/preview/src/frame/player.ts`), with the chapters and captions tracks served from `apps/preview/public/media/`.
 
 ## Credits
 

@@ -2,7 +2,7 @@
  * Ascent: a Video.js 10 skin that draws the timeline as a flight path.
  *
  * One dark look by design. Sizes follow the player, not the page: the root is a size container, and lengths are in
- * cqw / cqh. Breakpoints are container queries at 900, 760, 520 and 420 px; fullscreen brings the side ladders.
+ * cqw / cqh. Breakpoints are container queries at 900, 760, 520, 420 and 380 px; fullscreen uses the same row.
  *
  * `--lift` (set by <ascent-lift>) runs from 1, HUD showing, to 0, HUD away while the film plays.
  */
@@ -425,7 +425,7 @@
   font: 400 13px var(--mono);
 }
 
-/* Mute and speed each sit in a wrapper with a pop-up ladder above them (mid-size players only). */
+/* Mute and speed each sit in a wrapper with a pop-up thruster above them (mid-size players only). */
 .asc-wrap {
   position: relative;
   display: flex;
@@ -435,7 +435,7 @@
   display: none;
 }
 
-/* A bridge over the gap, so the pointer can travel from the button up to its ladder. */
+/* A bridge over the gap, so the pointer can travel from the button up to its pop-up. */
 .asc-wrap::before {
   content: '';
   position: absolute;
@@ -445,32 +445,99 @@
   height: 16px;
 }
 
-.asc-pop {
-  position: absolute;
-  bottom: calc(100% + 13px);
-  left: 50%;
-  display: block;
-  width: 64px;
-  visibility: hidden;
-  opacity: 0;
-  transform: translateX(-50%);
-  transition:
-    opacity 0.16s,
-    visibility 0.16s;
-  cursor: ns-resize;
+/* Thrusters: the drawing (viewBox 0 0 110 28) with its readout beside it. --asc-thr-width is the drawing's width,
+   --asc-thr-left where it starts inside the control; the volume slider below is placed from both. */
+ascent-ladder {
+  --asc-thr-left: 0px;
+
+  position: relative;
+  align-items: center;
+  cursor: ew-resize;
   touch-action: none;
 }
 
-.asc-pop svg {
+.asc-thr-svg {
   display: block;
-  width: 100%;
+  flex: none;
+  width: var(--asc-thr-width);
   height: auto;
   overflow: visible;
 }
 
-.asc-pop text {
-  fill: var(--ink);
+.asc-thr-read {
   font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+
+/* The volume thruster's <media-volume-slider> spans the drawn range, x 27–100 of 110, and the control's full height. */
+.asc-thr-hit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--asc-thr-left) + var(--asc-thr-width) * 27 / 110);
+  display: block;
+  width: calc(var(--asc-thr-width) * 73 / 110);
+}
+
+/* A little past each end; values there clamp to 0 and 100. */
+.asc-thr-hit::before {
+  content: '';
+  position: absolute;
+  inset: 0 -8px;
+}
+
+.asc-thr-thumb {
+  position: absolute;
+  top: 50%;
+  left: var(--media-slider-fill, 0%);
+  display: block;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.asc-thr-thumb:focus-visible {
+  outline: none;
+}
+
+/* Pop-up: a small plate with a caret, above its button. */
+.asc-pop {
+  --asc-thr-width: 110px;
+  --asc-thr-left: 12px;
+
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: -8px;
+  display: flex;
+  gap: 8px;
+  width: 186px;
+  padding: 10px 12px;
+  border: 1.2px solid var(--ink);
+  background: rgba(3, 5, 9, 0.95);
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.16s,
+    visibility 0.16s;
+}
+
+.asc-pop::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 22px;
+  width: 10px;
+  height: 10px;
+  border-right: 1.2px solid var(--ink);
+  border-bottom: 1.2px solid var(--ink);
+  background: rgb(3, 5, 9);
+  transform: rotate(45deg);
+}
+
+.asc-pop .asc-thr-read {
+  min-width: 2.9em;
+  font-size: 13px;
+  text-align: right;
 }
 
 /* Escape shuts an open pop-up until focus or the pointer leaves its wrapper. */
@@ -489,33 +556,21 @@
   }
 }
 
-/* Inline "jet" sliders for volume and speed: wide players only (900 px and up), not in fullscreen. */
+/* Inline thrusters for volume and speed: wide players only (900 px and up), in fullscreen too. */
 .asc-jet {
-  --asc-jet-width: clamp(104px, 11.5cqw, 168px);
+  --asc-thr-width: clamp(104px, 11.5cqw, 168px);
 
-  position: relative;
   display: none;
-  align-items: center;
   gap: 1cqw;
-  /* About 48px of hit height without changing the row's layout. */
+  /* At least 44px of hit height without changing the row's layout. */
   padding-block: 9px;
   margin-block: -9px;
   border-radius: 6px;
-  cursor: ew-resize;
-  touch-action: none;
 }
 
-.asc-jet svg {
-  display: block;
-  width: var(--asc-jet-width);
-  height: auto;
-  overflow: visible;
-}
-
-.asc-jet-read {
+.asc-jet .asc-thr-read {
   min-width: 3.1em;
-  font: 400 clamp(12px, 1.1cqw, 16px) var(--mono);
-  letter-spacing: 0.04em;
+  font-size: clamp(12px, 1.1cqw, 16px);
   text-shadow: 0 1px 6px rgba(2, 5, 10, 0.95);
 }
 
@@ -529,33 +584,9 @@
   }
 }
 
-.asc:fullscreen .asc-jet {
-  display: none;
-}
-
-/* The volume jet's <media-volume-slider> spans the drawn track, x 10–100 of 110. */
-.asc-jet-hit {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(var(--asc-jet-width) * 10 / 110);
-  display: block;
-  width: calc(var(--asc-jet-width) * 90 / 110);
-}
-
-.asc-jet-hit::before {
-  content: '';
-  position: absolute;
-  inset: 0 -6px;
-}
-
-.asc-jet-hit .asc-lad-thumb {
-  top: 50%;
-  bottom: auto;
-  left: var(--media-slider-fill, 0%);
-}
-
-.asc-jet:has(.asc-lad-thumb:focus-visible) {
+:is(.asc-jet, .asc-pop):has(.asc-thr-thumb:focus-visible),
+.asc-jet:focus-visible,
+.asc-pop:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
@@ -590,98 +621,6 @@
   letter-spacing: 0;
   line-height: 0.9;
   text-shadow: 0 2px 14px rgba(2, 5, 10, 0.8);
-}
-
-/* ---------- ladders ---------- */
-
-/* The big side ladders: fullscreen only (the bottom row carries volume and speed otherwise). */
-.asc-lad {
-  position: absolute;
-  top: 22cqh;
-  display: none;
-  width: clamp(96px, 8.2cqw, 128px);
-  cursor: ns-resize;
-  touch-action: none;
-}
-
-.asc:fullscreen .asc-lad {
-  display: block;
-}
-
-/* In fullscreen the raised caption keeps between the two side ladders. */
-.asc:fullscreen[data-capup] .asc-cap {
-  right: calc(4.6cqw + clamp(96px, 8.2cqw, 128px) + 16px);
-  left: calc(4.6cqw + clamp(96px, 8.2cqw, 128px) + 16px);
-}
-
-.asc-lad.vol {
-  left: 4.6cqw;
-}
-
-.asc-lad.spd {
-  right: 4.6cqw;
-}
-
-.asc-lad svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  overflow: visible;
-  filter: drop-shadow(0 1px 3px rgba(2, 5, 10, 0.95));
-}
-
-.asc-lad text {
-  fill: var(--ink);
-}
-
-.asc-lad .lab {
-  font-size: 13px;
-}
-
-/* The vertical <media-volume-slider> laid exactly over the drawn scale (side ladder: y 44–294 of 310). */
-.asc-lad-hit {
-  position: absolute;
-  top: 14.194%;
-  right: 0;
-  left: 0;
-  display: block;
-  height: 80.645%;
-}
-
-/* A larger hit area above and below the scale; values there clamp to the ends. */
-.asc-lad-hit::before {
-  content: '';
-  position: absolute;
-  inset: -22% 0 -6%;
-}
-
-/* Pop-up ladder: the scale runs y 36–106 of 128. */
-.asc-pop .asc-lad-hit {
-  top: 28.125%;
-  height: 54.688%;
-}
-
-.asc-pop .asc-lad-hit::before {
-  inset: -48% 0 -14%;
-}
-
-.asc-lad-thumb {
-  position: absolute;
-  bottom: var(--media-slider-fill, 0%);
-  left: 50%;
-  display: block;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
-.asc-lad-thumb:focus-visible {
-  outline: none;
-}
-
-:is(.asc-lad, .asc-pop):has(.asc-lad-thumb:focus-visible) {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
 }
 
 /* ---------- captions: rise with the HUD so they never sit on the path ---------- */

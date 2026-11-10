@@ -344,146 +344,83 @@ class AscentNowElement extends UIElement {
   }
 }
 
-/* ---------- ladders ---------- */
+/* ---------- thrusters ---------- */
 
-const LADDER_TOP = 44;
-const LADDER_SPAN = 250;
-const LADDER_HEIGHT = 310;
-
-interface LadderDrawing {
+interface ThrusterDrawing {
   set(fraction: number, reading: string): void;
   fractionAt(event: PointerEvent): number;
 }
 
-/** Draw a pilot-style ladder into `host`: a bowed scale with ticks, numbers and an orange pointer with a readout. */
-function drawLadder(host: HTMLElement, dir: 1 | -1, label: string, values: string[]): LadderDrawing {
-  const x = dir > 0 ? 112 : 58;
-  const bx = (t: number) => x + dir * 24 * (1 - Math.pow(2 * t - 1, 2));
-  const y = (t: number) => LADDER_TOP + LADDER_SPAN * (1 - t);
-  let markup = `<svg class="asc-lad-svg" viewBox="0 0 170 ${LADDER_HEIGHT}" aria-hidden="true"><text class="lab" x="${x + dir * 12}" y="16" text-anchor="middle" font-size="13">${label}</text>`;
-  let spine = '';
-  for (let i = 0; i <= 40; i++) spine += `${i ? 'L' : 'M'}${bx(i / 40).toFixed(1)} ${y(i / 40).toFixed(1)}`;
-  markup += `<path d="${spine}" fill="none" stroke="${INK}" stroke-width="1.5"/><g class="ticks">`;
-  const n = values.length - 1;
-  for (let i = 0; i <= n * 5; i++) {
-    const t = i / (n * 5);
-    const major = i % 5 === 0;
-    const xx = bx(t);
-    markup += `<path data-t="${t}" d="M${xx.toFixed(1)} ${y(t).toFixed(1)}h${dir * (major ? 16 : 7)}" fill="none" stroke-width="1.5" stroke-linecap="round"${major ? '' : ' opacity=".8"'}/>`;
-    if (major) {
-      markup += `<text class="num" data-t="${t}" x="${(xx + dir * 28).toFixed(1)}" y="${(y(t) + 5).toFixed(1)}" text-anchor="${dir > 0 ? 'start' : 'end'}" font-size="15">${values[i / 5]}</text>`;
-    }
-  }
-  markup += `</g><g class="ptr"><path d="M${-dir * 6} 0l${-dir * 15}-9v18z" fill="${BURN}"/><path d="M${-dir * 30} -22h${-dir * 74}v44h${dir * 74}z" fill="rgba(3,5,9,.62)" stroke="${INK}" stroke-width="1.5"/><text class="num read" x="${-dir * 67}" y="8" text-anchor="middle" font-size="22"></text></g></svg>`;
-  host.insertAdjacentHTML('afterbegin', markup);
+/** The value range on the thruster drawing (viewBox 0 0 110 28): from just past the nozzle to near the end. */
+const THR_X0 = 27;
+const THR_X1 = 100;
+const THR_C = 14;
+const NOZZLE_EXIT = 16.4;
 
-  const svg = host.querySelector('svg')!;
-  const pointer = svg.querySelector('.ptr')!;
-  const reading = svg.querySelector('.read')!;
-  const marks = [...svg.querySelectorAll<SVGElement>('[data-t]')];
-  return {
-    set(fraction, text) {
-      const f = Math.min(1, Math.max(0, fraction));
-      pointer.setAttribute('transform', `translate(${bx(f).toFixed(1)} ${y(f).toFixed(1)})`);
-      reading.textContent = text;
-      for (const mark of marks) {
-        const on = Number(mark.dataset.t) <= f + 1e-6;
-        if (mark.tagName === 'path') mark.setAttribute('stroke', on ? BURN : INK);
-        else mark.setAttribute('opacity', on ? '1' : '.75');
-      }
-    },
-    fractionAt({ clientY }) {
-      const rect = svg.getBoundingClientRect();
-      const k = rect.height / LADDER_HEIGHT;
-      return 1 - ((clientY - rect.top) / k - LADDER_TOP) / LADDER_SPAN;
-    },
-  };
-}
-
-const POP_TOP = 36;
-const POP_BOTTOM = 106;
-const POP_HEIGHT = 128;
-
-/** Draw the compact pop-up ladder: an opaque plate with a notch, the readout on top and a short tick scale below. */
-function drawPop(host: HTMLElement, steps: number): LadderDrawing {
-  const n = steps * 5;
-  const y = (i: number) => POP_BOTTOM - (i * (POP_BOTTOM - POP_TOP)) / n;
-  let markup = `<svg class="asc-pop-svg" viewBox="0 0 64 ${POP_HEIGHT}" aria-hidden="true"><rect x="1" y="1" width="62" height="116" fill="rgba(3,5,9,.95)" stroke="${INK}" stroke-width="1.2"/><path d="M26 117l6 7 6-7" fill="rgba(3,5,9,.95)" stroke="${INK}" stroke-width="1.2"/><text class="num read" x="32" y="22" text-anchor="middle" font-size="14"></text><path d="M32 ${POP_BOTTOM}V${POP_TOP}" stroke="${INK}" stroke-width="1.2" fill="none"/>`;
-  for (let i = 0; i <= n; i++) {
-    markup += `<path data-i="${i}" d="M32 ${y(i).toFixed(1)}h${i % 5 === 0 ? 11 : 6}" stroke-width="1.2" stroke-linecap="round" fill="none"/>`;
-  }
-  markup += `<g class="ptr"><path d="M27 0l-9-5.5v11z" fill="${BURN}"/></g></svg>`;
-  host.insertAdjacentHTML('afterbegin', markup);
-
-  const svg = host.querySelector('svg')!;
-  const pointer = svg.querySelector('.ptr')!;
-  const reading = svg.querySelector('.read')!;
-  const ticks = [...svg.querySelectorAll<SVGElement>('[data-i]')];
-  return {
-    set(fraction, text) {
-      const f = Math.min(1, Math.max(0, fraction));
-      pointer.setAttribute('transform', `translate(0 ${y(f * n).toFixed(1)})`);
-      reading.textContent = text;
-      for (const tick of ticks) tick.setAttribute('stroke', Number(tick.dataset.i) <= f * n + 1e-6 ? BURN : INK);
-    },
-    fractionAt({ clientY }) {
-      const rect = svg.getBoundingClientRect();
-      const k = rect.height / POP_HEIGHT;
-      return (POP_BOTTOM - (clientY - rect.top) / k) / (POP_BOTTOM - POP_TOP);
-    },
-  };
+/** An exhaust plume from the nozzle exit (x 16) to `x`, `h` high at the exit, tapering to a point. */
+function plume(x: number, h: number): string {
+  const l = x - 16;
+  const f = (n: number) => n.toFixed(1);
+  return (
+    `M16 ${f(THR_C - h)}C${f(16 + l * 0.4)} ${f(THR_C - h * 1.05)} ${f(16 + l * 0.78)} ${f(THR_C - h * 0.42)} ${f(x)} ${THR_C}` +
+    `C${f(16 + l * 0.78)} ${f(THR_C + h * 0.42)} ${f(16 + l * 0.4)} ${f(THR_C + h * 1.05)} 16 ${f(THR_C + h)}Z`
+  );
 }
 
 /**
- * Draw the inline "jet" slider for the bottom row of wide players: a short level track from a fixed orange origin,
- * flown in orange up to the value, with a readout beside it. `stops` > 0 draws a dot per stop (the speed jet).
+ * Draw a thruster slider into `host`, with a readout beside it: a solid engine nozzle at the left and the value
+ * along the exhaust, x 27–100 of 110.
+ *
+ * `stops` = 0 (volume): an orange plume with a pale hot core runs from the nozzle to the value, where a ring knob
+ * sits; a dotted guide and an end tick show the rest of the range. At zero there is no plume.
+ * `stops` > 0 (speed): a shock diamond per stop, lit up to the value and hollow beyond, over a thin exhaust band,
+ * with a ring around the current one.
  */
-function drawJet(host: HTMLElement, stops: number): LadderDrawing {
-  const X0 = 10;
-  const X1 = 100;
-  // Level, not curved: at this size a climb reads as crooked. The track sits on the svg's centre line.
-  const py = (_x: number) => 14;
-  const seg = (a: number, b: number) => {
-    let d = '';
-    for (let i = 0; i <= 24; i++) {
-      const x = a + ((b - a) * i) / 24;
-      d += `${i ? 'L' : 'M'}${x.toFixed(1)} ${py(x).toFixed(1)}`;
-    }
-    return d;
-  };
-  const glow = nextId('asc-jet-glow');
-  let dots = '';
+function drawThruster(host: HTMLElement, stops: number): ThrusterDrawing {
+  const glow = nextId('asc-thr-glow');
+  const sx = (i: number) => THR_X0 + ((THR_X1 - THR_X0) * i) / (stops - 1);
+  let diamonds = '';
   for (let i = 0; i < stops; i++) {
-    const x = X0 + ((X1 - X0) * i) / (stops - 1);
-    dots += `<circle cx="${x.toFixed(2)}" cy="${py(x).toFixed(2)}" r="2.6" stroke-width="1.3"/>`;
+    const cx = sx(i);
+    const hh = 5.4 - i * 0.28;
+    diamonds += `<path d="M${(cx - 5).toFixed(1)} ${THR_C}L${cx.toFixed(1)} ${(THR_C - hh).toFixed(1)}L${(cx + 5).toFixed(1)} ${THR_C}L${cx.toFixed(1)} ${(THR_C + hh).toFixed(1)}Z" stroke-width="1.2" stroke-linejoin="round"/>`;
   }
+  const guide = stops
+    ? ''
+    : `<path class="tr" fill="none" stroke="${INK}" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="1.5 5" opacity=".6"/><path d="M104.5 9.5V18.5" stroke="${INK}" stroke-width="1.3" stroke-linecap="round" opacity=".6"/>`;
+  const knob = stops
+    ? `<circle r="8.2" fill="none" stroke="${INK}" stroke-width="1.4"/>`
+    : `<circle r="7" fill="rgba(3,5,9,.6)" stroke="${INK}" stroke-width="1.4"/><circle r="2.4" fill="${INK}"/>`;
   host.insertAdjacentHTML(
     'afterbegin',
-    `<svg class="asc-jet-svg" viewBox="0 0 110 28" aria-hidden="true"><defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs><path class="jr" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round" ${stops ? 'opacity=".5"' : 'stroke-dasharray="2 6" opacity=".6"'}/><path class="jg" fill="none" stroke="${BURN}" stroke-width="8" opacity=".4" filter="url(#${glow})"/><path class="jd" fill="none" stroke="${BURN}" stroke-width="3.2" stroke-linecap="round"/><circle cx="${X0}" cy="14" r="3.2" fill="${BURN}"/><g class="js">${dots}</g><g class="jt"><circle r="8.5" fill="rgba(3,5,9,.65)" stroke="${INK}" stroke-width="1.4"/><circle r="3" fill="${INK}"/></g></svg><span class="asc-jet-read" aria-hidden="true"></span>`
+    `<svg class="asc-thr-svg" viewBox="0 0 110 28" aria-hidden="true"><defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs>${guide}<path class="tg" fill="${BURN}" opacity=".45" filter="url(#${glow})"/><path class="tp" fill="${BURN}"/><path class="tc" fill="#ffd9bf" opacity=".92"/><g class="ts">${diamonds}</g><rect x="2" y="10.5" width="5" height="7" rx="1.6" fill="${INK}"/><path d="M6.5 12.6H8.5C11 12.2 14 10 ${NOZZLE_EXIT} 6V22C14 18 11 15.8 8.5 15.4H6.5Z" fill="${INK}"/><g class="tk">${knob}</g></svg><span class="asc-thr-read" aria-hidden="true"></span>`
   );
   const svg = host.querySelector('svg')!;
   const q = (selector: string) => svg.querySelector(selector)!;
-  const reading = host.querySelector('.asc-jet-read')!;
-  const stopDots = [...svg.querySelectorAll('.js circle')];
+  const reading = host.querySelector('.asc-thr-read')!;
+  const shocks = [...svg.querySelectorAll('.ts path')];
   return {
     set(fraction, text) {
       const f = Math.min(1, Math.max(0, fraction));
-      const x = X0 + (X1 - X0) * f;
-      q('.jd').setAttribute('d', seg(X0, x));
-      q('.jg').setAttribute('d', seg(X0, x));
-      q('.jr').setAttribute('d', seg(stops ? X0 : x, X1));
-      q('.jt').setAttribute('transform', `translate(${x.toFixed(1)} ${py(x).toFixed(1)})`);
+      const x = THR_X0 + (THR_X1 - THR_X0) * f;
+      const on = stops > 0 || f > 0;
+      q('.tp').setAttribute('d', on ? plume(x, stops ? 3.2 : 7.2) : '');
+      q('.tg').setAttribute('d', on ? plume(x, stops ? 4.4 : 7.2) : '');
+      q('.tc').setAttribute('d', on && !stops ? plume(16 + (x - 16) * 0.6, 2.8) : '');
+      if (!stops) q('.tr').setAttribute('d', `M${(x + 10).toFixed(1)} ${THR_C}H104`);
+      q('.tk').setAttribute('transform', `translate(${x.toFixed(1)} ${THR_C})`);
       reading.textContent = text;
-      stopDots.forEach((dot, i) => {
-        const on = i / (stops - 1) <= f + 1e-6;
-        dot.setAttribute('fill', on ? BURN : '#05070b');
-        dot.setAttribute('stroke', on ? BURN : INK);
+      shocks.forEach((shock, i) => {
+        const lit = i / (stops - 1) <= f + 1e-6;
+        shock.setAttribute('fill', lit ? BURN : '#05070b');
+        shock.setAttribute('stroke', lit ? '#ffb08c' : INK);
+        shock.setAttribute('opacity', lit ? '1' : '.75');
       });
     },
     fractionAt({ clientX }) {
       const rect = svg.getBoundingClientRect();
       const k = rect.width / 110;
-      return ((clientX - rect.left) / k - X0) / (X1 - X0);
+      return ((clientX - rect.left) / k - THR_X0) / (THR_X1 - THR_X0);
     },
   };
 }
@@ -491,25 +428,25 @@ function drawJet(host: HTMLElement, stops: number): LadderDrawing {
 const DEFAULT_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 /**
- * <ascent-ladder kind="volume">: the volume ladder. A vertical `<media-volume-slider>` inside it, laid exactly over
- * the scale, is the accessible slider and takes pointer, wheel and keys; this element only draws.
+ * <ascent-ladder kind="volume">: the volume thruster. A horizontal `<media-volume-slider>` inside it, laid exactly
+ * over the drawn range, is the accessible slider and takes pointer, wheel and keys; this element only draws.
  *
- * <ascent-ladder kind="speed">: the speed ladder. Video.js 10 has no playback-rate slider, so this element is the
+ * <ascent-ladder kind="speed">: the speed thruster. Video.js 10 has no playback-rate slider, so this element is the
  * slider itself (`role="slider"`), setting the rate through the player's playback-rate feature and snapping to the
  * player's rates.
  *
- * `size="jet"` draws the small inline flight-path slider for the bottom row of wide players.
- * `size="pop"` draws the compact pop-up version that opens above the mute button or the speed pill in mid-size
- * players. On touch, the first tap on that button opens the pop-up and the second performs the button's action.
+ * `size="jet"` is the inline control in the bottom row of wide players. `size="pop"` puts the same drawing on a small
+ * plate that pops up above the mute button or the speed pill in mid-size players. On touch, the first tap on that
+ * button opens the pop-up and the second performs the button's action.
  */
 class AscentLadderElement extends UIElement {
   static properties = { kind: { type: String }, size: { type: String } };
   kind = 'volume';
-  size = 'side';
+  size = 'jet';
 
   #volume = new PlayerController(this, playerContext, selectVolume);
   #rate = new PlayerController(this, playerContext, selectPlaybackRate);
-  #drawing: LadderDrawing | null = null;
+  #drawing: ThrusterDrawing | null = null;
   #abort: AbortController | null = null;
 
   get #speed() {
@@ -520,14 +457,7 @@ class AscentLadderElement extends UIElement {
     super.connectedCallback();
     this.#abort?.abort();
     this.#abort = new AbortController();
-    if (!this.#drawing) {
-      if (this.size === 'pop') this.#drawing = drawPop(this, this.#speed ? 3 : 2);
-      else if (this.size === 'jet') this.#drawing = drawJet(this, this.#speed ? 7 : 0);
-      else
-        this.#drawing = this.#speed
-          ? drawLadder(this, -1, 'Speed', ['0.5', '1.0', '1.5', '2.0'])
-          : drawLadder(this, 1, 'Volume', ['0', '20', '40', '60', '80', '100']);
-    }
+    if (!this.#drawing) this.#drawing = drawThruster(this, this.#speed ? DEFAULT_RATES.length : 0);
     if (this.#speed) this.#bindSpeed(this.#abort.signal);
     if (this.size === 'pop') this.#bindPopTouch(this.#abort.signal);
   }
@@ -628,7 +558,7 @@ class AscentLadderElement extends UIElement {
     this.setAttribute('role', 'slider');
     this.setAttribute('tabindex', '0');
     this.setAttribute('aria-label', 'Playback speed');
-    this.setAttribute('aria-orientation', this.size === 'jet' ? 'horizontal' : 'vertical');
+    this.setAttribute('aria-orientation', 'horizontal');
     this.setAttribute('aria-valuemin', '0.5');
     this.setAttribute('aria-valuemax', '2');
 
