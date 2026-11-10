@@ -133,23 +133,26 @@ abstract class PathElement extends UIElement {
 }
 
 /**
- * The smoke of a launch: forty-eight soft clouds thrown out behind the engine on a fixed pseudo-random spread. Each starts
- * small and warm at the nozzle, rolls back and upward, swells and fades to grey. Drawn with the craft facing +x; the
- * group that holds them is turned to the craft's heading.
+ * The smoke of a launch: eighty-four soft clouds thrown out behind the engine on a fixed pseudo-random spread. Each
+ * starts small and warm at the nozzle, slows, rolls back and upward, swells and thins to grey. The upper side of the
+ * plume is lit and the underside is in shade. A noise filter on the group breaks the round edges into wisps and thins
+ * the plume in patches, so it reads as smoke and not as drawn clouds. Drawn with the craft facing +x; the group that holds them is turned
+ * to the craft's heading.
  */
 function launchSmoke(): string {
   let seed = 11;
   const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
-  const count = 48;
+  const count = 84;
   let puffs = '';
   for (let i = 0; i < count; i++) {
-    const spread = (random() * 2 - 1) * 0.5 - 0.12;
-    const reach = 84 + random() * 170;
+    const side = random() * 2 - 1;
+    const spread = side * 0.26;
+    const reach = 90 + random() * 230;
     const dx = -Math.cos(spread) * reach;
-    const dy = Math.sin(spread) * reach - (14 + random() * 34);
-    const scale = 3.2 + random() * 3.6;
-    const cy = (random() * 2 - 1) * 4;
-    puffs += `<circle class="asc-vp" cx="-30" cy="${cy.toFixed(1)}" r="6" style="--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px;--s:${scale.toFixed(1)};--d:${((-i * 2.8) / count).toFixed(2)}s"/>`;
+    const dy = -Math.sin(spread) * reach - reach * (0.1 + random() * 0.16);
+    const scale = 2.2 + (reach / 320) * 4.4 + random() * 1.2;
+    const tone = side > 0.25 ? ' hi' : side < -0.35 ? ' lo' : '';
+    puffs += `<circle class="asc-vp${tone}" cx="-26" cy="${(side * 3).toFixed(1)}" r="6" style="--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px;--s:${scale.toFixed(1)};--d:${((-i * 3.6) / count).toFixed(2)}s"/>`;
   }
   return puffs;
 }
@@ -189,16 +192,16 @@ class AscentFlightElement extends PathElement {
     const vapour = nextId('asc-vapour');
     this.innerHTML = `<svg xmlns="${SVG}">
 <defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
-<filter id="${vapour}" filterUnits="userSpaceOnUse" x="-360" y="-260" width="440" height="420"><feGaussianBlur stdDeviation="6" result="b"/><feColorMatrix in="b" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 11 -4" result="g"/><feOffset in="g" dx="-3" dy="8" result="o"/><feComponentTransfer in="o" result="s"><feFuncR type="linear" slope=".6"/><feFuncG type="linear" slope=".6"/><feFuncB type="linear" slope=".64"/></feComponentTransfer><feMerge><feMergeNode in="s"/><feMergeNode in="g"/></feMerge><feGaussianBlur stdDeviation="1.5"/></filter>
-<filter id="${vapour}-f" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="1.6"/></filter>
-<linearGradient id="${vapour}-g" gradientUnits="userSpaceOnUse" x1="-15" y1="0" x2="-96" y2="0"><stop offset="0" stop-color="#fff6ec"/><stop offset=".28" stop-color="#ffd9bf"/><stop offset=".6" stop-color="#ff9448"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient></defs>
+<filter id="${vapour}" filterUnits="userSpaceOnUse" x="-430" y="-270" width="450" height="370" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="7" result="soft"/><feTurbulence type="fractalNoise" baseFrequency="0.016 0.024" numOctaves="3" seed="4" result="n"/><feDisplacementMap in="soft" in2="n" scale="54" xChannelSelector="R" yChannelSelector="G" result="d"/><feComposite in="d" in2="n" operator="in"/></filter>
+<filter id="${vapour}-f" x="-30%" y="-120%" width="160%" height="340%"><feGaussianBlur stdDeviation="2.2"/></filter>
+<linearGradient id="${vapour}-g" gradientUnits="userSpaceOnUse" x1="-14" y1="0" x2="-120" y2="0"><stop offset="0" stop-color="#fff9f0"/><stop offset=".22" stop-color="#ffe0b8"/><stop offset=".55" stop-color="#ff8a3c"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
 <path class="rest" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 9" opacity=".55"/>
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".5"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
 <g class="dots"></g>
-<g class="craft"><g class="asc-vent"><circle class="asc-heat" cx="-48" r="46" fill="${BURN}" filter="url(#${glow})"/><g filter="url(#${vapour})" opacity=".92">${launchSmoke()}</g><path class="asc-flame" d="M-15 -8.5C-36 -11 -64 -5 -96 0C-64 5 -36 11 -15 8.5Z" fill="url(#${vapour}-g)" filter="url(#${vapour}-f)"/><path class="asc-flame" d="M-15 -4C-30 -5 -46 -2 -60 0C-46 2 -30 5 -15 4Z" fill="#fff6ec"/></g><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
+<g class="craft"><g class="asc-vent"><circle class="asc-heat" cx="-52" r="44" fill="${BURN}" filter="url(#${glow})"/><g filter="url(#${vapour})">${launchSmoke()}</g><g class="asc-fire"><path class="asc-flame" d="M-14 -7C-40 -9 -78 -4 -120 0C-78 4 -40 9 -14 7Z" fill="url(#${vapour}-g)" filter="url(#${vapour}-f)"/><path class="asc-flame core" d="M-14 -3.2C-30 -4 -50 -1.6 -70 0C-50 1.6 -30 4 -14 3.2Z" fill="#fffaf2" filter="url(#${vapour}-f)"/></g></g><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
 </svg>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');

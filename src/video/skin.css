@@ -1176,7 +1176,11 @@ ascent-engine:hover .pm {
 }
 
 .asc-heat {
-  opacity: 0.4;
+  opacity: 0.34;
+}
+
+.asc-fire {
+  mix-blend-mode: screen;
 }
 
 .asc-flame {
@@ -1185,51 +1189,73 @@ ascent-engine:hover .pm {
   animation: asc-flame 0.11s ease-in-out infinite alternate;
 }
 
+.asc-flame.core {
+  animation-duration: 0.07s;
+}
+
 @keyframes asc-flame {
   from {
-    transform: scale(0.86, 0.94);
+    transform: scale(0.84, 0.9);
   }
 
   to {
-    transform: scale(1.1, 1.06);
+    transform: scale(1.1, 1.08);
   }
 }
 
-/* Without motion the smoke stands as a still cloud. */
+/* Each cloud of the plume. The three tones light the upper side and shade the underside. Without motion the smoke
+   stands as a still plume. */
 .asc-vp {
-  fill: #e4e1da;
-  opacity: 0.34;
+  --c1: #ffc692;
+  --c2: #efebe5;
+  --c3: #c4c5c9;
+
+  fill: #d6d3ce;
+  opacity: 0.5;
   transform: translate(calc(var(--dx) * 0.6), calc(var(--dy) * 0.5)) scale(calc(var(--s) * 0.6));
   transform-box: fill-box;
   transform-origin: center;
-  animation: asc-vent 2.8s cubic-bezier(0.18, 0.6, 0.3, 1) infinite;
+  animation: asc-vent 3.6s cubic-bezier(0.16, 0.62, 0.3, 1) infinite;
   animation-delay: var(--d);
+}
+
+.asc-vp.hi {
+  --c1: #ffe2c0;
+  --c2: #fffdf8;
+  --c3: #e6e6e8;
+}
+
+.asc-vp.lo {
+  --c1: #f5a264;
+  --c2: #b9b6b3;
+  --c3: #8c8f96;
 }
 
 @keyframes asc-vent {
   0% {
-    fill: #fff3e4;
+    fill: #fff1dc;
     opacity: 0;
-    transform: translate(0, 0) scale(0.45);
+    transform: translate(0, 0) scale(0.5);
   }
 
-  5% {
-    opacity: 0.9;
+  4% {
+    opacity: 1;
   }
 
-  28% {
-    fill: #ffe2cc;
-    opacity: 0.86;
-    transform: translate(calc(var(--dx) * 0.52), calc(var(--dy) * 0.22)) scale(calc(var(--s) * 0.5));
+  16% {
+    fill: var(--c1);
+    opacity: 0.95;
+    transform: translate(calc(var(--dx) * 0.4), calc(var(--dy) * 0.2)) scale(calc(var(--s) * 0.34));
   }
 
-  60% {
-    fill: #efece5;
-    opacity: 0.62;
+  42% {
+    fill: var(--c2);
+    opacity: 0.8;
+    transform: translate(calc(var(--dx) * 0.76), calc(var(--dy) * 0.6)) scale(calc(var(--s) * 0.7));
   }
 
   100% {
-    fill: #d6d3cc;
+    fill: var(--c3);
     opacity: 0;
     transform: translate(var(--dx), var(--dy)) scale(var(--s));
   }
