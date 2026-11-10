@@ -430,13 +430,14 @@ function drawPop(host: HTMLElement, steps: number): LadderDrawing {
 }
 
 /**
- * Draw the inline "jet" slider for the bottom row of wide players: a small climbing path, flown in orange up to the
- * value, with a readout beside it. `stops` > 0 draws a dot per stop (the speed jet).
+ * Draw the inline "jet" slider for the bottom row of wide players: a short level track from a fixed orange origin,
+ * flown in orange up to the value, with a readout beside it. `stops` > 0 draws a dot per stop (the speed jet).
  */
 function drawJet(host: HTMLElement, stops: number): LadderDrawing {
-  const X0 = 6;
-  const X1 = 104;
-  const py = (x: number) => 30 - (17 * (1 - Math.exp((-3.2 * (x - X0)) / (X1 - X0)))) / (1 - Math.exp(-3.2));
+  const X0 = 10;
+  const X1 = 100;
+  // Level, not curved: at this size a climb reads as crooked. The track sits on the svg's centre line.
+  const py = (_x: number) => 14;
   const seg = (a: number, b: number) => {
     let d = '';
     for (let i = 0; i <= 24; i++) {
@@ -453,7 +454,7 @@ function drawJet(host: HTMLElement, stops: number): LadderDrawing {
   }
   host.insertAdjacentHTML(
     'afterbegin',
-    `<svg class="asc-jet-svg" viewBox="0 0 110 40" aria-hidden="true"><defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs><path class="jr" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round" ${stops ? 'opacity=".5"' : 'stroke-dasharray="2 6" opacity=".6"'}/><path class="jg" fill="none" stroke="${BURN}" stroke-width="8" opacity=".4" filter="url(#${glow})"/><path class="jd" fill="none" stroke="${BURN}" stroke-width="3.2" stroke-linecap="round"/><g class="js">${dots}</g><g class="jt"><circle r="8.5" fill="rgba(3,5,9,.65)" stroke="${INK}" stroke-width="1.4"/><circle r="3" fill="${INK}"/></g></svg><span class="asc-jet-read" aria-hidden="true"></span>`
+    `<svg class="asc-jet-svg" viewBox="0 0 110 28" aria-hidden="true"><defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs><path class="jr" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round" ${stops ? 'opacity=".5"' : 'stroke-dasharray="2 6" opacity=".6"'}/><path class="jg" fill="none" stroke="${BURN}" stroke-width="8" opacity=".4" filter="url(#${glow})"/><path class="jd" fill="none" stroke="${BURN}" stroke-width="3.2" stroke-linecap="round"/><circle cx="${X0}" cy="14" r="3.2" fill="${BURN}"/><g class="js">${dots}</g><g class="jt"><circle r="8.5" fill="rgba(3,5,9,.65)" stroke="${INK}" stroke-width="1.4"/><circle r="3" fill="${INK}"/></g></svg><span class="asc-jet-read" aria-hidden="true"></span>`
   );
   const svg = host.querySelector('svg')!;
   const q = (selector: string) => svg.querySelector(selector)!;

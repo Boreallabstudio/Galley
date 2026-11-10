@@ -496,14 +496,14 @@
   display: none;
 }
 
-/* The volume jet's <media-volume-slider> spans the drawn track, x 6–104 of 110. */
+/* The volume jet's <media-volume-slider> spans the drawn track, x 10–100 of 110. */
 .asc-jet-hit {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(var(--asc-jet-width) * 6 / 110);
+  left: calc(var(--asc-jet-width) * 10 / 110);
   display: block;
-  width: calc(var(--asc-jet-width) * 98 / 110);
+  width: calc(var(--asc-jet-width) * 90 / 110);
 }
 
 .asc-jet-hit::before {
