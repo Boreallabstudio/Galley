@@ -139,6 +139,7 @@ class AscentFlightElement extends PathElement {
   #buffer = new PlayerController(this, playerContext, selectBuffer);
   #svg!: SVGSVGElement;
   #rest!: SVGPathElement;
+  #under!: SVGPathElement;
   #buffered!: SVGPathElement;
   #glow!: SVGPathElement;
   #done!: SVGPathElement;
@@ -156,6 +157,7 @@ class AscentFlightElement extends PathElement {
     const glow = nextId('asc-glow');
     this.innerHTML = `<svg xmlns="${SVG}">
 <defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs>
+<path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
 <path class="rest" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 9" opacity=".55"/>
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".5"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
@@ -166,6 +168,7 @@ class AscentFlightElement extends PathElement {
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
     this.#rest = q('.rest');
+    this.#under = q('.under');
     this.#buffered = q('.buf');
     this.#glow = q('.glow');
     this.#done = q('.done');
@@ -184,7 +187,9 @@ class AscentFlightElement extends PathElement {
     const t = progress(this.slider, currentTime, duration);
 
     this.#svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    this.#rest.setAttribute('d', pathData(g, t, 1));
+    const rest = pathData(g, t, 1);
+    this.#rest.setAttribute('d', rest);
+    this.#under.setAttribute('d', rest);
     this.#rest.setAttribute('opacity', String(0.3 + 0.25 * lift));
     const done = pathData(g, 0, t);
     this.#done.setAttribute('d', done);
@@ -527,7 +532,10 @@ class AscentLadderElement extends UIElement {
     if (this.size === 'pop') this.#bindPopTouch(this.#abort.signal);
   }
 
-  /** Touch, mid-size players: the first tap on the button opens the pop-up; the next one acts. It closes after 3.5 s. */
+  /**
+   * Touch, mid-size players: the first tap on the button opens the pop-up; the next one acts. It closes after 3.5 s.
+   * Escape closes it from the keyboard.
+   */
   #bindPopTouch(signal: AbortSignal) {
     const wrap = this.closest<HTMLElement>('.asc-wrap');
     const button = wrap?.querySelector<HTMLElement>('.asc-b');
@@ -560,6 +568,27 @@ class AscentLadderElement extends UIElement {
       },
       { signal, capture: true }
     );
+    // Escape closes an open pop-up and returns focus to its button. It stays shut until focus or the pointer leaves
+    // the wrapper, or the button's own keyboard focus would open it again at once.
+    wrap.addEventListener(
+      'keydown',
+      (event) => {
+        if (event.key !== 'Escape' || !getComputedStyle(this).visibility.startsWith('visible')) return;
+        wrap.setAttribute('data-shut', '');
+        wrap.removeAttribute('data-open');
+        button.focus();
+        event.stopPropagation();
+      },
+      { signal }
+    );
+    wrap.addEventListener(
+      'focusout',
+      (event) => {
+        if (!wrap.contains(event.relatedTarget as Node | null)) wrap.removeAttribute('data-shut');
+      },
+      { signal }
+    );
+    wrap.addEventListener('pointerleave', () => wrap.removeAttribute('data-shut'), { signal });
     signal.addEventListener('abort', () => clearTimeout(timer));
   }
 
@@ -735,6 +764,7 @@ class AscentCaptionsElement extends UIElement {
   #media: HTMLMediaElement | null = null;
   #abort: AbortController | null = null;
   #attempts = 0;
+  #placeFrame = 0;
 
   connectedCallback() {
     super.connectedCallback();
@@ -749,6 +779,7 @@ class AscentCaptionsElement extends UIElement {
     super.disconnectedCallback();
     this.#abort?.abort();
     this.#abort = null;
+    cancelAnimationFrame(this.#placeFrame);
   }
 
   /** Custom media elements may upgrade a frame or two after the template mounts. */
@@ -769,7 +800,45 @@ class AscentCaptionsElement extends UIElement {
     tracks.addEventListener('change', render, { signal });
     // Active cues settle a tick after a seek on streamed media; timeupdate catches that too.
     for (const type of ['seeked', 'timeupdate']) media.addEventListener(type, render, { signal });
+    // With the HUD up, captions rise to just above the highest event label (see #place).
+    const resize = new ResizeObserver(() => this.#place());
+    resize.observe(root!);
+    const stop = liftFor(this)?.subscribe((value) => value >= 0.999 && this.#place());
+    signal.addEventListener('abort', () => {
+      resize.disconnect();
+      stop?.();
+    });
     render();
+    this.#place();
+  }
+
+  /**
+   * Measures how high the event labels stand with the HUD fully up and keeps that height in --asc-cap-up, so a
+   * caption clears the labels instead of running through them, but never rises into the title row. Two frames' wait
+   * lets the labels lay out first.
+   */
+  #place() {
+    cancelAnimationFrame(this.#placeFrame);
+    this.#placeFrame = requestAnimationFrame(() => {
+      this.#placeFrame = requestAnimationFrame(() => {
+        const root = skinRoot(this);
+        if (!root || (liftFor(this)?.value ?? 1) < 0.999) return;
+        const box = root.getBoundingClientRect();
+        let top = box.bottom;
+        for (const label of root.querySelectorAll<HTMLElement>('.asc-ev')) {
+          const rect = label.getBoundingClientRect();
+          if (rect.width && rect.height) top = Math.min(top, rect.top);
+        }
+        if (top >= box.bottom) return;
+        // On the smallest frames there may be no room above the labels: then stay clear of the title row instead.
+        let ceiling = box.top;
+        for (const head of root.querySelectorAll<HTMLElement>('.asc-title, .asc-now')) {
+          ceiling = Math.max(ceiling, head.getBoundingClientRect().bottom);
+        }
+        const up = Math.min(box.bottom - top + 6, box.bottom - ceiling - this.offsetHeight - 6);
+        this.style.setProperty('--asc-cap-up', `${Math.round(up)}px`);
+      });
+    });
   }
 
   protected update(changed: PropertyValues) {
@@ -792,7 +861,9 @@ class AscentCaptionsElement extends UIElement {
         break;
       }
     }
-    if (this.textContent !== text) this.textContent = text;
+    if (this.textContent === text) return;
+    this.textContent = text;
+    if (text) this.#place();
   }
 }
 

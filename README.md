@@ -11,10 +11,11 @@ The film's progress is an orange line climbing across the lower part of the pict
 - **Bottom row**: play, mute, captions and fullscreen. How volume and speed appear depends on the player's width:
   - 900 px and wider: two small inline sliders, one for volume and one for speed, in the row.
   - 520 to 899 px: a small ladder pops up over the mute button and over a speed button, on hover, on keyboard focus, or on the first tap (the second tap acts).
-  - Under 520 px: mute toggles, and the speed button cycles through the rates.
+  - Under 520 px: mute toggles, and the speed button cycles through the rates. Under 380 px the speed button is left out (the `<` and `>` keys still work).
   - Fullscreen: large volume and speed ladders at the sides of the frame.
 - **Mission clock**: shows time elapsed. Choose it to switch to time remaining.
-- **Captions** are drawn by the skin and rise with the controls, so they never sit on the path.
+- **Captions** are drawn by the skin and rise with the controls to sit above the event labels, so they never run through the path.
+- Every button has a hit area of at least 44 × 44 px, and the hit areas never overlap. With reduced motion set, the controls appear and hide without the lift animation.
 
 ## Keys
 
@@ -31,7 +32,7 @@ The film's progress is an orange line climbing across the lower part of the pict
 | C | Captions |
 | F | Fullscreen |
 
-On a focused slider, the arrow keys move that slider.
+On a focused slider, the arrow keys move that slider. Escape closes an open pop-up ladder and puts focus back on its button.
 
 ## Use it
 
