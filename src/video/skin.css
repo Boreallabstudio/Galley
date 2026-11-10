@@ -222,16 +222,33 @@
 
 /* ---------- flight path ---------- */
 
-/* The interaction layer: a Video.js time slider over the lower part of the frame, spanning the path's x range. */
+/*
+ * The interaction layer: a Video.js time slider over the lower part of the frame, spanning the path's x range. Its
+ * height follows geometry() in flight.ts (edge + console desk + clearance + the path's rise), plus a finger's margin
+ * above the path's top end, so a press anywhere on the path or its dots seeks.
+ */
 .asc-seek {
+  --asc-seek-pad: 18px;
   position: absolute;
   right: 4.3cqw;
   bottom: 0;
   left: 4.3cqw;
   display: block;
-  height: 38cqh;
+  height: calc(15cqh + 73px + var(--asc-seek-pad));
   cursor: pointer;
   touch-action: none;
+}
+
+@container (min-width: 760px) {
+  .asc-seek {
+    height: calc(21cqh + 75px + max(20px, 4.5cqh) + var(--asc-seek-pad));
+  }
+}
+
+@container (min-width: 900px) {
+  .asc-seek {
+    height: calc(21cqh + 3px + clamp(84px, 13.4cqh, 172px) + max(20px, 4.5cqh) + var(--asc-seek-pad));
+  }
 }
 
 /* Its thumb is moved onto the craft by <ascent-flight>; focus shows as a heavier ring on the craft. */
