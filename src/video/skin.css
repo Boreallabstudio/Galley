@@ -266,6 +266,9 @@
     gap: 0.4em;
     padding: 6cqi 7cqi;
     overflow-y: auto;
+    /* Everything inside is sized in em from this, so the page scales with the 4:3 plate and the
+       full contents fits from a phone up. */
+    font-size: clamp(11.5px, 3.3cqi, var(--gl-unit));
     color: var(--gl-ink);
     background: color-mix(in oklab, var(--gl-paper) 94%, transparent);
     cursor: default;
@@ -283,7 +286,7 @@
   }
 
   .gl-endpage-kicker {
-    font-size: var(--gl-label-size);
+    font-size: 0.8125em;
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -291,7 +294,7 @@
   }
 
   .gl-endpage-title-main {
-    font-size: clamp(calc(var(--gl-unit) * 1.25), 6.4cqi, calc(var(--gl-unit) * 2.4));
+    font-size: clamp(1.25em, 6.4cqi, calc(var(--gl-unit) * 2.4));
     font-style: italic;
     line-height: 1.05;
     text-wrap: balance;
@@ -299,11 +302,11 @@
 
   .gl-endpage-again {
     align-self: flex-start;
-    min-height: calc(var(--gl-unit) * 2.5);
+    min-height: 3.1em;
     margin: 0.4em 0 0.6em;
     padding: 0 1.1em;
     font: inherit;
-    font-size: var(--gl-label-size);
+    font-size: 0.8125em;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -316,7 +319,7 @@
 
   .gl-endpage-list {
     display: none;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5em), 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0 1.25em;
     margin: 0;
     padding: 0.6em 0 0;
@@ -333,10 +336,10 @@
     gap: 0.6em;
     align-items: baseline;
     width: 100%;
-    min-height: calc(var(--gl-unit) * 2.25);
+    min-height: 2.5em;
     padding: 0.2em 0;
     font: inherit;
-    font-size: calc(var(--gl-unit) * 0.875);
+    font-size: 0.875em;
     text-align: start;
     color: var(--gl-ink);
     cursor: pointer;
@@ -365,10 +368,27 @@
     outline-offset: 2px;
   }
 
-  /* Too small for a contents list: the end page keeps to the title and Read again. */
-  @container glf (width < 26rem) {
-    .gl-endpage[data-has-chapters] .gl-endpage-list {
-      display: none;
+
+  /* Phone-width plates: a tighter gutter keeps each chapter title on one line. */
+  @container glf (width < 380px) {
+    .gl-endpage-list {
+      column-gap: 0.75em;
+    }
+
+    .gl-endpage-number {
+      min-width: 1.9em;
+    }
+  }
+
+  /* The narrowest phones: tighter spacing so all eight chapters still fit without scrolling. */
+  @container glf (width < 320px) {
+    .gl-endpage {
+      gap: 0.25em;
+      padding-block: 3cqi;
+    }
+
+    .gl-endpage-again {
+      margin: 0.2em 0 0.35em;
     }
   }
 
