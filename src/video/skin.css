@@ -551,6 +551,19 @@
   transform: translate(0, -100%);
 }
 
+/* A label that would sit over the middle of the film hangs below the path instead (set by <ascent-events>). */
+.asc-ev.hang {
+  flex-direction: column-reverse;
+  padding-top: 1.1cqw !important;
+  padding-bottom: 0 !important;
+  transform: translate(-50%, 0);
+}
+
+.asc-ev.hang::after {
+  margin-top: 0;
+  margin-bottom: 0.35cqw;
+}
+
 /* In parking orbit the flown events fold down to node and stem, so the title card stays whole; hover or focus
    brings a plate back. The last event keeps its label (set by <ascent-events>). */
 .asc-ev .plate {
@@ -565,6 +578,10 @@
 /* Their stems shorten to ticks on the path, so they do not read as labels gone missing. */
 .asc-events[data-orbit] .asc-ev:not(:last-child, :hover, :focus-visible)::after {
   background: linear-gradient(transparent calc(100% - 0.9cqw), var(--ink) 0);
+}
+
+.asc-events[data-orbit] .asc-ev.hang:not(:last-child, :hover, :focus-visible)::after {
+  background: linear-gradient(var(--ink) 0.9cqw, transparent 0);
 }
 
 /* The last label, lifted over the orbit, keeps only a short tick under its plate, so no line runs through the

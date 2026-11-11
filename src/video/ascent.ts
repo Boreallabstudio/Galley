@@ -713,6 +713,38 @@ class AscentEventsElement extends PathElement {
     }
   }
 
+  /** Nothing crosses the middle of the film. A label whose plate would sit over the film's centre hangs below the
+   *  path on its stem instead, as long as it still clears the desk; otherwise it stays above. */
+  #hang(chapters: readonly Chapter[], g: Geometry) {
+    const W = this.width;
+    const H = this.height;
+    const row = (this.root ?? this).querySelector('.asc-row');
+    const host = (this.root ?? this).getBoundingClientRect();
+    const deskTop = row ? row.getBoundingClientRect().top - host.top : H;
+    chapters.forEach((chapter, i) => {
+      const button = this.#buttons[i];
+      const plate = button?.querySelector<HTMLElement>('.plate');
+      if (!button || !plate || i === 0 || !plate.offsetWidth) {
+        button?.classList.remove('hang');
+        return;
+      }
+      const f = Math.min(1, chapter.startTime / this.duration);
+      const x = pathX(g, f);
+      const y = pathY(g, f);
+      const tall = button.offsetHeight;
+      const half = plate.offsetWidth / 2;
+      const plateTop = y - 8 - tall;
+      const centre =
+        x + half > W * 0.4 && x - half < W * 0.6 && plateTop + plate.offsetHeight > H * 0.4 && plateTop < H * 0.6;
+      const fits = y + 8 + tall < deskTop - 6;
+      const hang = centre && fits;
+      if (hang !== button.classList.contains('hang')) {
+        button.classList.toggle('hang', hang);
+        button.style.top = `${Math.round(y + (hang ? 8 : -8))}px`;
+      }
+    });
+  }
+
   protected draw() {
     const duration = this.duration;
     const chapters = duration > 0 ? this.chapters : [];
@@ -731,11 +763,12 @@ class AscentEventsElement extends PathElement {
       const button = this.#buttons[i];
       // Centred labels sit half a pixel over, so their 1 px stem covers exactly one pixel.
       button.style.left = `${Math.round(pathX(g, f)) + (i ? 0.5 : 0)}px`;
-      button.style.top = `${Math.round(pathY(g, f) - 8)}px`;
+      button.style.top = `${Math.round(pathY(g, f) + (button.classList.contains('hang') ? 8 : -8))}px`;
       button.classList.toggle('past', f <= t + 1e-4);
       button.classList.toggle('cur', i === current);
     });
     this.#stagger();
+    this.#hang(chapters, g);
     // A plate never runs past the header's right margin: it slides left along its stem's top, the stem stays put.
     const hostBox = (this.root ?? this).getBoundingClientRect();
     const limit = hostBox.left + this.width * (1 - 0.043);
