@@ -178,7 +178,7 @@ const CUTOFF_MS = 600;
  * The end of the film. A light runs up the flown path and each event answers as it passes (`ARRIVAL_MS`), then the
  * craft leaves the end of the path for a parking orbit around a small body: an ellipse with semi-axes `ORBIT_A` and
  * `ORBIT_B` at full size, tilted so it reads as a circle seen at an angle, touching the path where the path ends.
- * The whole orbit shows as a dotted course as the craft sets off. A lap takes `ORBIT_LAP_MS`; the craft eases up to
+ * The whole orbit shows as a faint closed course as the craft sets off. A lap takes `ORBIT_LAP_MS`; the craft eases up to
  * that speed over `ORBIT_ENTRY_MS` and lights the orbit behind it on its first lap.
  */
 const ARRIVAL_MS = 1200;
@@ -354,7 +354,7 @@ class AscentFlightElement extends PathElement {
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
 <path class="sweep" fill="none" stroke="#ffd2b0" stroke-width="4" stroke-linecap="round" filter="url(#${glow})"/>
-<path class="orbit-track" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2.5 8"/>
+<path class="orbit-track" fill="none" stroke="${BURN}" stroke-width="2" stroke-linejoin="round"/>
 <path class="orbit-glow" fill="none" stroke="${BURN}" stroke-width="7" filter="url(#${glow})"/>
 <path class="orbit" fill="none" stroke="${BURN}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
 <g class="dots"></g>
@@ -421,7 +421,7 @@ class AscentFlightElement extends PathElement {
     const scale = craftScale(W, lift);
     this.#sweep.setAttribute('stroke-width', (9 * big).toFixed(2));
     this.#orbit.setAttribute('stroke-width', (2.4 * big).toFixed(2));
-    this.#orbitTrack.setAttribute('stroke-width', (2.6 * big).toFixed(2));
+    this.#orbitTrack.setAttribute('stroke-width', (2 * big).toFixed(2));
     this.#orbitGlow.setAttribute('stroke-width', (7 * big).toFixed(2));
     const burning = this.#playback.value ? !this.#playback.value.paused : false;
     const rate = this.#rate.value?.playbackRate ?? 1;
@@ -549,13 +549,15 @@ class AscentFlightElement extends PathElement {
       if (drawn >= 2 * Math.PI) d += 'Z';
       this.#orbit.setAttribute('d', d);
       this.#orbitGlow.setAttribute('d', d);
-      // The whole orbit shows at once as a dotted course, closed round the body; the craft lights it as it flies.
+      // The whole orbit shows at once as a faint closed course round the body; the craft lights it as it flies.
       let track = '';
       for (let i = 0; i < 72; i++) {
         const p = point(orbit.at(orbit.join - (2 * Math.PI * i) / 72));
         track += `${i ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
       }
       this.#orbitTrack.setAttribute('d', `${track}Z`);
+      // Once the craft has lit the whole lap, the dotted course has done its job.
+      this.#orbitTrack.toggleAttribute('data-lit', drawn >= 2 * Math.PI);
 
       if (still || flown > 0) {
         // With reduced motion the craft is shown already up there, part way round.
@@ -672,7 +674,7 @@ class AscentEventsElement extends PathElement {
   }
 
   /** Two events close together in time would print their labels on top of each other. Left to right, a label that
-   *  runs into the one before it stands taller on a longer stem until it clears it. */
+   *  runs into the one before it (plate and all) stands taller on a longer stem until it clears it. */
   #stagger() {
     const GAP = 10;
     type Box = { left: number; right: number; top: number; bottom: number };
@@ -680,7 +682,7 @@ class AscentEventsElement extends PathElement {
     for (const button of this.#buttons) {
       const rise = parseFloat(button.style.getPropertyValue('--rise')) || 0;
       let box: Box | null = null;
-      for (const part of button.querySelectorAll('b, i')) {
+      for (const part of button.querySelectorAll('.plate')) {
         const r = part.getBoundingClientRect();
         if (!r.width) continue;
         // Where the text would sit without any rise.

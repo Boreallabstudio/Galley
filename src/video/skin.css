@@ -338,9 +338,25 @@
   gap: 0.25cqw;
   padding-bottom: 1.1cqw !important;
   white-space: nowrap;
-  opacity: 0.72;
   transform: translate(-50%, -100%);
   transition: opacity 0.3s ease;
+}
+
+/* Events still ahead are quieter than those flown, but only their words and stems: the plates stay solid. */
+.asc-ev b,
+.asc-ev::after {
+  opacity: 0.72;
+  transition: opacity 0.3s ease;
+}
+
+.asc-ev i {
+  opacity: 0.62;
+  transition: opacity 0.3s ease;
+}
+
+.asc-ev:is(.past, :hover, :focus-visible) :is(b, i),
+.asc-ev:is(.past, :hover, :focus-visible)::after {
+  opacity: 1;
 }
 
 /* Each label sits on a small dark plate, so it stays legible over bright sky, fog and white title cards. */
@@ -351,18 +367,12 @@
   gap: 0.25cqw;
   padding: 0.35cqw 0.6cqw 0.4cqw;
   border-radius: 0.45cqw;
-  background: rgba(5, 7, 11, 0.74);
+  background: rgba(5, 7, 11, 0.84);
 }
 
 .asc-ev.first {
   align-items: flex-start;
   transform: translate(0, -100%);
-}
-
-.asc-ev.past,
-.asc-ev:hover,
-.asc-ev:focus-visible {
-  opacity: 1;
 }
 
 /* Out of the way of the parking orbit at the end of the film (set by <ascent-events>). */
@@ -382,7 +392,6 @@
 .asc-ev i {
   font-size: clamp(8px, 0.88cqw, 16px);
   font-style: normal;
-  opacity: 0.85;
 }
 
 /* Stems are whole pixels (the labels sit on whole pixels too), so every stem draws at the same weight. */
@@ -1297,10 +1306,15 @@ ascent-flight[data-arrived] .orbit {
   opacity: 0.95;
 }
 
-/* The dotted course of the whole orbit comes up with the body, so the orbit reads closed from the start. */
+/* The faint course of the whole orbit comes up with the body, so the orbit reads closed from the start. */
 ascent-flight[data-arrived] .orbit-track {
-  opacity: 0.6;
+  opacity: 0.35;
   transition: opacity 0.9s ease 1.2s;
+}
+
+ascent-flight[data-arrived] .orbit-track[data-lit] {
+  opacity: 0;
+  transition: opacity 0.6s ease;
 }
 
 ascent-flight[data-arrived] .orbit-glow {
