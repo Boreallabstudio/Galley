@@ -448,6 +448,11 @@
     opacity 0.3s ease;
 }
 
+/* A rate keeps its units' case: Mb/s, megabits, not MB/S. */
+.asc-cell[data-r='rate'] b {
+  text-transform: none;
+}
+
 /* The lamp. Green is used here only, for Go. */
 .asc-cell b::before {
   content: '';
@@ -1279,16 +1284,16 @@ ascent-flight[data-arrived] .orbit-body circle {
   opacity: 0.92;
   transform: none;
   transition:
-    opacity 0.9s ease 1s,
-    transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 1s;
+    opacity 0.9s ease 1.2s,
+    transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 1.2s;
 }
 
 ascent-flight[data-arrived] .craft-beacon {
-  animation: asc-beacon 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) 0.85s 1;
+  animation: asc-beacon 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) 1.05s 1;
 }
 
 ascent-flight[data-arrived] .craft-beacon.late {
-  animation-delay: 1.2s;
+  animation-delay: 1.4s;
 }
 
 @keyframes asc-cutoff {

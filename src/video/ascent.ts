@@ -181,7 +181,7 @@ const CUTOFF_MS = 600;
  * A lap takes `ORBIT_LAP_MS`; the craft eases up to that speed over `ORBIT_ENTRY_MS` and draws the orbit behind it
  * on its first lap.
  */
-const ARRIVAL_MS = 1000;
+const ARRIVAL_MS = 1200;
 const ORBIT_A = 42;
 const ORBIT_B = 19;
 const ORBIT_LAP_MS = 9000;
@@ -229,6 +229,16 @@ function parkingOrbit(room: number): Orbit {
       ),
     }),
   };
+}
+
+/**
+ * The craft goes into orbit as soon as the last event (the credits) begins, and stays there to the end of the film.
+ * A film without events goes into orbit when it ends.
+ */
+function inOrbit(chapters: readonly Chapter[], currentTime: number, ended: boolean): boolean {
+  if (ended) return true;
+  const last = chapters.length > 1 ? chapters[chapters.length - 1] : undefined;
+  return last ? currentTime >= last.startTime - 0.05 : false;
 }
 
 /** Drawn sizes follow the player: smaller under 1100 px, larger on very big screens. */
@@ -291,17 +301,30 @@ class AscentFlightElement extends PathElement {
   #liftoff!: HTMLElement;
   #fxAt = '';
   #onPad = true;
-  #burning = false;
   #cut = 0;
   #sweep!: SVGPathElement;
   #orbit!: SVGPathElement;
   #orbitGlow!: SVGPathElement;
   #body!: SVGGElement;
   /** Where the craft sits on the path, as last drawn. */
-  #at: { g: Geometry; t: number; angle: number; scale: number; size: number; rate: number; marks: number[] } | null = null;
-  /** When the film ended (`performance.now()`), or 0 while it has not. */
-  #arrived = 0;
+  #at: {
+    g: Geometry;
+    t: number;
+    scale: number;
+    size: number;
+    rate: number;
+    marks: number[];
+    lift: number;
+    burning: boolean;
+  } | null = null;
+  /** Whether the craft is on its way into orbit or in it. */
+  #arrived = false;
+  /** Time since the arrival began, in ms. It stops while the film is paused once the craft is in orbit. */
+  #elapsed = 0;
+  #tick = 0;
+  #paused = false;
   #lap = 0;
+  #lit = false;
 
   connectedCallback() {
     if (!this.#svg) this.#build();
@@ -364,9 +387,6 @@ class AscentFlightElement extends PathElement {
     this.#rest.setAttribute('d', rest);
     this.#under.setAttribute('d', rest);
     this.#rest.setAttribute('opacity', String(0.3 + 0.25 * lift));
-    const done = pathData(g, 0, t);
-    this.#done.setAttribute('d', done);
-    this.#glow.setAttribute('d', done);
 
     // Buffered: the stretch of the range that holds the playhead.
     let ahead = t;
@@ -377,7 +397,6 @@ class AscentFlightElement extends PathElement {
     }
     this.#buffered.setAttribute('d', pathData(g, t, Math.max(t, ahead)));
 
-    const angle = (headingAt(g, t) * 180) / Math.PI;
     const size = sizeFor(W);
     const big = Math.max(1, size);
     this.#done.setAttribute('stroke-width', (4 * big).toFixed(2));
@@ -412,30 +431,27 @@ class AscentFlightElement extends PathElement {
       dot.setAttribute('opacity', String(lift * (past ? 1 : 0.7)));
     });
 
-    // The end of the film starts the arrival; anything that moves the playhead off the end calls it off.
+    // The credits start the arrival; anything that moves the playhead back out of them calls it off.
     const ended = Boolean(this.#playback.value?.ended);
-    if (ended !== Boolean(this.#arrived)) {
-      this.#arrived = ended ? performance.now() : 0;
-      this.toggleAttribute('data-arrived', ended);
+    this.#paused = !burning && !ended;
+    const arrived = inOrbit(chapters, currentTime, ended);
+    if (arrived !== this.#arrived) {
+      this.#arrived = arrived;
+      this.#elapsed = 0;
+      this.#tick = performance.now();
+      this.toggleAttribute('data-arrived', arrived);
+      // The console rises for the credits and stays up through them, so the orbit can be seen.
+      if (arrived) this.lift?.wake();
       cancelAnimationFrame(this.#lap);
-      this.#lap = ended && !reducedMotion() ? requestAnimationFrame(this.#fly) : 0;
+      this.#lap = arrived && !reducedMotion() ? requestAnimationFrame(this.#fly) : 0;
     }
-    this.#at = { g, t, angle, scale, size, rate, marks };
+    this.#at = { g, t, scale, size, rate, marks, lift, burning };
     this.#place();
 
     // On the pad: the first moments of the film, and until a launch that began there has finished.
     if (currentTime <= PAD_SECONDS) this.#onPad = true;
     else if (!this.root?.hasAttribute('data-ignite')) this.#onPad = false;
     this.toggleAttribute('data-pad', this.#onPad);
-    // The flame only burns while the HUD is up to show it.
-    this.toggleAttribute('data-burn', burning && lift > 0.02);
-    // Engine cut-off: for a moment after a pause the flame keeps moving while it pulls back into the nozzle.
-    if (burning !== this.#burning) {
-      this.#burning = burning;
-      clearTimeout(this.#cut);
-      this.toggleAttribute('data-cut', !burning);
-      if (!burning) this.#cut = window.setTimeout(() => this.removeAttribute('data-cut'), CUTOFF_MS);
-    }
 
     // Engine glow: an ember when paused, brighter and wider with speed.
     this.#burn.setAttribute('r', String(burning ? 18 + 8 * rate : 17));
@@ -446,6 +462,10 @@ class AscentFlightElement extends PathElement {
   #fly = () => {
     this.#lap = 0;
     if (!this.#arrived || !this.isConnected) return;
+    const now = performance.now();
+    // In orbit a pause holds the craft where it is, like everything else; the way in always plays out.
+    if (!this.#paused || this.#elapsed < ARRIVAL_MS + ORBIT_ENTRY_MS) this.#elapsed += Math.min(100, now - this.#tick);
+    this.#tick = now;
     this.#place();
     this.#lap = requestAnimationFrame(this.#fly);
   };
@@ -458,19 +478,34 @@ class AscentFlightElement extends PathElement {
     const at = this.#at;
     if (!at) return;
     const { g, t, scale, size, rate, marks } = at;
-    let cx = pathX(g, t);
-    let cy = pathY(g, t);
-    let angle = at.angle;
+    const still = reducedMotion();
+    const since = this.#arrived ? (still ? Infinity : this.#elapsed) : 0;
+    // On the way into orbit the craft flies the rest of the path while the light runs up behind it.
+    const run = Math.min(1, since / ARRIVAL_MS);
+    const shown = this.#arrived ? t + (1 - t) * smooth(run) : t;
+    const done = pathData(g, 0, shown);
+    this.#done.setAttribute('d', done);
+    this.#glow.setAttribute('d', done);
+    let cx = pathX(g, shown);
+    let cy = pathY(g, shown);
+    let angle = (headingAt(g, shown) * 180) / Math.PI;
     let craft = scale;
+    // The booster burns while the film plays, until the craft is in orbit; it only shows while the HUD is up.
+    const lit = at.burning && since < ARRIVAL_MS;
+    this.toggleAttribute('data-burn', lit && at.lift > 0.02);
+    // Engine cut-off: for a moment after the flame goes out it keeps moving while it pulls back into the nozzle.
+    if (lit !== this.#lit) {
+      this.#lit = lit;
+      clearTimeout(this.#cut);
+      this.toggleAttribute('data-cut', !lit);
+      if (!lit) this.#cut = window.setTimeout(() => this.removeAttribute('data-cut'), CUTOFF_MS);
+    }
 
     if (this.#arrived) {
-      const still = reducedMotion();
-      const since = still ? Infinity : performance.now() - this.#arrived;
-
       // A light runs up the flown path, and each event answers as it passes.
-      const run = Math.min(1, since / ARRIVAL_MS);
       const head = 1.2 * smooth(run);
-      this.#sweep.setAttribute('d', head - 0.14 < 1 ? pathData(g, Math.max(0, head - 0.14), Math.min(1, head)) : '');
+      const tip = Math.min(shown, head);
+      this.#sweep.setAttribute('d', head - 0.14 < tip ? pathData(g, Math.max(0, head - 0.14), tip) : '');
       this.#sweep.setAttribute('opacity', (Math.min(1, run / 0.15) * Math.min(1, (1 - run) / 0.2)).toFixed(3));
       const dot = 6 * Math.max(0.7, size);
       marks.forEach((f, i) => {
@@ -500,12 +535,13 @@ class AscentFlightElement extends PathElement {
       this.#orbit.setAttribute('d', d);
       this.#orbitGlow.setAttribute('d', d);
 
-      if (!still) {
-        const u = orbit.join - swept;
+      if (still || flown > 0) {
+        // With reduced motion the craft is shown already up there, part way round.
+        const u = still ? orbit.join - 0.6 * Math.PI : orbit.join - swept;
         const passing = orbit.at(u);
         const p = point(passing);
         // Smaller once it is up there, and a touch smaller again on the far side of the orbit.
-        const settle = smooth(Math.min(1, flown / (ORBIT_ENTRY_MS * 1.6)));
+        const settle = still ? 1 : smooth(Math.min(1, flown / (ORBIT_ENTRY_MS * 1.6)));
         craft = scale * (1 - (1 - ORBIT_CRAFT) * settle) * (1 + 0.1 * settle * Math.sin(u));
         cx = p.x;
         cy = p.y;
@@ -631,7 +667,9 @@ class AscentEventsElement extends PathElement {
     });
     // At the end of the film the craft takes up a parking orbit past the last event. A label or stem in its way
     // steps aside; it comes back on hover and focus.
-    const box = this.#playback.value?.ended ? orbitBox(g, this.width, this.lift?.value ?? 1) : null;
+    const box = inOrbit(chapters, currentTime, Boolean(this.#playback.value?.ended))
+      ? orbitBox(g, this.width, this.lift?.value ?? 1)
+      : null;
     const host = box ? (this.root ?? this).getBoundingClientRect() : null;
     chapters.forEach((chapter, i) => {
       const button = this.#buttons[i];
@@ -681,8 +719,9 @@ class AscentNowElement extends UIElement {
     const index = chapterAt(chapters, this.#time.value?.currentTime ?? 0);
     // At the end of the film the craft is in its parking orbit, and the readout says so.
     const ended = Boolean(this.#playback.value?.ended);
+    const orbiting = inOrbit(chapters, this.#time.value?.currentTime ?? 0, ended);
     setWords(this.#count, ended ? 'Flight complete' : `Event ${pad2(index + 1)} of ${pad2(chapters.length)}`);
-    setWords(this.#name, ended ? 'In orbit' : chapters[index].text);
+    setWords(this.#name, orbiting ? `${ended ? '' : `${chapters[index].text} · `}In orbit` : chapters[index].text);
   }
 }
 
@@ -1149,10 +1188,36 @@ class AscentPlayLabelElement extends UIElement {
 }
 
 /**
- * <ascent-board>: the go / no-go board, top centre on wide players. Four lamps follow the film: Signal (Go, Hold
- * while it buffers, Lost on an error), Audio, Captions and Flight (Ready, Go, Hold, Complete). Decoration
+ * <ascent-board>: the go / no-go board, top centre on wide players. Four lamps follow the film: Downlink (the link
+ * rate while the film comes in, Locked once the rest of it is loaded, Hold while it buffers, Lost on an error), Audio,
+ * Captions and Flight (Ready, Go, Hold, Complete). Decoration
  * (`aria-hidden`): each fact is already announced by the control or the status region that owns it.
  */
+/**
+ * The downlink: how fast the film is coming in, and whether there is anything left to load. The rate is the playback
+ * engine's own bandwidth estimate (hls.js); engines that do not share one (the browser's own HLS, a plain file) give
+ * no rate. `complete` is true once everything from the playhead to the end of the film is loaded.
+ */
+function downlink(media: HTMLMediaElement | null): { rate: string; complete: boolean } {
+  if (!media) return { rate: '', complete: false };
+  const duration = media.duration;
+  let complete = false;
+  if (Number.isFinite(duration) && duration > 0) {
+    const ranges = media.buffered;
+    for (let i = 0; i < ranges.length; i++) {
+      if (ranges.start(i) <= media.currentTime + 0.5 && ranges.end(i) >= duration - 0.5) complete = true;
+    }
+  }
+  const engine = (media as { engine?: { bandwidthEstimate?: number } | null }).engine;
+  const bps = engine?.bandwidthEstimate;
+  let rate = '';
+  if (typeof bps === 'number' && Number.isFinite(bps) && bps > 0) {
+    const mbps = bps / 1e6;
+    rate = `${mbps < 10 ? mbps.toFixed(1) : Math.round(mbps)} Mb/s`;
+  }
+  return { rate, complete };
+}
+
 class AscentBoardElement extends UIElement {
   #playback = new PlayerController(this, playerContext, selectPlayback);
   #time = new PlayerController(this, playerContext, selectTime);
@@ -1161,12 +1226,13 @@ class AscentBoardElement extends UIElement {
   #error = new PlayerController(this, playerContext, selectError);
   #cells: Record<string, HTMLElement> = {};
   #watch: MutationObserver | null = null;
+  #poll = 0;
 
   connectedCallback() {
     super.connectedCallback();
     this.setAttribute('aria-hidden', 'true');
     if (!this.childElementCount) {
-      for (const name of ['Signal', 'Audio', 'Captions', 'Flight']) {
+      for (const name of ['Downlink', 'Audio', 'Captions', 'Flight']) {
         const cell = document.createElement('span');
         cell.className = 'asc-cell';
         cell.append(document.createElement('i'), document.createElement('b'));
@@ -1180,19 +1246,26 @@ class AscentBoardElement extends UIElement {
     this.#watch?.disconnect();
     this.#watch = new MutationObserver(() => this.requestUpdate());
     if (root) this.#watch.observe(root, { attributes: true, attributeFilter: ['data-hold'] });
+    // The downlink rate changes while the film is held or paused too, when nothing else asks for an update.
+    clearInterval(this.#poll);
+    this.#poll = window.setInterval(() => this.requestUpdate(), 1000);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.#watch?.disconnect();
     this.#watch = null;
+    clearInterval(this.#poll);
   }
 
-  #set(name: string, state: 'go' | 'hold' | 'wait' | 'off', text: string) {
+  #set(name: string, state: 'go' | 'hold' | 'wait' | 'off', text: string, quiet = false) {
     const cell = this.#cells[name];
     if (!cell) return;
     cell.dataset.s = state;
-    setWords(cell.lastElementChild!, text);
+    // A reading that ticks (the downlink rate) changes in place; a change of word rises in.
+    if (quiet && cell.dataset.r === 'rate') cell.lastElementChild!.textContent = text;
+    else setWords(cell.lastElementChild!, text);
+    cell.dataset.r = quiet ? 'rate' : '';
   }
 
   protected update(changed: PropertyValues) {
@@ -1205,7 +1278,17 @@ class AscentBoardElement extends UIElement {
     const captions = this.#tracks.value?.subtitlesShowing ?? false;
     const playing = playback ? !playback.paused : false;
     const launched = (playback?.started ?? false) || (this.#time.value?.currentTime ?? 0) > 0.5;
-    this.#set('Signal', lost || held ? 'hold' : 'go', lost ? 'Lost' : held ? 'Hold' : 'Go');
+    // Downlink: Lost on an error, Hold while the film buffers, then the link rate while the film is still coming in,
+    // and Locked once everything to the end of the film is loaded.
+    const root = skinRoot(this);
+    const link = downlink(root ? findMedia(root) : null);
+    if (lost) this.#set('Downlink', 'hold', 'Lost');
+    else if (held) this.#set('Downlink', 'hold', link.rate ? `HOLD · ${link.rate}` : 'Hold', Boolean(link.rate));
+    else if (link.complete) this.#set('Downlink', 'go', 'Locked');
+    else this.#set('Downlink', 'go', link.rate || 'Go', Boolean(link.rate));
+    // Narrow players show the hold as a line under the title; it carries the rate too.
+    const line = root?.querySelector('.asc-load span');
+    if (line) line.textContent = `Hold · buffering${link.rate ? ` · ${link.rate}` : ''}`;
     this.#set('Audio', quiet ? 'off' : 'go', quiet ? 'Off' : 'Go');
     this.#set('Captions', captions ? 'go' : 'off', captions ? 'Go' : 'Off');
     if (playback?.ended) this.#set('Flight', 'off', 'Complete');
@@ -1462,6 +1545,8 @@ class AscentKeysElement extends UIElement {
 
 /** How long ignition lasts: the booster's flare, and the liftoff cloud rising and clearing. Matches skin.css. */
 const IGNITION_MS = 3200;
+/** After the launch effects end, the console stays up this long more, so the booster is seen burning on its own. */
+const LAUNCH_HOLD_MS = 2000;
 
 /**
  * <ascent-lift>: the idle behaviour. The HUD shows on pointer movement, a tap, a key, keyboard focus, or a pause.
@@ -1469,7 +1554,7 @@ const IGNITION_MS = 3200;
  * leaving only the film (and captions). With reduced motion the change is instant.
  *
  * It also calls the hold: while the film buffers (the `<media-buffering-indicator>` is showing) the skin carries
- * `data-hold`, the HUD stays up, the engine idles (or vents on the pad) and the Signal lamp reads Hold. And it marks
+ * `data-hold`, the HUD stays up, the engine idles (or vents on the pad) and the Downlink lamp reads Hold. And it marks
  * ignition: `data-ignite` for a moment each time the film starts playing or a hold ends, which flares the engine.
  *
  * A tap on the picture plays or pauses, unless the HUD was away: then the tap only brings it back.
@@ -1485,6 +1570,8 @@ class AscentLiftElement extends UIElement {
   #paused: boolean | null = null;
   #wokeByPress = false;
   #ignite = 0;
+  /** Until when (`performance.now()`) a launch is still worth watching: the console stays up till then. */
+  #showUntil = 0;
 
   connectedCallback() {
     super.connectedCallback();
@@ -1567,6 +1654,7 @@ class AscentLiftElement extends UIElement {
     root.removeAttribute('data-ignite');
     void root.offsetWidth;
     root.setAttribute('data-ignite', '');
+    this.#showUntil = performance.now() + IGNITION_MS + LAUNCH_HOLD_MS;
     clearTimeout(this.#ignite);
     this.#ignite = window.setTimeout(() => root.removeAttribute('data-ignite'), IGNITION_MS);
   }
@@ -1597,6 +1685,15 @@ class AscentLiftElement extends UIElement {
   #sleep(checkHeld = false) {
     const root = this.#root;
     if (!root || this.#isPaused || root.hasAttribute('data-hold')) return;
+    // In orbit (the credits are rolling): the console stays up so the craft can be seen circling.
+    if (root.querySelector('ascent-flight[data-arrived]')) return;
+    // A launch is playing out: let the smoke clear and the booster burn on its own for a moment first.
+    const launch = this.#showUntil - performance.now();
+    if (launch > 0) {
+      clearTimeout(this.#timer);
+      this.#timer = window.setTimeout(() => this.#sleep(checkHeld), launch);
+      return;
+    }
     if (checkHeld) {
       const dragging = root.querySelector('[data-dragging]');
       let keyboard = false;
