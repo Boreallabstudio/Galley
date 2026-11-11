@@ -14,8 +14,8 @@ The film is the main screen and you are the flight controller. The film's progre
   - 900 px and wider: two dials on the desk, each with its reading beside it.
   - 520 to 899 px: the same dial pops up on a small solid plate above the mute key and above a speed key, on hover, on keyboard focus, or on the first tap (the second tap acts).
   - Under 520 px: mute toggles, and the speed key cycles through the rates. Under 380 px the speed key is left out (the `<` and `>` keys still work).
-- **Comms** and **Screen**: captions and fullscreen. Fullscreen uses the same desk as the normal player.
-- **Next event** (1040 px and wider): a countdown to the next chapter. Choose it, or press N, to skip there.
+- **Comms** and **Screen**: captions, picture in picture and fullscreen. Fullscreen uses the same desk as the normal player. The picture-in-picture key shows only where the browser supports it, on players 520 px and wider.
+- **Next event** (1120 px and wider): a countdown to the next chapter. Choose it, or press N, to skip there.
 - **Mission clock**: shows time elapsed. Choose it to switch to time remaining.
 - **Status board** (900 px and wider): four lamps. Downlink reads the link rate while the film is still coming in (for example 42 Mb/s, from the playback engine's bandwidth estimate), Locked once everything to the end of the film is loaded, Hold with the rate while the film buffers, or Lost on an error. Where the engine gives no rate (the browser's own HLS) it reads Go. Audio and Captions read Go or Off. Flight reads Ready, Go, Hold or Complete. Green is used for the Go lamps only.
 - **Launch and holds**: while the film plays a booster flame burns behind the craft, longer at higher speeds. A launch from the start of the film also raises a cloud of smoke from the pad; anywhere else the takeoff has already happened, so there is only the booster. Flame and cloud are fluid simulations baked into looping sprites, blended frame to frame so they move smoothly (see `tools/plume`). While the film buffers the engine idles (on the pad it vents white vapour), the main screen dims, and the console stays up. Narrower players show a "Hold · buffering" line, with the link rate, in place of the board. A launch keeps the console up until the smoke has cleared and the booster has burned on its own for two seconds.
@@ -39,6 +39,7 @@ The film is the main screen and you are the flight controller. The film's progre
 | M | Mute |
 | C | Captions |
 | F | Fullscreen |
+| P | Picture in picture |
 | ? | Flight manual: this list, on a card in the player |
 
 On a focused slider, the arrow keys move that slider. Escape closes an open pop-up dial and puts focus back on its key. The flight manual also opens from the "?" key on the desk (900 px and wider); it is a modal dialog, so focus moves to its Close button, stays inside it, and goes back where it was when it closes.

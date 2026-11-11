@@ -1977,6 +1977,7 @@ const MANUAL: readonly (readonly [string[], string])[] = [
   [['<', '>'], 'Speed'],
   [['C'], 'Captions'],
   [['F'], 'Full screen'],
+  [['P'], 'Picture in picture'],
   [['?'], 'This card'],
 ];
 

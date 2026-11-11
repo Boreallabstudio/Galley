@@ -13,3 +13,4 @@ dist-site
 # Python caches from tools/
 __pycache__
 *.pyc
+.env

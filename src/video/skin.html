@@ -81,6 +81,11 @@
 </div>
 <div class="asc-mod">
 <i class="asc-mh" aria-hidden="true">Screen</i>
+<media-pip-button class="asc-b pip">
+<i aria-hidden="true"></i>
+<span class="asc-tip" aria-hidden="true">Picture in picture <kbd>P</kbd></span>
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5h18v13H3z"/><path class="asc-pip-win" d="M12.5 12h6v4.5h-6z"/></svg>
+</media-pip-button>
 <media-fullscreen-button class="asc-b full">
 <i aria-hidden="true"></i>
 <span class="asc-tip" aria-hidden="true">Full screen <kbd>F</kbd></span>
@@ -118,6 +123,7 @@
 <media-hotkey keys="m" action="toggleMuted"></media-hotkey>
 <media-hotkey keys="c" action="toggleSubtitles"></media-hotkey>
 <media-hotkey keys="f" action="toggleFullscreen"></media-hotkey>
+<media-hotkey keys="p" action="togglePictureInPicture"></media-hotkey>
 <media-hotkey keys="ArrowLeft" action="seekStep" value="-5"></media-hotkey>
 <media-hotkey keys="ArrowRight" action="seekStep" value="5"></media-hotkey>
 <media-hotkey keys="ArrowUp" action="volumeStep" value="0.05"></media-hotkey>

@@ -3,7 +3,7 @@
  * flight path across it, and the controls are a console desk along the bottom edge.
  *
  * One dark look by design. Sizes follow the player, not the page: the root is a size container, and lengths are in
- * cqw / cqh. Breakpoints are container queries at 1040, 900, 760, 520, 420 and 380 px; fullscreen uses the same desk.
+ * cqw / cqh. Breakpoints are container queries at 1120, 900, 760, 520, 420 and 380 px; fullscreen uses the same desk.
  *
  * `--lift` (set by <ascent-lift>) runs from 1, HUD showing, to 0, HUD away while the film plays.
  */
@@ -849,7 +849,8 @@
   }
 }
 
-@container (min-width: 1040px) {
+/* Next event joins the desk once there is room for it beside the clock. */
+@container (min-width: 1120px) {
   .asc-mod.seq {
     display: flex;
   }
@@ -891,7 +892,7 @@
 }
 
 /* The lamp: a short bar set into the top of the cap. Dim when the key is off. */
-.asc-b:is(.mute, .cc, .full) > i {
+.asc-b:is(.mute, .cc, .full, .pip) > i {
   position: absolute;
   top: 13%;
   left: 50%;
@@ -905,7 +906,7 @@
     box-shadow 0.26s ease;
 }
 
-.asc-b:is(.mute, .cc, .full) svg {
+.asc-b:is(.mute, .cc, .full, .pip) svg {
   margin-top: 12%;
 }
 
@@ -1056,7 +1057,8 @@
 
 /* Engaged keys light their lamp and their legend: white for captions on and fullscreen, orange for sound off. */
 .asc-b.cc[data-active] > i,
-.asc-b.full[data-fullscreen] > i {
+.asc-b.full[data-fullscreen] > i,
+.asc-b.pip[data-pip] > i {
   background: #fffaf0;
   box-shadow:
     0 0 6px rgba(255, 250, 240, 0.9),
@@ -1064,7 +1066,8 @@
 }
 
 .asc-b.cc[data-active] svg,
-.asc-b.full[data-fullscreen] svg {
+.asc-b.full[data-fullscreen] svg,
+.asc-b.pip[data-pip] svg {
   filter: drop-shadow(0 0 5px rgba(255, 250, 240, 0.5));
 }
 
@@ -1083,8 +1086,24 @@
   filter: drop-shadow(0 0 5px rgba(255, 91, 31, 0.55));
 }
 
-.asc-b:is(.cc:not([data-active]), .full:not([data-fullscreen])) svg {
+.asc-b:is(.cc:not([data-active]), .full:not([data-fullscreen]), .pip:not([data-pip])) svg {
   opacity: 0.72;
+}
+
+/* Picture in picture: the small window is filled in. The key is left out where the browser has no picture in
+   picture, and on small players, where full screen does the same job. */
+.asc-b.pip .asc-pip-win {
+  fill: currentColor;
+}
+
+.asc-b.pip:is([data-availability='unsupported'], [data-hidden]) {
+  display: none;
+}
+
+@container (max-width: 519.9px) {
+  .asc-b.pip {
+    display: none;
+  }
 }
 
 /* Hints: a key's name and its shortcut, shown above it for a pointer or keyboard focus. */
@@ -1429,6 +1448,7 @@ ascent-engine:hover .pm {
   font: 400 clamp(13px, 1.3cqw, 26px) var(--mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .asc-nx svg {

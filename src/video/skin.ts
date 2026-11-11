@@ -20,6 +20,7 @@ import '@videojs/html/ui/volume-slider';
 import '@videojs/html/ui/playback-rate-button';
 import '@videojs/html/ui/captions-button';
 import '@videojs/html/ui/fullscreen-button';
+import '@videojs/html/ui/pip-button';
 import '@videojs/html/ui/time-slider';
 import '@videojs/html/ui/time-slider-chapter-title';
 import '@videojs/html/ui/slider-thumb';
