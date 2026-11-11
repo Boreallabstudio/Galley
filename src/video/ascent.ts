@@ -133,38 +133,18 @@ abstract class PathElement extends UIElement {
 }
 
 /**
- * The smoke of a launch: eighty-four soft clouds thrown out behind the engine on a fixed pseudo-random spread. Each
- * starts small and warm at the nozzle, slows, rolls back and upward, swells and thins to grey. The upper side of the
- * plume is lit and the underside is in shade. A noise filter on the group breaks the round edges into wisps and thins
- * the plume in patches, so it reads as smoke and not as drawn clouds. Drawn with the craft facing +x; the group that holds them is turned
- * to the craft's heading.
- */
-function launchSmoke(): string {
-  let seed = 11;
-  const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
-  const count = 84;
-  let puffs = '';
-  for (let i = 0; i < count; i++) {
-    const side = random() * 2 - 1;
-    const spread = side * 0.26;
-    const reach = 90 + random() * 230;
-    const dx = -Math.cos(spread) * reach;
-    const dy = -Math.sin(spread) * reach - reach * (0.1 + random() * 0.16);
-    const scale = 2.2 + (reach / 320) * 4.4 + random() * 1.2;
-    const tone = side > 0.25 ? ' hi' : side < -0.35 ? ' lo' : '';
-    puffs += `<circle class="asc-vp${tone}" cx="-26" cy="${(side * 3).toFixed(1)}" r="6" style="--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px;--s:${scale.toFixed(1)};--d:${((-i * 3.6) / count).toFixed(2)}s"/>`;
-  }
-  return puffs;
-}
-
-/**
  * <ascent-flight>: the flight path. A dotted course still to fly, the buffered stretch ahead, the flown part in orange
  * with a glow, a dot for each chapter and the craft at the playhead. The craft's engine glow is an ember when paused
  * and grows with the playback rate. At ignition (`data-ignite` on the skin) and during a hold (`data-hold`) the engine
- * fires as at a launch: a flame behind the craft and smoke rolling back from it. Purely visual
+ * fires as at a launch: a flame behind the craft and smoke rolling back from it. The exhaust is a baked fluid
+ * simulation played as a sprite (`.asc-plume`, see skin.css and tools/plume); this element only keeps it on the
+ * craft's tail. Purely visual
  * (`aria-hidden`); the `<media-time-slider>` underneath it carries the interaction, and its thumb is moved onto the
  * craft here.
  */
+/** Width of the exhaust plume at full size, in CSS pixels: the flame and the smoke behind it. */
+const PLUME_WIDTH = 340;
+
 class AscentFlightElement extends PathElement {
   #buffer = new PlayerController(this, playerContext, selectBuffer);
   #playback = new PlayerController(this, playerContext, selectPlayback);
@@ -179,7 +159,8 @@ class AscentFlightElement extends PathElement {
   #dots!: SVGGElement;
   #craft!: SVGGElement;
   #arrow!: SVGPathElement;
-  #vent!: SVGGElement;
+  #plume!: HTMLElement;
+  #plumeAt = '';
 
   connectedCallback() {
     if (!this.#svg) this.#build();
@@ -189,20 +170,16 @@ class AscentFlightElement extends PathElement {
   #build() {
     this.setAttribute('aria-hidden', 'true');
     const glow = nextId('asc-glow');
-    const vapour = nextId('asc-vapour');
     this.innerHTML = `<svg xmlns="${SVG}">
-<defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
-<filter id="${vapour}" filterUnits="userSpaceOnUse" x="-430" y="-270" width="450" height="370" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="7" result="soft"/><feTurbulence type="fractalNoise" baseFrequency="0.016 0.024" numOctaves="3" seed="4" result="n"/><feDisplacementMap in="soft" in2="n" scale="54" xChannelSelector="R" yChannelSelector="G" result="d"/><feComposite in="d" in2="n" operator="in"/></filter>
-<filter id="${vapour}-f" x="-30%" y="-120%" width="160%" height="340%"><feGaussianBlur stdDeviation="2.2"/></filter>
-<linearGradient id="${vapour}-g" gradientUnits="userSpaceOnUse" x1="-14" y1="0" x2="-120" y2="0"><stop offset="0" stop-color="#fff9f0"/><stop offset=".22" stop-color="#ffe0b8"/><stop offset=".55" stop-color="#ff8a3c"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient></defs>
+<defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
 <path class="rest" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 9" opacity=".55"/>
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".5"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
 <g class="dots"></g>
-<g class="craft"><g class="asc-vent"><circle class="asc-heat" cx="-52" r="44" fill="${BURN}" filter="url(#${glow})"/><g filter="url(#${vapour})">${launchSmoke()}</g><g class="asc-fire"><path class="asc-flame" d="M-14 -7C-40 -9 -78 -4 -120 0C-78 4 -40 9 -14 7Z" fill="url(#${vapour}-g)" filter="url(#${vapour}-f)"/><path class="asc-flame core" d="M-14 -3.2C-30 -4 -50 -1.6 -70 0C-50 1.6 -30 4 -14 3.2Z" fill="#fffaf2" filter="url(#${vapour}-f)"/></g></g><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
-</svg>`;
+<g class="craft"><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
+</svg><div class="asc-plume"></div>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
     this.#rest = q('.rest');
@@ -213,7 +190,7 @@ class AscentFlightElement extends PathElement {
     this.#dots = q('.dots');
     this.#craft = q('.craft');
     this.#arrow = q('.arrow');
-    this.#vent = q('.asc-vent');
+    this.#plume = q('.asc-plume');
     this.#burn = q('.craft-glow');
   }
 
@@ -264,7 +241,18 @@ class AscentFlightElement extends PathElement {
     const cy = pathY(g, t);
     this.#craft.setAttribute('transform', `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${scale.toFixed(3)})`);
     this.#arrow.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
-    this.#vent.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
+    // The exhaust plume trails from the craft's tail, turned to its heading. Whole pixels keep the sprite's frames exact.
+    const plume = `${cx.toFixed(1)}px,${cy.toFixed(1)}px,${angle.toFixed(1)}deg,${Math.round(PLUME_WIDTH * scale)}px,${(19 * scale).toFixed(1)}px`;
+    if (plume !== this.#plumeAt) {
+      this.#plumeAt = plume;
+      const [x, y, turn, width, back] = plume.split(',');
+      const style = this.#plume.style;
+      style.setProperty('--plume-x', x);
+      style.setProperty('--plume-y', y);
+      style.setProperty('--plume-turn', turn);
+      style.setProperty('--plume-w', width);
+      style.setProperty('--plume-back', back);
+    }
 
     // Engine glow: an ember when paused, brighter and wider with speed.
     const burning = this.#playback.value ? !this.#playback.value.paused : false;

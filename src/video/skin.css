@@ -1149,8 +1149,8 @@ ascent-engine:hover .pm {
   }
 
   22% {
-    transform: scale(2.5);
-    opacity: 0.9;
+    transform: scale(1.7);
+    opacity: 0.8;
   }
 
   100% {
@@ -1158,20 +1158,86 @@ ascent-engine:hover .pm {
   }
 }
 
-/* A hold: gas vents from the craft, as on the pad before launch. */
-/* A launch: flame behind the craft and smoke rolling back from it. Shown for a moment at ignition, and for as long as
-   a hold lasts. */
-.asc-vent {
-  display: none;
+/*
+ * The exhaust plume. A hold: white vapour vents from the craft, as on the pad before launch. A launch: flame behind
+ * the craft and smoke rolling back from it, shown for a moment at ignition.
+ *
+ * The plume is a fluid simulation baked into a sprite sheet (8 x 6 frames, each 400 x 216; tools/plume makes it), so
+ * it moves like real smoke and costs no filters at run time. <ascent-flight> sets the --plume-* values that keep it
+ * on the craft's tail. The nozzle sits at 94.29% across and 67.68% down each frame.
+ */
+.asc-plume {
+  --plume-h: calc(var(--plume-w, 340px) * 0.54);
+  --plume-frame: 55ms;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--plume-w, 340px);
+  height: var(--plume-h);
+  visibility: hidden;
+  background-image: url('./plume.webp');
+  background-image: image-set(url('./plume.avif') type('image/avif'), url('./plume.webp') type('image/webp'));
+  background-repeat: no-repeat;
+  background-size: calc(var(--plume-w, 340px) * 8) calc(var(--plume-h) * 6);
+  transform: translate(var(--plume-x, 0), var(--plume-y, 0)) rotate(var(--plume-turn, 0deg))
+    translate(calc(var(--plume-w, 340px) * -0.9429 - var(--plume-back, 16px)), calc(var(--plume-h) * -0.6768));
+  transform-origin: 0 0;
+  pointer-events: none;
+  /* The plume shoots out of the nozzle: a soft edge sweeps from the craft to the tail. */
+  -webkit-mask-image: linear-gradient(90deg, transparent 45%, #000 60%);
+  mask-image: linear-gradient(90deg, transparent 45%, #000 60%);
+  -webkit-mask-size: 250% 100%;
+  mask-size: 250% 100%;
+  -webkit-mask-position: 100% 0;
+  mask-position: 100% 0;
 }
 
-.asc[data-hold] .asc-vent,
-.asc[data-ignite] .asc-vent {
-  display: block;
+.asc[data-hold] .asc-plume,
+.asc[data-ignite] .asc-plume {
+  visibility: visible;
+  animation:
+    asc-plume-x calc(var(--plume-frame) * 8) steps(8) infinite,
+    asc-plume-y calc(var(--plume-frame) * 48) steps(6) infinite,
+    asc-plume-out 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 
-.asc[data-ignite]:not([data-hold]) .asc-vent {
-  animation: asc-burst 2.2s linear both;
+/* Ignition is a burst that clears. */
+.asc[data-ignite]:not([data-hold]) .asc-plume {
+  animation:
+    asc-plume-x calc(var(--plume-frame) * 8) steps(8) infinite,
+    asc-plume-y calc(var(--plume-frame) * 48) steps(6) infinite,
+    asc-plume-out 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both,
+    asc-burst 2.2s linear both;
+}
+
+/* A hold vents cold gas: the same plume with the fire taken out of it. */
+.asc[data-hold] .asc-plume {
+  filter: grayscale(1) brightness(1.06);
+}
+
+@keyframes asc-plume-x {
+  to {
+    background-position-x: calc(var(--plume-w, 340px) * -8);
+  }
+}
+
+@keyframes asc-plume-y {
+  to {
+    background-position-y: calc(var(--plume-h) * -6);
+  }
+}
+
+@keyframes asc-plume-out {
+  from {
+    -webkit-mask-position: 34% 0;
+    mask-position: 34% 0;
+  }
+
+  to {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
 }
 
 @keyframes asc-burst {
@@ -1179,102 +1245,16 @@ ascent-engine:hover .pm {
     opacity: 0;
   }
 
-  8% {
+  6% {
     opacity: 1;
   }
 
-  60% {
+  62% {
     opacity: 1;
   }
 
   100% {
     opacity: 0;
-  }
-}
-
-.asc-heat {
-  opacity: 0.34;
-}
-
-.asc-fire {
-  mix-blend-mode: screen;
-}
-
-.asc-flame {
-  transform-box: fill-box;
-  transform-origin: right center;
-  animation: asc-flame 0.11s ease-in-out infinite alternate;
-}
-
-.asc-flame.core {
-  animation-duration: 0.07s;
-}
-
-@keyframes asc-flame {
-  from {
-    transform: scale(0.84, 0.9);
-  }
-
-  to {
-    transform: scale(1.1, 1.08);
-  }
-}
-
-/* Each cloud of the plume. The three tones light the upper side and shade the underside. Without motion the smoke
-   stands as a still plume. */
-.asc-vp {
-  --c1: #ffc692;
-  --c2: #efebe5;
-  --c3: #c4c5c9;
-
-  fill: #d6d3ce;
-  opacity: 0.5;
-  transform: translate(calc(var(--dx) * 0.6), calc(var(--dy) * 0.5)) scale(calc(var(--s) * 0.6));
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: asc-vent 3.6s cubic-bezier(0.16, 0.62, 0.3, 1) infinite;
-  animation-delay: var(--d);
-}
-
-.asc-vp.hi {
-  --c1: #ffe2c0;
-  --c2: #fffdf8;
-  --c3: #e6e6e8;
-}
-
-.asc-vp.lo {
-  --c1: #f5a264;
-  --c2: #b9b6b3;
-  --c3: #8c8f96;
-}
-
-@keyframes asc-vent {
-  0% {
-    fill: #fff1dc;
-    opacity: 0;
-    transform: translate(0, 0) scale(0.5);
-  }
-
-  4% {
-    opacity: 1;
-  }
-
-  16% {
-    fill: var(--c1);
-    opacity: 0.95;
-    transform: translate(calc(var(--dx) * 0.4), calc(var(--dy) * 0.2)) scale(calc(var(--s) * 0.34));
-  }
-
-  42% {
-    fill: var(--c2);
-    opacity: 0.8;
-    transform: translate(calc(var(--dx) * 0.76), calc(var(--dy) * 0.6)) scale(calc(var(--s) * 0.7));
-  }
-
-  100% {
-    fill: var(--c3);
-    opacity: 0;
-    transform: translate(var(--dx), var(--dy)) scale(var(--s));
   }
 }
 

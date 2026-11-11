@@ -9,3 +9,7 @@ dist
 .wrangler
 dist-site
 *.mp4
+
+# Python caches from tools/
+__pycache__
+*.pyc
