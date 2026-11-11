@@ -1422,7 +1422,7 @@ class AscentBoardElement extends UIElement {
     this.dataset.phase = phase;
   }
 
-  /** The go / no-go poll: each lamp answers in turn, 140 ms apart, Flight last. Playback has already started. */
+  /** The go / no-go poll: each lamp answers in turn, 200 ms apart, Flight last. Playback has already started. */
   #runPoll() {
     const cells = Object.values(this.#cells);
     if (reducedMotion()) {
@@ -1436,10 +1436,10 @@ class AscentBoardElement extends UIElement {
         window.setTimeout(() => {
           cell.setAttribute('data-polled', '');
           this.requestUpdate();
-        }, 80 + 140 * i),
+        }, 80 + 200 * i),
       );
     });
-    this.#timers.push(window.setTimeout(() => this.#setPhase('armed'), 80 + 140 * cells.length + 1400));
+    this.#timers.push(window.setTimeout(() => this.#setPhase('armed'), 80 + 200 * cells.length + 1400));
   }
 
   #set(name: string, state: 'go' | 'hold' | 'wait' | 'off', text: string, quiet = false) {

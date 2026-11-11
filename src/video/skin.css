@@ -733,7 +733,11 @@
   }
 }
 
-/* Before launch the lamps stand by: unlit, the readings still shown. */
+/* Before launch the lamps stand by: unlit, the readings dimmed like an Off lamp until the poll switches them on. */
+.asc-board:not([data-phase='armed']) .asc-cell:not([data-polled]) b {
+  opacity: 0.55;
+}
+
 .asc-board:not([data-phase='armed']) .asc-cell:not([data-polled]) b::before {
   border-color: currentColor;
   background: transparent;
