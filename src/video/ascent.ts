@@ -178,16 +178,17 @@ const CUTOFF_MS = 600;
  * The end of the film. A light runs up the flown path and each event answers as it passes (`ARRIVAL_MS`), then the
  * craft leaves the end of the path for a parking orbit around a small body: an ellipse with semi-axes `ORBIT_A` and
  * `ORBIT_B` at full size, tilted so it reads as a circle seen at an angle, touching the path where the path ends.
- * A lap takes `ORBIT_LAP_MS`; the craft eases up to that speed over `ORBIT_ENTRY_MS` and draws the orbit behind it
- * on its first lap.
+ * The whole orbit shows as a dotted course as the craft sets off. A lap takes `ORBIT_LAP_MS`; the craft eases up to
+ * that speed over `ORBIT_ENTRY_MS` and lights the orbit behind it on its first lap.
  */
 const ARRIVAL_MS = 1200;
-const ORBIT_A = 42;
-const ORBIT_B = 19;
+const ORBIT_A = 56;
+const ORBIT_B = 25;
 const ORBIT_LAP_MS = 9000;
 const ORBIT_ENTRY_MS = 1800;
-/** The craft's size in orbit, as a share of its size on the path. */
-const ORBIT_CRAFT = 0.6;
+/** The craft keeps its full size in orbit, and the orbit keeps this clear of the player's right edge (orbit units). */
+const ORBIT_CRAFT = 1;
+const ORBIT_INSET = 22;
 
 interface Orbit {
   /** The parameter of the ellipse's lowest point: the craft joins the orbit there, flying level. */
@@ -208,12 +209,22 @@ function parkingOrbit(room: number): Orbit {
   let cos = 1;
   let sin = 0;
   let join = 0;
-  for (; tilt <= 44; tilt += 2) {
+  const reachFrom = (v: number) =>
+    Math.hypot(ORBIT_A * cos, ORBIT_B * sin) - (ORBIT_A * Math.cos(v) * cos - ORBIT_B * Math.sin(v) * sin);
+  const fits = (v: number) => reachFrom(v) + 17 * ORBIT_CRAFT + ORBIT_INSET <= room;
+  let fitted = false;
+  for (; tilt <= 44 && !fitted; tilt += 2) {
     cos = Math.cos((tilt * Math.PI) / 180);
     sin = Math.sin((tilt * Math.PI) / 180);
     join = Math.atan2(ORBIT_B * cos, ORBIT_A * sin);
-    const reach = Math.hypot(ORBIT_A * cos, ORBIT_B * sin) - (ORBIT_A * Math.cos(join) * cos - ORBIT_B * Math.sin(join) * sin);
-    if (reach + 17 * ORBIT_CRAFT + 3 <= room) break;
+    fitted = fits(join);
+  }
+  // Still too little room: the craft joins further round, climbing, so the orbit hangs back over the end of the path
+  // instead of running off the edge. At most it joins at the orbit's rightmost point.
+  if (!fitted) {
+    const rightmost = Math.atan2(-ORBIT_B * sin, ORBIT_A * cos);
+    const lowest = join;
+    for (let k = 0; k <= 1 && !fits(join); k += 0.05) join = lowest + (rightmost - lowest) * k;
   }
   const x = (v: number) => ORBIT_A * Math.cos(v) * cos - ORBIT_B * Math.sin(v) * sin;
   const y = (v: number) => ORBIT_A * Math.cos(v) * sin + ORBIT_B * Math.sin(v) * cos;
@@ -304,6 +315,7 @@ class AscentFlightElement extends PathElement {
   #cut = 0;
   #sweep!: SVGPathElement;
   #orbit!: SVGPathElement;
+  #orbitTrack!: SVGPathElement;
   #orbitGlow!: SVGPathElement;
   #body!: SVGGElement;
   /** Where the craft sits on the path, as last drawn. */
@@ -337,11 +349,12 @@ class AscentFlightElement extends PathElement {
     this.innerHTML = `<div class="asc-liftoff asc-fx"><i></i><i></i></div><svg xmlns="${SVG}">
 <defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
-<path class="rest" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 9" opacity=".55"/>
+<path class="rest" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2.5 8" opacity=".7"/>
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".5"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
 <path class="sweep" fill="none" stroke="#fff6ec" stroke-width="4" stroke-linecap="round"/>
+<path class="orbit-track" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2.5 8"/>
 <path class="orbit-glow" fill="none" stroke="${BURN}" stroke-width="7" filter="url(#${glow})"/>
 <path class="orbit" fill="none" stroke="${BURN}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
 <g class="dots"></g>
@@ -363,6 +376,7 @@ class AscentFlightElement extends PathElement {
     this.#burn = q('.craft-glow');
     this.#sweep = q('.sweep');
     this.#orbit = q('.orbit');
+    this.#orbitTrack = q('.orbit-track');
     this.#orbitGlow = q('.orbit-glow');
     this.#body = q('.orbit-body');
   }
@@ -401,12 +415,13 @@ class AscentFlightElement extends PathElement {
     const big = Math.max(1, size);
     this.#done.setAttribute('stroke-width', (4 * big).toFixed(2));
     this.#glow.setAttribute('stroke-width', (10 * big).toFixed(2));
-    this.#rest.setAttribute('stroke-width', (2 * big).toFixed(2));
+    this.#rest.setAttribute('stroke-width', (2.6 * big).toFixed(2));
     this.#buffered.setAttribute('stroke-width', (2 * big).toFixed(2));
     this.#under.setAttribute('stroke-width', (5 * big).toFixed(2));
     const scale = craftScale(W, lift);
     this.#sweep.setAttribute('stroke-width', (4 * big).toFixed(2));
     this.#orbit.setAttribute('stroke-width', (2.4 * big).toFixed(2));
+    this.#orbitTrack.setAttribute('stroke-width', (2.6 * big).toFixed(2));
     this.#orbitGlow.setAttribute('stroke-width', (7 * big).toFixed(2));
     const burning = this.#playback.value ? !this.#playback.value.paused : false;
     const rate = this.#rate.value?.playbackRate ?? 1;
@@ -534,18 +549,27 @@ class AscentFlightElement extends PathElement {
       if (drawn >= 2 * Math.PI) d += 'Z';
       this.#orbit.setAttribute('d', d);
       this.#orbitGlow.setAttribute('d', d);
+      // The whole orbit shows at once as a dotted course, closed round the body; the craft lights it as it flies.
+      let track = '';
+      for (let i = 0; i < 72; i++) {
+        const p = point(orbit.at(orbit.join - (2 * Math.PI * i) / 72));
+        track += `${i ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+      }
+      this.#orbitTrack.setAttribute('d', `${track}Z`);
 
       if (still || flown > 0) {
         // With reduced motion the craft is shown already up there, part way round.
         const u = still ? orbit.join - 0.6 * Math.PI : orbit.join - swept;
         const passing = orbit.at(u);
         const p = point(passing);
-        // Smaller once it is up there, and a touch smaller again on the far side of the orbit.
-        const settle = still ? 1 : smooth(Math.min(1, flown / (ORBIT_ENTRY_MS * 1.6)));
-        craft = scale * (1 - (1 - ORBIT_CRAFT) * settle) * (1 + 0.1 * settle * Math.sin(u));
+        craft = scale * ORBIT_CRAFT;
         cx = p.x;
         cy = p.y;
-        angle = ((passing.heading + turn) * 180) / Math.PI;
+        // Where the craft joins the orbit climbing, it turns from the path's heading onto the orbit's over a moment.
+        let heading = passing.heading;
+        heading -= 2 * Math.PI * Math.round(heading / (2 * Math.PI));
+        const turnIn = still ? 1 : smooth(Math.min(1, flown / 700));
+        angle = ((heading * turnIn + turn) * 180) / Math.PI;
       }
     } else {
       this.#sweep.setAttribute('d', '');
@@ -700,8 +724,9 @@ class AscentEventsElement extends PathElement {
     chapters.forEach((chapter, i) => {
       const f = Math.min(1, chapter.startTime / duration);
       const button = this.#buttons[i];
-      button.style.left = `${pathX(g, f).toFixed(1)}px`;
-      button.style.top = `${(pathY(g, f) - 8).toFixed(1)}px`;
+      // Centred labels sit half a pixel over, so their 1 px stem covers exactly one pixel.
+      button.style.left = `${Math.round(pathX(g, f)) + (i ? 0.5 : 0)}px`;
+      button.style.top = `${Math.round(pathY(g, f) - 8)}px`;
       button.classList.toggle('past', f <= t + 1e-4);
       button.classList.toggle('cur', i === current);
     });
@@ -758,11 +783,13 @@ class AscentNowElement extends UIElement {
     this.hidden = !chapters.length;
     if (!chapters.length || !this.#count || !this.#name) return;
     const index = chapterAt(chapters, this.#time.value?.currentTime ?? 0);
-    // At the end of the film the craft is in its parking orbit, and the readout says so.
+    // From the credits on, the readout names the flight's last phase, the parking orbit. It names the phase rather than
+    // where the craft is, so it holds while the craft is still flying the last of the path, and whatever the film's
+    // own story did at its end.
     const ended = Boolean(this.#playback.value?.ended);
     const orbiting = inOrbit(chapters, this.#time.value?.currentTime ?? 0, ended);
     setWords(this.#count, ended ? 'Flight complete' : `Event ${pad2(index + 1)} of ${pad2(chapters.length)}`);
-    setWords(this.#name, orbiting ? `${ended ? '' : `${chapters[index].text} · `}In orbit` : chapters[index].text);
+    setWords(this.#name, orbiting ? `${ended ? '' : `${chapters[index].text} · `}Parking orbit` : chapters[index].text);
   }
 }
 

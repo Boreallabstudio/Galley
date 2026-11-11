@@ -340,18 +340,18 @@
   transition: opacity 0.3s ease;
 }
 
-/* A soft dark pool behind each label, so labels stay legible over bright sky and fog. */
+/* A dark pool behind each label, so labels stay legible over bright sky, fog and white title cards. */
 .asc-ev::before {
   content: '';
   position: absolute;
-  top: -2px;
-  right: -6px;
-  left: -6px;
+  top: -4px;
+  right: -10px;
+  left: -10px;
   z-index: -1;
-  height: calc(min(2.5cqw, 34px) + 4px);
+  height: calc(min(2.5cqw, 34px) + 8px);
   border-radius: 99px;
-  background: rgba(3, 5, 9, 0.62);
-  filter: blur(8px);
+  background: rgba(3, 5, 9, 0.8);
+  filter: blur(9px);
   pointer-events: none;
 }
 
@@ -371,6 +371,11 @@
   opacity: 0;
 }
 
+.asc-ev b,
+.asc-ev i {
+  text-shadow: 0 1px 3px rgba(3, 5, 9, 0.9);
+}
+
 .asc-ev b {
   font-size: clamp(9px, 0.95cqw, 18px);
   font-weight: 600;
@@ -386,12 +391,19 @@
   opacity: 0.85;
 }
 
+/* Stems are whole pixels (the labels sit on whole pixels too), so every stem draws at the same weight. */
 .asc-ev::after {
   content: '';
-  width: 1.3px;
+  width: 1px;
   height: calc(var(--stem, 2.4cqw) + var(--rise, 0px));
   margin-top: 0.35cqw;
   background: var(--ink);
+}
+
+@container (min-width: 1600px) {
+  .asc-ev::after {
+    width: 2px;
+  }
 }
 
 /* 4:3 and taller (fullscreen on tablets and phones): the path climbs more steeply, so the first label stands higher. */
@@ -891,6 +903,22 @@
   display: none;
 }
 
+/* A key's hint takes the place of its module's label while it shows, so the two never print over each other. */
+.asc-mh {
+  transition: opacity 0.2s ease;
+}
+
+@media (hover: hover) {
+  .asc-mod:has(:is(.asc-b, .asc-nx, .asc-jet):not(.asc-wrap *):hover) .asc-mh {
+    opacity: 0;
+    transition-delay: 0.35s;
+  }
+}
+
+.asc-mod:has(:is(.asc-b, .asc-nx, .asc-jet):not(.asc-wrap *):focus-visible) .asc-mh {
+  opacity: 0;
+}
+
 @media (hover: hover) {
   :is(.asc-b, .asc-nx, .asc-jet):hover > .asc-tip {
     visibility: visible;
@@ -1264,13 +1292,20 @@ ascent-engine:hover .pm {
  * which it draws on its first lap (`data-arrived`); as the light reaches the craft, one ring leaves it.
  */
 .orbit,
-.orbit-glow {
+.orbit-glow,
+.orbit-track {
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 ascent-flight[data-arrived] .orbit {
   opacity: 0.95;
+}
+
+/* The dotted course of the whole orbit comes up with the body, so the orbit reads closed from the start. */
+ascent-flight[data-arrived] .orbit-track {
+  opacity: 0.6;
+  transition: opacity 0.9s ease 1.2s;
 }
 
 ascent-flight[data-arrived] .orbit-glow {
