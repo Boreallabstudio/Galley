@@ -778,6 +778,12 @@
 }
 
 .asc-b.play:not([data-paused]) .asc-i-play,
+/* The hint says what the key does in plain words: play or pause, and play again once the film has ended. */
+.asc-b.play[data-ended] .tip-run,
+.asc-b.play:not([data-ended]) .tip-end {
+  display: none;
+}
+
 .asc-b.play[data-ended] .asc-i-play,
 .asc-b.play:is([data-paused], [data-ended]) .asc-i-pause,
 .asc-b.play:not([data-ended]) .asc-i-replay {
