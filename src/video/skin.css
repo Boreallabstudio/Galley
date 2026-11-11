@@ -1832,6 +1832,7 @@ ascent-flight[data-arrived] .craft-beacon.late {
   height: 40%;
   background: linear-gradient(to left, rgba(255, 120, 60, 0.85), rgba(255, 91, 31, 0.5) 40%, rgba(255, 91, 31, 0));
   /* Soft sides: the plume is masked to a long half-ellipse from the nozzle, fading at its edges, not cut. */
+  -webkit-mask-image: radial-gradient(farthest-side at 100% 50%, #000 45%, transparent);
   mask-image: radial-gradient(farthest-side at 100% 50%, #000 45%, transparent);
   transform: translateY(-50%);
   transform-origin: 100% 50%;
@@ -1844,6 +1845,7 @@ ascent-flight[data-arrived] .craft-beacon.late {
   width: 19%;
   height: 24%;
   background: linear-gradient(to left, #fffef8, #ffe6cc 50%, rgba(255, 170, 110, 0));
+  -webkit-mask-image: radial-gradient(farthest-side at 100% 50%, #000 40%, transparent);
   mask-image: radial-gradient(farthest-side at 100% 50%, #000 40%, transparent);
   transform: translateY(-50%);
 }
@@ -1853,6 +1855,10 @@ ascent-flight[data-arrived] .craft-beacon.late {
 .asc-booster .dia {
   aspect-ratio: 1;
   background: radial-gradient(closest-side, #fffef8, #ffe2c8 38%, rgba(255, 150, 80, 0.12));
+  -webkit-mask-image:
+    linear-gradient(45deg, transparent 12%, #000 38%, #000 62%, transparent 88%),
+    linear-gradient(-45deg, transparent 12%, #000 38%, #000 62%, transparent 88%);
+  -webkit-mask-composite: source-in;
   mask-image:
     linear-gradient(45deg, transparent 12%, #000 38%, #000 62%, transparent 88%),
     linear-gradient(-45deg, transparent 12%, #000 38%, #000 62%, transparent 88%);
