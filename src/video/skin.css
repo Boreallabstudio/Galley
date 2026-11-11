@@ -1703,11 +1703,10 @@ ascent-flight[data-arrived] .craft-beacon.late {
 }
 
 /*
- * Exhaust. Two baked fluid simulations (tools/plume makes them), each 48 looping frames in an 8 x 6 sheet:
- *
- * - the booster: the flame on the craft's tail, burning whenever the film plays;
- * - the liftoff cloud: smoke rising from the pad, the corner between the player's left edge and the desk. It shows
- *   only for a launch from the start of the film, and as white vapour for a hold there.
+ * Exhaust. The liftoff cloud is a baked fluid simulation (tools/plume makes it), 48 looping frames in an 8 x 6
+ * sheet: smoke rising from the pad, the corner between the player's left edge and the desk. It shows only for a
+ * launch from the start of the film, and as white vapour for a hold there. The booster on the craft's tail is drawn
+ * in CSS (below).
  *
  * Two layers play alternate frames and cross-fade (plus-lighter makes the fade an exact blend), so the motion is
  * continuous instead of stepping from frame to frame. Each layer changes frame while it is fully faded out.
@@ -1780,7 +1779,8 @@ ascent-flight[data-arrived] .craft-beacon.late {
   }
 }
 
-/* The booster. The nozzle sits at 92% across and half way down each frame. */
+/* The booster: a white-hot jet with shock diamonds, the bright beads a rocket's exhaust makes at speed. Its box is
+   set by <ascent-flight>; the nozzle sits at 92% across and half way down. */
 .asc-booster {
   position: absolute;
   top: 0;
@@ -1799,12 +1799,108 @@ ascent-flight[data-arrived] .craft-beacon.late {
   pointer-events: none;
 }
 
-.asc-booster i {
-  background-image: url('./booster.webp');
-  background-image: image-set(url('./booster.avif') type('image/avif'), url('./booster.webp') type('image/webp'));
+.asc-booster > b {
+  position: absolute;
+  inset: 0;
+  display: block;
+  /* High contrast keeps the flame, as it keeps the path's own orange. */
+  forced-color-adjust: none;
 }
 
-/* Out: the flame is drawn back into the nozzle. A pause sends it there, still flickering, before it fades. */
+.asc-booster s {
+  position: absolute;
+  top: 50%;
+  display: block;
+  text-decoration: none;
+}
+
+/* The glow the jet throws on the air around it. */
+.asc-booster .halo {
+  right: 2%;
+  width: 72%;
+  height: 76%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 91, 31, 0.5), transparent);
+  filter: blur(5px);
+  transform: translateY(-50%);
+}
+
+/* The plume: the orange taper the diamonds sit in, cooling to nothing. */
+.asc-booster .plume {
+  right: 8%;
+  width: 88%;
+  height: 40%;
+  background: linear-gradient(to left, rgba(255, 120, 60, 0.85), rgba(255, 91, 31, 0.5) 40%, rgba(255, 91, 31, 0));
+  clip-path: polygon(0 50%, 100% 6%, 100% 94%);
+  filter: blur(1.2px);
+  transform: translateY(-50%);
+  transform-origin: 100% 50%;
+  animation: asc-plume 0.9s ease-in-out infinite alternate;
+}
+
+/* The core: white-hot where it leaves the nozzle. */
+.asc-booster .core {
+  right: 8%;
+  width: 19%;
+  height: 34%;
+  background: linear-gradient(to left, #fffef8, #ffe6cc 50%, rgba(255, 170, 110, 0));
+  clip-path: polygon(0 50%, 100% 4%, 100% 96%);
+  filter: blur(0.8px);
+  transform: translateY(-50%);
+}
+
+/* The diamonds, each smaller and cooler than the one before, each breathing at its own pace. */
+.asc-booster .dia {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #fffef8, #ffe2c8 42%, rgba(255, 150, 80, 0));
+  transform: translate(50%, -50%) scaleX(1.45);
+  animation: asc-dia 0.7s ease-in-out infinite alternate;
+}
+
+.asc-booster .dia:nth-child(4) {
+  right: 23%;
+  width: 12.5%;
+}
+
+.asc-booster .dia:nth-child(5) {
+  right: 38%;
+  width: 10%;
+  opacity: 0.9;
+  animation-duration: 0.83s;
+  animation-delay: -0.3s;
+}
+
+.asc-booster .dia:nth-child(6) {
+  right: 52%;
+  width: 7.5%;
+  opacity: 0.75;
+  animation-duration: 0.61s;
+  animation-delay: -0.5s;
+}
+
+.asc-booster .dia:nth-child(7) {
+  right: 65%;
+  width: 5.5%;
+  opacity: 0.55;
+  animation-duration: 0.95s;
+  animation-delay: -0.2s;
+}
+
+@keyframes asc-plume {
+  to {
+    transform: translateY(-50%) scale(0.94, 0.86);
+  }
+}
+
+@keyframes asc-dia {
+  to {
+    filter: brightness(0.82);
+    transform: translate(50%, -50%) scale(1.25, 0.84);
+  }
+}
+
+/* Out: the flame is drawn back into the nozzle. A pause sends it there, still burning, before it fades. */
 .asc-booster > b {
   transform: scale(0.05, 0.4);
   transform-origin: 92% 50%;
@@ -1823,8 +1919,13 @@ ascent-flight[data-burn] .asc-booster > b {
   transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-ascent-flight:is([data-burn], [data-cut]) .asc-booster i {
-  animation-play-state: running;
+/* The diamonds and plume only move while the engine burns. */
+.asc-booster s {
+  animation-play-state: paused !important;
+}
+
+ascent-flight:is([data-burn], [data-cut]) .asc-booster s {
+  animation-play-state: running !important;
 }
 
 /* Ignition: the flame kicks out past its length, then settles. */

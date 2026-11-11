@@ -156,7 +156,8 @@ abstract class PathElement extends UIElement {
  * paused (`data-cut`), after which the craft holds with a slow beacon. A launch from the start of the film, or a
  * hold there, also raises a cloud from the pad (`data-pad`): the corner between the player's left edge and the desk.
  * Anywhere else on the path the takeoff has already happened, so there is the booster and nothing more. Flame and
- * cloud are baked fluid simulations played as sprites (`.asc-booster`, `.asc-liftoff`; see skin.css and tools/plume);
+ * the booster is a white-hot jet with a chain of shock diamonds, drawn in CSS (`.asc-booster`); the cloud is a baked
+ * fluid simulation played as a sprite (`.asc-liftoff`; see skin.css and tools/plume);
  * this element only keeps them in place. When the film ends (`data-arrived`) a light runs up the flown path and the
  * craft flies on into a parking orbit past the end of it, where it stays until the film is flown again. Purely
  * visual (`aria-hidden`); the `<media-time-slider>` underneath it carries the interaction, and its thumb is kept on
@@ -360,7 +361,7 @@ class AscentFlightElement extends PathElement {
 <g class="dots"></g>
 <g class="orbit-body"><circle r="5.5" fill="${INK}"/></g>
 <g class="craft"><circle class="craft-beacon" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-beacon late" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
-</svg><div class="asc-booster"><b class="asc-fx"><i></i><i></i></b></div>`;
+</svg><div class="asc-booster"><b><s class="halo"></s><s class="plume"></s><s class="core"></s><s class="dia"></s><s class="dia"></s><s class="dia"></s><s class="dia"></s></b></div>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
     this.#rest = q('.rest');
