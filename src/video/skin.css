@@ -554,6 +554,7 @@
 /* In parking orbit the flown events fold down to node and stem, so the title card stays whole; hover or focus
    brings a plate back. The last event keeps its label (set by <ascent-events>). */
 .asc-ev .plate {
+  transform: translateX(var(--nudge, 0px));
   transition: opacity 0.3s ease;
 }
 

@@ -736,6 +736,17 @@ class AscentEventsElement extends PathElement {
       button.classList.toggle('cur', i === current);
     });
     this.#stagger();
+    // A plate never runs past the header's right margin: it slides left along its stem's top, the stem stays put.
+    const hostBox = (this.root ?? this).getBoundingClientRect();
+    const limit = hostBox.left + this.width * (1 - 0.043);
+    for (const button of this.#buttons) {
+      const plate = button.querySelector<HTMLElement>('.plate');
+      const r = plate?.getBoundingClientRect();
+      if (!plate || !r || !r.width) continue;
+      const nudge = parseFloat(plate.style.getPropertyValue('--nudge')) || 0;
+      const next = Math.min(0, Math.floor(limit - (r.right - nudge)));
+      if (next !== nudge) plate.style.setProperty('--nudge', `${next}px`);
+    }
     // At the end of the film the craft takes up a parking orbit past the last event. A label or stem in its way
     // steps aside; it comes back on hover and focus.
     const orbiting = inOrbit(chapters, currentTime, Boolean(this.#playback.value?.ended));
