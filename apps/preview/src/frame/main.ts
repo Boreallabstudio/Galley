@@ -15,7 +15,7 @@ document.getElementById('root')!.append(wrapper);
 
 const credit = document.createElement('p');
 credit.className = 'preview-credit';
-credit.textContent = 'Film: Spring by Blender Studio, CC BY 4.0, cropped to 16:9 for this demo.';
+credit.textContent = 'Film: Wing It! by Blender Studio, CC BY 4.0, shortened to 41 seconds for this demo. (CC) Blender Foundation, studio.blender.org';
 wrapper.append(credit);
 
 function render(params: WorkbenchParams): void {

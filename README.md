@@ -46,7 +46,7 @@ On a focused slider, the arrow keys move that slider. Escape closes an open pop-
 Put your media in place of the placeholder in `src/video/skin.html`, inside a Video.js player, and import `src/video/skin.ts`. That import brings the stylesheet and the self-hosted fonts: Archivo (with its width axis), DM Mono and Sora. It has been tried with a plain `<video>` and with `<mux-video>` for a Mux stream, which the workbench uses.
 
 ```html
-<video-player content-title="Spring">
+<video-player content-title="Wing It!">
   <!-- src/video/skin.html, with the placeholder replaced by: -->
   <mux-video playsinline preload="metadata" crossorigin="anonymous">
     <track kind="chapters" srclang="en" label="Events" src="chapters.vtt" default>
@@ -58,8 +58,8 @@ Put your media in place of the placeholder in `src/video/skin.html`, inside a Vi
 ```ts
 import '@videojs/html/media/mux-video';
 
-// The playback ID builds the stream URL; <mux-video> also supplies a poster frame (here at 30 s) to the skin.
-document.querySelector('mux-video')!.source = { playbackId: 'YOUR_PLAYBACK_ID', poster: { time: 30 } };
+// The playback ID builds the stream URL; <mux-video> also supplies a poster frame (here at 4.5 s) to the skin.
+document.querySelector('mux-video')!.source = { playbackId: 'YOUR_PLAYBACK_ID', poster: { time: 4.5 } };
 ```
 
 The line under the title (`[data-asc-byline]`) is empty in the template; fill it from your page if you want one.
@@ -77,6 +77,6 @@ The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `asc
 
 ## Credits
 
-Film: Spring by Blender Studio, CC BY 4.0, cropped to 16:9 for this demo.
+Film: Wing It! by Blender Studio, CC BY 4.0, shortened to 41 seconds for this demo. (CC) Blender Foundation, studio.blender.org.
 
 Made by Boreal Lab Studio, Ontario, Canada. Licensed under the [Apache License 2.0](LICENSE).
