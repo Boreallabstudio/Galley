@@ -122,8 +122,10 @@
   pointer-events: none;
   opacity: var(--lift);
   background:
+    radial-gradient(ellipse 30% 20% at 90% 7%, rgba(3, 5, 9, 0.6), transparent),
+    radial-gradient(ellipse 30% 20% at 10% 7%, rgba(3, 5, 9, 0.6), transparent),
     radial-gradient(ellipse 62% 70% at 50% 42%, transparent 45%, rgba(3, 5, 9, 0.55)),
-    linear-gradient(rgba(3, 5, 9, 0.6), transparent 24%, transparent 40%, rgba(3, 5, 9, 0.5) 70%, rgba(3, 5, 9, 0.9));
+    linear-gradient(rgba(3, 5, 9, 0.8), rgba(3, 5, 9, 0.45) 13%, transparent 27%, transparent 40%, rgba(3, 5, 9, 0.5) 70%, rgba(3, 5, 9, 0.9));
   transition: background-color 0.5s ease;
 }
 
@@ -218,6 +220,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.5cqw;
+  text-shadow: 0 1px 4px rgba(3, 5, 9, 0.85);
   pointer-events: none !important;
 }
 
@@ -340,19 +343,15 @@
   transition: opacity 0.3s ease;
 }
 
-/* A dark pool behind each label, so labels stay legible over bright sky, fog and white title cards. */
-.asc-ev::before {
-  content: '';
-  position: absolute;
-  top: -4px;
-  right: -10px;
-  left: -10px;
-  z-index: -1;
-  height: calc(min(2.5cqw, 34px) + 8px);
-  border-radius: 99px;
-  background: rgba(3, 5, 9, 0.8);
-  filter: blur(9px);
-  pointer-events: none;
+/* Each label sits on a small dark plate, so it stays legible over bright sky, fog and white title cards. */
+.asc-ev .plate {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 0.25cqw;
+  padding: 0.35cqw 0.6cqw 0.4cqw;
+  border-radius: 0.45cqw;
+  background: rgba(5, 7, 11, 0.74);
 }
 
 .asc-ev.first {
@@ -369,11 +368,6 @@
 /* Out of the way of the parking orbit at the end of the film (set by <ascent-events>). */
 .asc-ev.clear:not(:hover, :focus-visible) {
   opacity: 0;
-}
-
-.asc-ev b,
-.asc-ev i {
-  text-shadow: 0 1px 3px rgba(3, 5, 9, 0.9);
 }
 
 .asc-ev b {
@@ -905,18 +899,19 @@
 
 /* A key's hint takes the place of its module's label while it shows, so the two never print over each other. */
 .asc-mh {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.15s ease 0.15s;
 }
 
 @media (hover: hover) {
   .asc-mod:has(:is(.asc-b, .asc-nx, .asc-jet):not(.asc-wrap *):hover) .asc-mh {
     opacity: 0;
-    transition-delay: 0.35s;
+    transition-delay: 0.18s;
   }
 }
 
 .asc-mod:has(:is(.asc-b, .asc-nx, .asc-jet):not(.asc-wrap *):focus-visible) .asc-mh {
   opacity: 0;
+  transition-delay: 0s;
 }
 
 @media (hover: hover) {
@@ -1767,7 +1762,7 @@ ascent-flight:is([data-burn], [data-cut]) .asc-booster i {
     display: block;
   }
 
-  .asc-ev:not(.cur)::before {
+  .asc-ev:not(.cur) .plate {
     display: none;
   }
 
@@ -1784,10 +1779,6 @@ ascent-flight:is([data-burn], [data-cut]) .asc-booster i {
 
   .asc[data-hold][data-capup] .asc-cap {
     visibility: hidden;
-  }
-
-  .asc-ev.cur::before {
-    height: 16px;
   }
 
   .asc-ev {

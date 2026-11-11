@@ -188,7 +188,7 @@ const ORBIT_LAP_MS = 9000;
 const ORBIT_ENTRY_MS = 1800;
 /** The craft keeps its full size in orbit, and the orbit keeps this clear of the player's right edge (orbit units). */
 const ORBIT_CRAFT = 1;
-const ORBIT_INSET = 22;
+const ORBIT_INSET = 40;
 
 interface Orbit {
   /** The parameter of the ellipse's lowest point: the craft joins the orbit there, flying level. */
@@ -353,7 +353,7 @@ class AscentFlightElement extends PathElement {
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".5"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
-<path class="sweep" fill="none" stroke="#fff6ec" stroke-width="4" stroke-linecap="round"/>
+<path class="sweep" fill="none" stroke="#ffd2b0" stroke-width="4" stroke-linecap="round" filter="url(#${glow})"/>
 <path class="orbit-track" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2.5 8"/>
 <path class="orbit-glow" fill="none" stroke="${BURN}" stroke-width="7" filter="url(#${glow})"/>
 <path class="orbit" fill="none" stroke="${BURN}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -419,7 +419,7 @@ class AscentFlightElement extends PathElement {
     this.#buffered.setAttribute('stroke-width', (2 * big).toFixed(2));
     this.#under.setAttribute('stroke-width', (5 * big).toFixed(2));
     const scale = craftScale(W, lift);
-    this.#sweep.setAttribute('stroke-width', (4 * big).toFixed(2));
+    this.#sweep.setAttribute('stroke-width', (9 * big).toFixed(2));
     this.#orbit.setAttribute('stroke-width', (2.4 * big).toFixed(2));
     this.#orbitTrack.setAttribute('stroke-width', (2.6 * big).toFixed(2));
     this.#orbitGlow.setAttribute('stroke-width', (7 * big).toFixed(2));
@@ -520,12 +520,12 @@ class AscentFlightElement extends PathElement {
       // A light runs up the flown path, and each event answers as it passes.
       const head = 1.2 * smooth(run);
       const tip = Math.min(shown, head);
-      this.#sweep.setAttribute('d', head - 0.14 < tip ? pathData(g, Math.max(0, head - 0.14), tip) : '');
-      this.#sweep.setAttribute('opacity', (Math.min(1, run / 0.15) * Math.min(1, (1 - run) / 0.2)).toFixed(3));
+      this.#sweep.setAttribute('d', head - 0.07 < tip ? pathData(g, Math.max(0, head - 0.07), tip) : '');
+      this.#sweep.setAttribute('opacity', (0.75 * Math.min(1, run / 0.15) * Math.min(1, (1 - run) / 0.2)).toFixed(3));
       const dot = 6 * Math.max(0.7, size);
       marks.forEach((f, i) => {
         const answer = run < 1 ? Math.exp(-(((head - f) / 0.07) ** 2)) : 0;
-        this.#dots.children[i]?.setAttribute('r', (dot * (1 + 0.6 * answer)).toFixed(2));
+        this.#dots.children[i]?.setAttribute('r', (dot * (1 + 0.3 * answer)).toFixed(2));
       });
 
       // Then the craft flies on into orbit, drawing it on the first lap.
@@ -661,7 +661,10 @@ class AscentEventsElement extends PathElement {
       const mark = document.createElement('i');
       mark.className = 'num';
       mark.textContent = `${pad2(i + 1)} · ${clock(chapter.startTime)}`;
-      button.append(name, mark);
+      const plate = document.createElement('span');
+      plate.className = 'plate';
+      plate.append(name, mark);
+      button.append(plate);
       button.setAttribute('aria-label', `Jump to event ${i + 1}, ${chapter.text}, at ${spoken(chapter.startTime)}`);
       this.append(button);
       return button;
