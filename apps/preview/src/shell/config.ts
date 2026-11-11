@@ -15,7 +15,7 @@ export const skin = {
 export const storageKey = 'videojs-skin-workbench:ascent';
 
 /** The player width the preview opens at, in pixels. */
-export const defaultWidth = 896;
+export const defaultWidth = 1360;
 
 /** Languages Video.js ships translations for; the player loads the selected one itself. */
 export const locales = ["en","ar","az","bs","bg","bn","ca","cs","cy","da","de","el","es","et","eu","fa","fi","fr","gd","gl","he","hi","hr","hu","id","it","ja","ko","lt","lv","mr","nb","nl","nn","ne","oc","pl","pt-BR","pt-PT","ro","ru","sk","sl","sr","sv","te","th","tr","uk","vi","zh-CN","zh-TW"] as const;
