@@ -1831,8 +1831,8 @@ ascent-flight[data-arrived] .craft-beacon.late {
   width: 88%;
   height: 40%;
   background: linear-gradient(to left, rgba(255, 120, 60, 0.85), rgba(255, 91, 31, 0.5) 40%, rgba(255, 91, 31, 0));
-  clip-path: polygon(0 50%, 100% 6%, 100% 94%);
-  filter: blur(1.2px);
+  /* Soft sides: the plume is masked to a long half-ellipse from the nozzle, fading at its edges, not cut. */
+  mask-image: radial-gradient(farthest-side at 100% 50%, #000 45%, transparent);
   transform: translateY(-50%);
   transform-origin: 100% 50%;
   animation: asc-plume 0.9s ease-in-out infinite alternate;
@@ -1842,19 +1842,23 @@ ascent-flight[data-arrived] .craft-beacon.late {
 .asc-booster .core {
   right: 8%;
   width: 19%;
-  height: 34%;
+  height: 24%;
   background: linear-gradient(to left, #fffef8, #ffe6cc 50%, rgba(255, 170, 110, 0));
-  clip-path: polygon(0 50%, 100% 4%, 100% 96%);
-  filter: blur(0.8px);
+  mask-image: radial-gradient(farthest-side at 100% 50%, #000 40%, transparent);
   transform: translateY(-50%);
 }
 
-/* The diamonds, each smaller and cooler than the one before, each breathing at its own pace. */
+/* The diamonds, each smaller and cooler than the one before, each breathing at its own pace. Two crossed diagonal
+   bands mask each one to a soft lozenge, pinched at the ends like the real thing. */
 .asc-booster .dia {
   aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, #fffef8, #ffe2c8 42%, rgba(255, 150, 80, 0));
-  transform: translate(50%, -50%) scaleX(1.45);
+  background: radial-gradient(closest-side, #fffef8, #ffe2c8 38%, rgba(255, 150, 80, 0.12));
+  mask-image:
+    linear-gradient(45deg, transparent 12%, #000 38%, #000 62%, transparent 88%),
+    linear-gradient(-45deg, transparent 12%, #000 38%, #000 62%, transparent 88%);
+  mask-composite: intersect;
+  opacity: var(--o, 1);
+  transform: translate(50%, -50%) scaleX(1.6);
   animation: asc-dia 0.7s ease-in-out infinite alternate;
 }
 
@@ -1866,7 +1870,7 @@ ascent-flight[data-arrived] .craft-beacon.late {
 .asc-booster .dia:nth-child(5) {
   right: 38%;
   width: 10%;
-  opacity: 0.9;
+  --o: 0.9;
   animation-duration: 0.83s;
   animation-delay: -0.3s;
 }
@@ -1874,7 +1878,7 @@ ascent-flight[data-arrived] .craft-beacon.late {
 .asc-booster .dia:nth-child(6) {
   right: 52%;
   width: 7.5%;
-  opacity: 0.75;
+  --o: 0.75;
   animation-duration: 0.61s;
   animation-delay: -0.5s;
 }
@@ -1882,7 +1886,7 @@ ascent-flight[data-arrived] .craft-beacon.late {
 .asc-booster .dia:nth-child(7) {
   right: 65%;
   width: 5.5%;
-  opacity: 0.55;
+  --o: 0.55;
   animation-duration: 0.95s;
   animation-delay: -0.2s;
 }
@@ -1895,8 +1899,8 @@ ascent-flight[data-arrived] .craft-beacon.late {
 
 @keyframes asc-dia {
   to {
-    filter: brightness(0.82);
-    transform: translate(50%, -50%) scale(1.25, 0.84);
+    opacity: calc(var(--o, 1) * 0.78);
+    transform: translate(50%, -50%) scale(1.4, 0.84);
   }
 }
 

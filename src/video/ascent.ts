@@ -155,15 +155,14 @@ abstract class PathElement extends UIElement {
  * at higher rates, it flares at ignition (`data-ignite` on the skin) and pulls back into the nozzle when the film is
  * paused (`data-cut`), after which the craft holds with a slow beacon. A launch from the start of the film, or a
  * hold there, also raises a cloud from the pad (`data-pad`): the corner between the player's left edge and the desk.
- * Anywhere else on the path the takeoff has already happened, so there is the booster and nothing more. Flame and
- * the booster is a white-hot jet with a chain of shock diamonds, drawn in CSS (`.asc-booster`); the cloud is a baked
- * fluid simulation played as a sprite (`.asc-liftoff`; see skin.css and tools/plume);
- * this element only keeps them in place. When the film ends (`data-arrived`) a light runs up the flown path and the
+ * Anywhere else on the path the takeoff has already happened, so there is the booster and nothing more. The booster
+ * is a white-hot jet with a chain of shock diamonds, drawn in CSS (`.asc-booster`); the cloud is a baked fluid
+ * simulation played as a sprite (`.asc-liftoff`; see skin.css and tools/plume). This element only keeps them in place. When the film ends (`data-arrived`) a light runs up the flown path and the
  * craft flies on into a parking orbit past the end of it, where it stays until the film is flown again. Purely
  * visual (`aria-hidden`); the `<media-time-slider>` underneath it carries the interaction, and its thumb is kept on
  * the path at the playhead here.
  */
-/** Booster sprite at full size, in CSS pixels, and its frame's height as a share of its width. */
+/** Booster flame box at full size, in CSS pixels, and its height as a share of its width. */
 const BOOSTER_WIDTH = 190;
 const BOOSTER_RATIO = 118 / 384;
 /** Liftoff cloud at full size, and how far its simulated wall stands behind the craft: it is scaled until that wall
