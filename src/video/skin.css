@@ -404,6 +404,9 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   white-space: nowrap;
+  transition:
+    color 0.3s ease,
+    opacity 0.3s ease;
 }
 
 /* The lamp. Green is used here only, for Go. */
@@ -414,6 +417,10 @@
   height: 7px;
   border: 1px solid currentColor;
   border-radius: 50%;
+  transition:
+    border-color 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .asc-cell[data-s='go'] b::before {
@@ -432,7 +439,7 @@
 }
 
 .asc-cell[data-s='hold'] b::before {
-  animation: asc-blink 1s steps(2) infinite;
+  animation: asc-blink 1.3s ease-in-out infinite;
 }
 
 .asc-cell[data-s='off'] b {
@@ -441,7 +448,7 @@
 
 @keyframes asc-blink {
   50% {
-    opacity: 0.2;
+    opacity: 0.25;
   }
 }
 
@@ -578,11 +585,18 @@
     0 calc(var(--rise) + 8px) 18px rgba(0, 0, 0, 0.45);
   color: var(--ink);
   cursor: pointer;
+  /* Every change of a key is eased: the travel, the light, the colour. Nothing snaps. */
   transition:
-    border-color 0.18s,
-    background 0.18s,
-    box-shadow 0.1s,
-    transform 0.1s;
+    border-color 0.22s ease,
+    background 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Going down is quicker than coming back up. */
+.asc-b:active {
+  transition-duration: 0.22s, 0.22s, 0.22s, 0.08s, 0.08s;
 }
 
 /* The lamp: a short bar set into the top of the cap. Dim when the key is off. */
@@ -596,8 +610,8 @@
   background: rgba(244, 241, 234, 0.2);
   transform: translateX(-50%);
   transition:
-    background 0.18s,
-    box-shadow 0.18s;
+    background 0.26s ease,
+    box-shadow 0.26s ease;
 }
 
 .asc-b:is(.mute, .cc, .full) svg {
@@ -652,6 +666,10 @@
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition:
+    opacity 0.22s ease,
+    filter 0.22s ease,
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* The play key: one ink pill that reads Launch, Hold, Resume or Relaunch on wide players. */
@@ -704,11 +722,27 @@
   stroke-width: 1.4;
 }
 
+/* The three symbols share one place and turn into each other: the one leaving shrinks and fades as the next arrives. */
+.asc-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+}
+
+.asc-ic > svg {
+  grid-area: 1 / 1;
+}
+
 .asc-b.play:not([data-paused]) .asc-i-play,
 .asc-b.play[data-ended] .asc-i-play,
 .asc-b.play:is([data-paused], [data-ended]) .asc-i-pause,
 .asc-b.play:not([data-ended]) .asc-i-replay {
-  display: none;
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+.asc-b.play:not([data-ended]) .asc-i-replay {
+  transform: scale(0.4) rotate(-90deg);
 }
 
 @container (min-width: 900px) {
@@ -839,9 +873,19 @@
   transform: none;
 }
 
+/* Sound waves and the cross trade places with a fade. */
+.asc-b.mute :is(.asc-i-on, .asc-i-off) {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    opacity 0.22s ease,
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 .asc-b.mute:is([data-muted], [data-volume-level='off']) .asc-i-on,
 .asc-b.mute:not([data-muted]):not([data-volume-level='off']) .asc-i-off {
-  display: none;
+  opacity: 0;
+  transform: scale(0.5);
 }
 
 .asc-b.rate {
@@ -1149,8 +1193,8 @@ ascent-engine:hover .pm {
   }
 
   22% {
-    transform: scale(1.7);
-    opacity: 0.8;
+    transform: scale(1.3);
+    opacity: 0.7;
   }
 
   100% {
@@ -1159,97 +1203,230 @@ ascent-engine:hover .pm {
 }
 
 /*
- * The exhaust plume. A hold: white vapour vents from the craft, as on the pad before launch. A launch: flame behind
- * the craft and smoke rolling back from it, shown for a moment at ignition.
+ * Exhaust. Two baked fluid simulations (tools/plume makes them), each 48 looping frames in an 8 x 6 sheet:
  *
- * The plume is a fluid simulation baked into a sprite sheet (8 x 6 frames, each 400 x 216; tools/plume makes it), so
- * it moves like real smoke and costs no filters at run time. <ascent-flight> sets the --plume-* values that keep it
- * on the craft's tail. The nozzle sits at 94.29% across and 67.68% down each frame.
+ * - the booster: the flame on the craft's tail, burning whenever the film plays;
+ * - the liftoff cloud: smoke rising from the pad, the corner between the player's left edge and the desk. It shows
+ *   only for a launch from the start of the film, and as white vapour for a hold there.
+ *
+ * Two layers play alternate frames and cross-fade (plus-lighter makes the fade an exact blend), so the motion is
+ * continuous instead of stepping from frame to frame. Each layer changes frame while it is fully faded out.
+ * <ascent-flight> sets --fx-w / --fx-h in whole pixels and keeps both effects in place.
  */
-.asc-plume {
-  --plume-h: calc(var(--plume-w, 340px) * 0.54);
-  --plume-frame: 55ms;
+.asc-fx {
+  --fx-frame: 55ms;
 
   position: absolute;
   top: 0;
   left: 0;
-  width: var(--plume-w, 340px);
-  height: var(--plume-h);
-  visibility: hidden;
-  background-image: url('./plume.webp');
-  background-image: image-set(url('./plume.avif') type('image/avif'), url('./plume.webp') type('image/webp'));
-  background-repeat: no-repeat;
-  background-size: calc(var(--plume-w, 340px) * 8) calc(var(--plume-h) * 6);
-  transform: translate(var(--plume-x, 0), var(--plume-y, 0)) rotate(var(--plume-turn, 0deg))
-    translate(calc(var(--plume-w, 340px) * -0.9429 - var(--plume-back, 16px)), calc(var(--plume-h) * -0.6768));
-  transform-origin: 0 0;
+  display: block;
+  width: var(--fx-w, 0);
+  height: var(--fx-h, 0);
+  isolation: isolate;
   pointer-events: none;
-  /* The plume shoots out of the nozzle: a soft edge sweeps from the craft to the tail. */
-  -webkit-mask-image: linear-gradient(90deg, transparent 45%, #000 60%);
-  mask-image: linear-gradient(90deg, transparent 45%, #000 60%);
-  -webkit-mask-size: 250% 100%;
-  mask-size: 250% 100%;
-  -webkit-mask-position: 100% 0;
-  mask-position: 100% 0;
 }
 
-.asc[data-hold] .asc-plume,
-.asc[data-ignite] .asc-plume {
+.asc-fx > i {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: calc(var(--fx-w, 0px) * 8) calc(var(--fx-h, 0px) * 6);
+  animation:
+    asc-fx-even calc(var(--fx-frame) * 8) steps(4) infinite,
+    asc-fx-row calc(var(--fx-frame) * 48) steps(6) infinite,
+    asc-fx-mix calc(var(--fx-frame) * 2) linear infinite;
+  animation-play-state: paused;
+}
+
+/* The second layer: the odd frames, one frame later. */
+.asc-fx > i + i {
+  background-position-x: calc(var(--fx-w, 0px) * -1);
+  opacity: 0;
+  mix-blend-mode: plus-lighter;
+  animation-name: asc-fx-odd, asc-fx-row, asc-fx-mix;
+  animation-delay: var(--fx-frame);
+}
+
+@keyframes asc-fx-even {
+  to {
+    background-position-x: calc(var(--fx-w, 0px) * -8);
+  }
+}
+
+@keyframes asc-fx-odd {
+  from {
+    background-position-x: calc(var(--fx-w, 0px) * -1);
+  }
+
+  to {
+    background-position-x: calc(var(--fx-w, 0px) * -9);
+  }
+}
+
+@keyframes asc-fx-row {
+  to {
+    background-position-y: calc(var(--fx-h, 0px) * -6);
+  }
+}
+
+@keyframes asc-fx-mix {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+/* The booster. The nozzle sits at 92% across and half way down each frame. */
+.asc-booster {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--fx-w, 0);
+  height: var(--fx-h, 0);
+  visibility: hidden;
+  opacity: 0;
+  transform: translate(var(--fx-x, 0), var(--fx-y, 0)) rotate(var(--fx-turn, 0deg))
+    translate(calc(var(--fx-w, 0px) * -0.92 - var(--fx-back, 16px)), calc(var(--fx-h, 0px) * -0.5));
+  transform-origin: 0 0;
+  transition:
+    opacity 0.3s ease,
+    visibility 0s 0.3s;
+  pointer-events: none;
+}
+
+.asc-booster i {
+  background-image: url('./booster.webp');
+  background-image: image-set(url('./booster.avif') type('image/avif'), url('./booster.webp') type('image/webp'));
+}
+
+/* Thrust: the flame is longer at higher playback rates. */
+.asc-booster > b {
+  transform: scale(var(--boost, 1));
+  transform-origin: 92% 50%;
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+ascent-flight[data-burn] .asc-booster {
   visibility: visible;
-  animation:
-    asc-plume-x calc(var(--plume-frame) * 8) steps(8) infinite,
-    asc-plume-y calc(var(--plume-frame) * 48) steps(6) infinite,
-    asc-plume-out 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  opacity: 1;
+  transition: opacity 0.25s ease;
 }
 
-/* Ignition is a burst that clears. */
-.asc[data-ignite]:not([data-hold]) .asc-plume {
-  animation:
-    asc-plume-x calc(var(--plume-frame) * 8) steps(8) infinite,
-    asc-plume-y calc(var(--plume-frame) * 48) steps(6) infinite,
-    asc-plume-out 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both,
-    asc-burst 2.2s linear both;
+ascent-flight[data-burn] .asc-booster i {
+  animation-play-state: running;
 }
 
-/* A hold vents cold gas: the same plume with the fire taken out of it. */
-.asc[data-hold] .asc-plume {
+/* Ignition: the flame kicks out past its length, then settles. */
+.asc[data-ignite] .asc-booster > b {
+  animation: asc-flare 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes asc-flare {
+  0% {
+    transform: scale(0.3);
+  }
+
+  30% {
+    transform: scale(calc(var(--boost, 1) * 1.45));
+  }
+
+  100% {
+    transform: scale(var(--boost, 1));
+  }
+}
+
+/* A hold in flight: the engine idles, the flame breathing low. */
+.asc[data-hold] ascent-flight[data-burn]:not([data-pad]) .asc-booster {
+  animation: asc-idle 1.6s ease-in-out infinite;
+}
+
+@keyframes asc-idle {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* A hold on the pad: no flame yet, only vapour. */
+.asc[data-hold] ascent-flight[data-pad] .asc-booster {
+  visibility: hidden;
+  opacity: 0;
+}
+
+/*
+ * The liftoff cloud. Its frame's left edge is the wall the smoke splashes up and its bottom edge the floor it rolls
+ * along; the craft stands at 18.24% across and 84.46% down. It billows out of the corner behind a growing soft edge.
+ */
+.asc-liftoff {
+  visibility: hidden;
+  transform: translate(
+    calc(var(--fx-x, 0px) - var(--fx-w, 0px) * 0.1824),
+    calc(var(--fx-y, 0px) - var(--fx-h, 0px) * 0.8446)
+  );
+  transition: filter 0.4s ease;
+  -webkit-mask-image: radial-gradient(circle at 0 100%, #000 55%, transparent 82%);
+  mask-image: radial-gradient(circle at 0 100%, #000 55%, transparent 82%);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 0 100%;
+  mask-position: 0 100%;
+  -webkit-mask-size: 200% 200%;
+  mask-size: 200% 200%;
+}
+
+.asc-liftoff i {
+  background-image: url('./liftoff.webp');
+  background-image: image-set(url('./liftoff.avif') type('image/avif'), url('./liftoff.webp') type('image/webp'));
+}
+
+.asc[data-hold] ascent-flight[data-pad] .asc-liftoff,
+.asc[data-ignite] ascent-flight[data-pad] .asc-liftoff {
+  visibility: visible;
+  animation: asc-billow 1.3s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.asc[data-hold] ascent-flight[data-pad] .asc-liftoff i,
+.asc[data-ignite] ascent-flight[data-pad] .asc-liftoff i {
+  animation-play-state: running;
+}
+
+/* A launch: the cloud rises, hangs for a moment and clears. */
+.asc[data-ignite]:not([data-hold]) ascent-flight[data-pad] .asc-liftoff {
+  animation:
+    asc-billow 1.3s cubic-bezier(0.2, 0.7, 0.3, 1) both,
+    asc-clear 3.2s linear both;
+}
+
+/* A hold on the pad vents cold gas: the same cloud with the warmth taken out of it. */
+.asc[data-hold] ascent-flight[data-pad] .asc-liftoff {
   filter: grayscale(1) brightness(1.06);
 }
 
-@keyframes asc-plume-x {
-  to {
-    background-position-x: calc(var(--plume-w, 340px) * -8);
-  }
-}
-
-@keyframes asc-plume-y {
-  to {
-    background-position-y: calc(var(--plume-h) * -6);
-  }
-}
-
-@keyframes asc-plume-out {
+@keyframes asc-billow {
   from {
-    -webkit-mask-position: 34% 0;
-    mask-position: 34% 0;
+    -webkit-mask-size: 30% 30%;
+    mask-size: 30% 30%;
   }
 
   to {
-    -webkit-mask-position: 100% 0;
-    mask-position: 100% 0;
+    -webkit-mask-size: 200% 200%;
+    mask-size: 200% 200%;
   }
 }
 
-@keyframes asc-burst {
+@keyframes asc-clear {
   0% {
     opacity: 0;
   }
 
-  6% {
+  5% {
     opacity: 1;
   }
 
-  62% {
+  50% {
     opacity: 1;
   }
 

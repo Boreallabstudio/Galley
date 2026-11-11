@@ -57,6 +57,21 @@ const pad2 = (n: number) => String(n).padStart(2, '0');
  * Base for the elements that draw on the path: tracks the skin's size and the lift, and coalesces redraws into one
  * per animation frame.
  */
+/** Changes an element's words. A change (not the first fill) eases in from just below, so labels never snap. */
+function setWords(element: Element, text: string) {
+  if (element.textContent === text) return;
+  const first = !element.textContent;
+  element.textContent = text;
+  if (first || reducedMotion() || !(element instanceof HTMLElement)) return;
+  element.animate(
+    [
+      { opacity: 0, transform: 'translateY(0.4em)' },
+      { opacity: 1, transform: 'none' },
+    ],
+    { duration: 240, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
+  );
+}
+
 abstract class PathElement extends UIElement {
   protected time = new PlayerController(this, playerContext, selectTime);
   protected tracks = new PlayerController(this, playerContext, selectTextTrack);
@@ -135,15 +150,24 @@ abstract class PathElement extends UIElement {
 /**
  * <ascent-flight>: the flight path. A dotted course still to fly, the buffered stretch ahead, the flown part in orange
  * with a glow, a dot for each chapter and the craft at the playhead. The craft's engine glow is an ember when paused
- * and grows with the playback rate. At ignition (`data-ignite` on the skin) and during a hold (`data-hold`) the engine
- * fires as at a launch: a flame behind the craft and smoke rolling back from it. The exhaust is a baked fluid
- * simulation played as a sprite (`.asc-plume`, see skin.css and tools/plume); this element only keeps it on the
- * craft's tail. Purely visual
- * (`aria-hidden`); the `<media-time-slider>` underneath it carries the interaction, and its thumb is moved onto the
- * craft here.
+ * and grows with the playback rate. While the film plays a booster flame burns behind the craft (`data-burn`), longer
+ * at higher rates, and it flares at ignition (`data-ignite` on the skin). A launch from the start of the film, or a
+ * hold there, also raises a cloud from the pad (`data-pad`): the corner between the player's left edge and the desk.
+ * Anywhere else on the path the takeoff has already happened, so there is the booster and nothing more. Flame and
+ * cloud are baked fluid simulations played as sprites (`.asc-booster`, `.asc-liftoff`; see skin.css and tools/plume);
+ * this element only keeps them in place. Purely visual (`aria-hidden`); the `<media-time-slider>` underneath it
+ * carries the interaction, and its thumb is moved onto the craft here.
  */
-/** Width of the exhaust plume at full size, in CSS pixels: the flame and the smoke behind it. */
-const PLUME_WIDTH = 340;
+/** Booster sprite at full size, in CSS pixels, and its frame's height as a share of its width. */
+const BOOSTER_WIDTH = 190;
+const BOOSTER_RATIO = 118 / 384;
+/** Liftoff cloud at full size, and how far its simulated wall stands behind the craft: it is scaled until that wall
+ * is the player's left edge. */
+const LIFTOFF_WIDTH = 340;
+const LIFTOFF_RATIO = 294 / 400;
+const LIFTOFF_WALL = 62;
+/** The film counts as still on the pad for this many seconds. */
+const PAD_SECONDS = 1.2;
 
 class AscentFlightElement extends PathElement {
   #buffer = new PlayerController(this, playerContext, selectBuffer);
@@ -159,8 +183,10 @@ class AscentFlightElement extends PathElement {
   #dots!: SVGGElement;
   #craft!: SVGGElement;
   #arrow!: SVGPathElement;
-  #plume!: HTMLElement;
-  #plumeAt = '';
+  #booster!: HTMLElement;
+  #liftoff!: HTMLElement;
+  #fxAt = '';
+  #onPad = true;
 
   connectedCallback() {
     if (!this.#svg) this.#build();
@@ -170,7 +196,7 @@ class AscentFlightElement extends PathElement {
   #build() {
     this.setAttribute('aria-hidden', 'true');
     const glow = nextId('asc-glow');
-    this.innerHTML = `<svg xmlns="${SVG}">
+    this.innerHTML = `<div class="asc-liftoff asc-fx"><i></i><i></i></div><svg xmlns="${SVG}">
 <defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
 <path class="rest" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 9" opacity=".55"/>
@@ -179,7 +205,7 @@ class AscentFlightElement extends PathElement {
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
 <g class="dots"></g>
 <g class="craft"><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
-</svg><div class="asc-plume"></div>`;
+</svg><div class="asc-booster"><b class="asc-fx"><i></i><i></i></b></div>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
     this.#rest = q('.rest');
@@ -190,7 +216,8 @@ class AscentFlightElement extends PathElement {
     this.#dots = q('.dots');
     this.#craft = q('.craft');
     this.#arrow = q('.arrow');
-    this.#plume = q('.asc-plume');
+    this.#booster = q('.asc-booster');
+    this.#liftoff = q('.asc-liftoff');
     this.#burn = q('.craft-glow');
   }
 
@@ -241,22 +268,51 @@ class AscentFlightElement extends PathElement {
     const cy = pathY(g, t);
     this.#craft.setAttribute('transform', `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${scale.toFixed(3)})`);
     this.#arrow.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
-    // The exhaust plume trails from the craft's tail, turned to its heading. Whole pixels keep the sprite's frames exact.
-    const plume = `${cx.toFixed(1)}px,${cy.toFixed(1)}px,${angle.toFixed(1)}deg,${Math.round(PLUME_WIDTH * scale)}px,${(19 * scale).toFixed(1)}px`;
-    if (plume !== this.#plumeAt) {
-      this.#plumeAt = plume;
-      const [x, y, turn, width, back] = plume.split(',');
-      const style = this.#plume.style;
-      style.setProperty('--plume-x', x);
-      style.setProperty('--plume-y', y);
-      style.setProperty('--plume-turn', turn);
-      style.setProperty('--plume-w', width);
-      style.setProperty('--plume-back', back);
+    // The booster sits on the craft's tail, turned to its heading; the liftoff cloud stays on the pad. Sizes are whole
+    // pixels so the sprites' frames stay exact.
+    const burning = this.#playback.value ? !this.#playback.value.paused : false;
+    const rate = this.#rate.value?.playbackRate ?? 1;
+    const boosterW = Math.round(BOOSTER_WIDTH * scale);
+    const liftoffW = Math.round((LIFTOFF_WIDTH * W * 0.043) / LIFTOFF_WALL);
+    const fx = [
+      cx.toFixed(1),
+      cy.toFixed(1),
+      angle.toFixed(1),
+      boosterW,
+      Math.round(boosterW * BOOSTER_RATIO),
+      (17 * scale).toFixed(1),
+      Math.min(1.5, Math.max(0.7, 0.8 + 0.2 * rate)).toFixed(2),
+      g.x0.toFixed(1),
+      g.y0.toFixed(1),
+      liftoffW,
+      Math.round(liftoffW * LIFTOFF_RATIO),
+    ].join();
+    if (fx !== this.#fxAt) {
+      this.#fxAt = fx;
+      const [x, y, turn, bw, bh, back, boost, px, py, lw, lh] = fx.split(',');
+      const booster = this.#booster.style;
+      booster.setProperty('--fx-x', `${x}px`);
+      booster.setProperty('--fx-y', `${y}px`);
+      booster.setProperty('--fx-turn', `${turn}deg`);
+      booster.setProperty('--fx-w', `${bw}px`);
+      booster.setProperty('--fx-h', `${bh}px`);
+      booster.setProperty('--fx-back', `${back}px`);
+      booster.setProperty('--boost', boost);
+      const liftoff = this.#liftoff.style;
+      liftoff.setProperty('--fx-x', `${px}px`);
+      liftoff.setProperty('--fx-y', `${py}px`);
+      liftoff.setProperty('--fx-w', `${lw}px`);
+      liftoff.setProperty('--fx-h', `${lh}px`);
     }
+    // On the pad: the first moments of the film, and until a launch that began there has finished.
+    if (currentTime <= PAD_SECONDS) this.#onPad = true;
+    else if (!this.root?.hasAttribute('data-ignite')) this.#onPad = false;
+    this.toggleAttribute('data-pad', this.#onPad);
+    // The flame only burns while the HUD is up to show it.
+    this.toggleAttribute('data-burn', burning && lift > 0.02);
 
     // Engine glow: an ember when paused, brighter and wider with speed.
-    const burning = this.#playback.value ? !this.#playback.value.paused : false;
-    this.#burn.setAttribute('r', String(burning ? 18 + 8 * (this.#rate.value?.playbackRate ?? 1) : 17));
+    this.#burn.setAttribute('r', String(burning ? 18 + 8 * rate : 17));
     this.#burn.setAttribute('opacity', burning ? '.55' : '.3');
 
     // One dot per chapter.
@@ -520,6 +576,10 @@ class AscentEngineElement extends UIElement {
   #rate = new PlayerController(this, playerContext, selectPlaybackRate);
   #drawing: DialDrawing | null = null;
   #abort: AbortController | null = null;
+  #shown = -1;
+  #goal = 0;
+  #label = '';
+  #tween = 0;
 
   get #speed() {
     return this.kind === 'speed';
@@ -597,6 +657,8 @@ class AscentEngineElement extends UIElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    cancelAnimationFrame(this.#tween);
+    this.#tween = 0;
     this.#abort?.abort();
     this.#abort = null;
   }
@@ -782,15 +844,38 @@ class AscentEngineElement extends UIElement {
       const rate = this.#rate.value?.playbackRate ?? 1;
       if (this.#pending === rate) this.#pending = null;
       const f = (rate - 0.5) / 1.5;
-      this.#drawing.set(f, rateText(Math.min(2, Math.max(0.5, rate))));
+      this.#show(f, rateText(Math.min(2, Math.max(0.5, rate))));
       this.setAttribute('aria-valuenow', String(rate));
       this.setAttribute('aria-valuetext', `${rate} times`);
       this.hidden = this.#rate.value?.playbackRateAvailability === 'unsupported';
     } else {
       const volume = this.#volume.value;
       const f = volume ? (volume.muted ? 0 : volume.volume) : 1;
-      this.#drawing.set(f, String(Math.round(f * 100)));
+      this.#show(f, String(Math.round(f * 100)));
     }
+  }
+
+  /** Moves the dial to `f`. A step from a key, the wheel or a press glides there; a drag follows the hand exactly. */
+  #show(f: number, label: string) {
+    const drawing = this.#drawing;
+    if (!drawing) return;
+    this.#goal = f;
+    this.#label = label;
+    if (this.#shown < 0 || this.hasAttribute('data-dragging') || reducedMotion()) {
+      cancelAnimationFrame(this.#tween);
+      this.#tween = 0;
+      this.#shown = f;
+      drawing.set(f, label);
+      return;
+    }
+    if (this.#tween) return;
+    const step = () => {
+      const gap = this.#goal - this.#shown;
+      this.#shown = Math.abs(gap) < 0.004 ? this.#goal : this.#shown + gap * 0.24;
+      drawing.set(this.#shown, this.#label);
+      this.#tween = this.#shown === this.#goal ? 0 : requestAnimationFrame(step);
+    };
+    this.#tween = requestAnimationFrame(step);
   }
 }
 
@@ -815,7 +900,7 @@ class AscentPlayLabelElement extends UIElement {
     const playback = this.#playback.value;
     const launched = (playback?.started ?? false) || (this.#time.value?.currentTime ?? 0) > 0.5;
     const text = playback?.ended ? 'Relaunch' : playback && !playback.paused ? 'Hold' : launched ? 'Resume' : 'Launch';
-    if (this.textContent !== text) this.textContent = text;
+    setWords(this, text);
   }
 }
 
@@ -863,7 +948,7 @@ class AscentBoardElement extends UIElement {
     const cell = this.#cells[name];
     if (!cell) return;
     cell.dataset.s = state;
-    if (cell.lastElementChild!.textContent !== text) cell.lastElementChild!.textContent = text;
+    setWords(cell.lastElementChild!, text);
   }
 
   protected update(changed: PropertyValues) {
@@ -1131,14 +1216,17 @@ class AscentKeysElement extends UIElement {
   }
 }
 
+/** How long ignition lasts: the booster's flare, and the liftoff cloud rising and clearing. Matches skin.css. */
+const IGNITION_MS = 3200;
+
 /**
  * <ascent-lift>: the idle behaviour. The HUD shows on pointer movement, a tap, a key, keyboard focus, or a pause.
  * Three seconds into playing without any of those, it lifts away and the path sinks to the bottom edge and fades out,
  * leaving only the film (and captions). With reduced motion the change is instant.
  *
  * It also calls the hold: while the film buffers (the `<media-buffering-indicator>` is showing) the skin carries
- * `data-hold`, the HUD stays up, the engine fires and smokes and the Signal lamp reads Hold. And it marks ignition: `data-ignite`
- * for a moment each time the film starts playing, which flares the craft's engine.
+ * `data-hold`, the HUD stays up, the engine idles (or vents on the pad) and the Signal lamp reads Hold. And it marks
+ * ignition: `data-ignite` for a moment each time the film starts playing or a hold ends, which flares the engine.
  *
  * A tap on the picture plays or pauses, unless the HUD was away: then the tap only brings it back.
  */
@@ -1192,6 +1280,8 @@ class AscentLiftElement extends UIElement {
       const held = indicator?.hasAttribute('data-visible') ?? false;
       if (held === root.hasAttribute('data-hold')) return;
       root.toggleAttribute('data-hold', held);
+      // The hold is over and the film is running: the engine lights again.
+      if (!held && !this.#isPaused) this.#fire();
       this.#wake();
     });
     if (indicator) hold.observe(indicator, { attributes: true, attributeFilter: ['data-visible'] });
@@ -1214,12 +1304,7 @@ class AscentLiftElement extends UIElement {
     super.update(changed);
     const paused = this.#isPaused;
     if (paused !== this.#paused) {
-      if (this.#paused && !paused && !reducedMotion()) {
-        const root = this.#root;
-        root?.setAttribute('data-ignite', '');
-        clearTimeout(this.#ignite);
-        this.#ignite = window.setTimeout(() => root?.removeAttribute('data-ignite'), 2200);
-      }
+      if (this.#paused && !paused) this.#fire();
       this.#paused = paused;
       this.#wake();
     }
@@ -1227,6 +1312,19 @@ class AscentLiftElement extends UIElement {
 
   get #isPaused(): boolean {
     return this.#playback.value?.paused ?? true;
+  }
+
+  /** Ignition: marks the skin for as long as the launch effects run. */
+  #fire() {
+    if (reducedMotion()) return;
+    const root = this.#root;
+    if (!root) return;
+    // Restart the effects if they are already running.
+    root.removeAttribute('data-ignite');
+    void root.offsetWidth;
+    root.setAttribute('data-ignite', '');
+    clearTimeout(this.#ignite);
+    this.#ignite = window.setTimeout(() => root.removeAttribute('data-ignite'), IGNITION_MS);
   }
 
   #onClick(event: MouseEvent) {
