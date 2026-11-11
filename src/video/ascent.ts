@@ -1198,8 +1198,10 @@ class AscentPlayLabelElement extends UIElement {
  * engine's own bandwidth estimate (hls.js); engines that do not share one (the browser's own HLS, a plain file) give
  * no rate. `complete` is true once everything from the playhead to the end of the film is loaded.
  */
-function downlink(media: HTMLMediaElement | null): { rate: string; complete: boolean } {
-  if (!media) return { rate: '', complete: false };
+const readings = new WeakMap<HTMLMediaElement, { bps: number; at: number }>();
+
+function downlink(media: HTMLMediaElement | null): { rate: string; complete: boolean; fresh: boolean } {
+  if (!media) return { rate: '', complete: false, fresh: false };
   const duration = media.duration;
   let complete = false;
   if (Number.isFinite(duration) && duration > 0) {
@@ -1211,11 +1213,17 @@ function downlink(media: HTMLMediaElement | null): { rate: string; complete: boo
   const engine = (media as { engine?: { bandwidthEstimate?: number } | null }).engine;
   const bps = engine?.bandwidthEstimate;
   let rate = '';
+  let fresh = false;
   if (typeof bps === 'number' && Number.isFinite(bps) && bps > 0) {
     const mbps = bps / 1e6;
     rate = `${mbps < 10 ? mbps.toFixed(1) : Math.round(mbps)} Mb/s`;
+    // The estimate only moves when a piece of the film finishes loading; note when it last did.
+    const now = performance.now();
+    const last = readings.get(media);
+    if (!last || last.bps !== bps) readings.set(media, { bps, at: now });
+    fresh = now - (readings.get(media)?.at ?? now) < 2500;
   }
-  return { rate, complete };
+  return { rate, complete, fresh };
 }
 
 class AscentBoardElement extends UIElement {
@@ -1283,12 +1291,13 @@ class AscentBoardElement extends UIElement {
     const root = skinRoot(this);
     const link = downlink(root ? findMedia(root) : null);
     if (lost) this.#set('Downlink', 'hold', 'Lost');
-    else if (held) this.#set('Downlink', 'hold', link.rate ? `HOLD · ${link.rate}` : 'Hold', Boolean(link.rate));
+    // During a hold, a rate measured before it would mislead: it shows only once a new reading comes in.
+    else if (held) this.#set('Downlink', 'hold', link.fresh ? `HOLD · ${link.rate}` : 'Hold', link.fresh);
     else if (link.complete) this.#set('Downlink', 'go', 'Locked');
     else this.#set('Downlink', 'go', link.rate || 'Go', Boolean(link.rate));
     // Narrow players show the hold as a line under the title; it carries the rate too.
     const line = root?.querySelector('.asc-load span');
-    if (line) line.textContent = `Hold · buffering${link.rate ? ` · ${link.rate}` : ''}`;
+    if (line) line.textContent = `Hold · buffering${held && link.fresh ? ` · ${link.rate}` : ''}`;
     this.#set('Audio', quiet ? 'off' : 'go', quiet ? 'Off' : 'Go');
     this.#set('Captions', captions ? 'go' : 'off', captions ? 'Go' : 'Off');
     if (playback?.ended) this.#set('Flight', 'off', 'Complete');
