@@ -7,6 +7,7 @@ The film is the main screen and you are the flight controller. The film's progre
 ## Controls
 
 - **Flight path**: click or drag anywhere along it to seek. It is a Video.js `<media-time-slider>`, so it also works from the keyboard and with screen readers.
+- **Tracking camera**: point at the path, or drag along it, and a small camera feed rides above that spot: the frame there, the mission time and the event, with a stem down to an orange crosshair on the path. Frames come from a `kind="metadata" label="thumbnails"` track (a storyboard VTT, such as Mux's); without one the card still shows the time and the event. Event labels it would cover step back while it is up.
 - **Events**: one per cue in the media's `kind="chapters"` track. Choose one to jump there. When two events fall close together, the later label stands taller on a longer stem so the names never print over each other. Without a chapters track, the path is drawn on its own.
 - **Flight**: the play key. On wide players it is one pill that reads Launch, Hold, Resume or Relaunch, following the film. The craft's engine flares at ignition and glows brighter at higher speeds.
 - **Propulsion**: mute, volume and speed. Volume and speed are engine dials: the engine seen from behind, with a glow in its throat that grows from an ember to white-hot and a ring that shows the level. They turn like a knob: press anywhere on a dial and the bright grip on its ring goes to the pointer and follows it round. The minus and plus under each dial step it, the wheel steps it, and on touch a tap on the left or right half steps it. How they appear depends on the player's width:
@@ -19,7 +20,7 @@ The film is the main screen and you are the flight controller. The film's progre
 - **Status board** (900 px and wider): four lamps. Downlink reads the link rate while the film is still coming in (for example 42 Mb/s, from the playback engine's bandwidth estimate), Locked once everything to the end of the film is loaded, Hold with the rate while the film buffers, or Lost on an error. Where the engine gives no rate (the browser's own HLS) it reads Go. Audio and Captions read Go or Off. Flight reads Ready, Go, Hold or Complete. Green is used for the Go lamps only.
 - **Launch and holds**: while the film plays a booster flame burns behind the craft, longer at higher speeds. A launch from the start of the film also raises a cloud of smoke from the pad; anywhere else the takeoff has already happened, so there is only the booster. Flame and cloud are fluid simulations baked into looping sprites, blended frame to frame so they move smoothly (see `tools/plume`). While the film buffers the engine idles (on the pad it vents white vapour), the main screen dims, and the console stays up. Narrower players show a "Hold · buffering" line, with the link rate, in place of the board. A launch keeps the console up until the smoke has cleared and the booster has burned on its own for two seconds.
 - **Pause**: a pause is a hold called from the console. The flame pulls back into the nozzle, the main screen dims a little, and what was running waits in one slow rhythm: a beacon from the craft, the stopped clock, and a ring around the Resume key.
-- **Credits and the end of the film**: as soon as the last event (the credits) begins, a light runs up the flown path and each event answers as it passes, while the craft flies the rest of the path. Then the engine cuts off and the craft goes into a parking orbit past the end of the path. The whole orbit shows at once as a faint closed course round a small body, and the craft, at full size, lights it on its first lap. It circles for as long as the credits roll (a pause holds it in place) and after the film ends, until you relaunch or move the playhead back. The console stays up through the credits so the orbit can be seen, and the readout top right reads "Credits · Parking orbit", then "Flight complete · Parking orbit". An event label in the orbit's way steps aside and returns on hover or focus.
+- **Credits and the end of the film**: as soon as the last event (the credits) begins, a light runs up the flown path and each event answers as it passes, while the craft flies the rest of the path. Then the engine cuts off and the craft goes into a parking orbit past the end of the path. The whole orbit shows at once as a faint closed course round a small body, and the craft, at full size, lights it on its first lap. It circles for as long as the credits roll (a pause holds it in place) and after the film ends, until you relaunch or move the playhead back. The console stays up through the credits so the orbit can be seen, and the readout top right reads "Credits · Parking orbit", then "Flight complete · Parking orbit". The flown events fold down to their nodes, with stems shortened to ticks, so the film's title card stays whole; hover or focus brings a label back. The last event keeps its label above the orbit when there is room under the header readouts.
 - **Captions** are drawn by the skin and rise with the console to sit above the event labels, so they never run through the path.
 - Every key has a hit area of at least 44 × 44 px, and the hit areas never overlap. With reduced motion set, the console appears and hides without the lift animation, and the glow, ignition, venting, beacon and arrival do not animate: a paused film shows a still console, and a finished one shows the orbit already drawn.
 
@@ -38,8 +39,15 @@ The film is the main screen and you are the flight controller. The film's progre
 | M | Mute |
 | C | Captions |
 | F | Fullscreen |
+| ? | Flight manual: this list, on a card in the player |
 
-On a focused slider, the arrow keys move that slider. Escape closes an open pop-up dial and puts focus back on its key.
+On a focused slider, the arrow keys move that slider. Escape closes an open pop-up dial and puts focus back on its key. The flight manual also opens from the "?" key on the desk (900 px and wider); it is a modal dialog, so focus moves to its Close button, stays inside it, and goes back where it was when it closes.
+
+## Accessibility
+
+- axe-core 4.10 (WCAG 2.0, 2.1 and 2.2 A and AA, plus best practice) reports no violations on the player, with the console up and with the flight manual open, at 1360 and 390 px wide. Colour contrast over moving video cannot be computed automatically; every label sits on a solid dark plate.
+- In forced colours (Windows high contrast) keys, plates, cards and dialogs get system-colour edges, active lamps light in the system highlight, and the flight path keeps its orange.
+- Every control is a labelled button or slider from Video.js or a native button; the flight path is a Video.js time slider, and status changes are announced by `<media-status-announcer>`.
 
 ## Use it
 
@@ -51,6 +59,7 @@ Put your media in place of the placeholder in `src/video/skin.html`, inside a Vi
   <mux-video playsinline preload="metadata" crossorigin="anonymous">
     <track kind="chapters" srclang="en" label="Events" src="chapters.vtt" default>
     <track kind="captions" srclang="en" label="English" src="captions.vtt" default>
+    <track kind="metadata" label="thumbnails" src="https://image.mux.com/YOUR_PLAYBACK_ID/storyboard.vtt" default>
   </mux-video>
 </video-player>
 ```

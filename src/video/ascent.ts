@@ -744,6 +744,7 @@ class AscentEventsElement extends PathElement {
     // In orbit the credits roll over the film's title card, so the flown events fold down to their nodes and stems
     // (a plate comes back on hover or focus). The last event keeps its label, on a stem tall enough to clear the orbit.
     this.toggleAttribute('data-orbit', orbiting);
+    if (!box) this.#buttons.at(-1)?.classList.remove('lifted');
     const last = this.#buttons.length - 1;
     // Whether the last label found room above the orbit, under the header readouts.
     let lifted = false;
@@ -761,6 +762,7 @@ class AscentEventsElement extends PathElement {
         }
         const need = Math.max(0, Math.ceil(bottom - (box.top - 10)));
         lifted = top - need >= ceiling;
+        button.classList.toggle('lifted', lifted);
         const next = lifted ? need : 0;
         if (Math.abs(next - rise) > 0.5) button.style.setProperty('--rise', `${next}px`);
       }
@@ -1446,7 +1448,8 @@ class AscentNextElement extends UIElement {
     const time = this.#time.value;
     const duration = time && Number.isFinite(time.duration) && time.duration > 0 ? time.duration : chapters[chapters.length - 1].endTime;
     const next = this.#next;
-    this.#count.textContent = `T− ${clock((next ? next.startTime : duration) - (time?.currentTime ?? 0), Math.ceil)}`;
+    // Whole seconds on both sides, so the countdown and the clock always add up to the event (or the film's length).
+    this.#count.textContent = `T− ${clock(Math.floor((next ? next.startTime : duration) + 1e-3) - Math.floor((time?.currentTime ?? 0) + 1e-3))}`;
     const name = next ? next.text : 'End of film';
     if (this.#name.textContent !== name) {
       this.#name.textContent = name;
@@ -1487,7 +1490,9 @@ class AscentClockElement extends UIElement {
     const duration = time && Number.isFinite(time.duration) ? time.duration : 0;
     const current = time?.currentTime ?? 0;
     const remaining = this.#remaining;
-    this.#digits.textContent = remaining ? `−${clock(duration - current, Math.ceil)}` : clock(Math.min(current, duration));
+    this.#digits.textContent = remaining
+      ? `−${clock(Math.floor(duration + 1e-3) - Math.floor(Math.min(current, duration) + 1e-3))}`
+      : clock(Math.min(current, duration));
     this.#label.textContent = remaining ? `T− remaining · of ${clock(duration)}` : `T+ elapsed · of ${clock(duration)}`;
     this.#button.setAttribute(
       'aria-label',
@@ -1868,7 +1873,11 @@ class AscentFeedElement extends PathElement {
       duration > 0 &&
       Number.isFinite(percent);
     this.toggleAttribute('data-on', on);
-    if (!on) return;
+    const labels = this.root?.querySelectorAll<HTMLElement>('.asc-ev') ?? [];
+    if (!on) {
+      labels.forEach((label) => label.classList.remove('under-feed'));
+      return;
+    }
 
     const f = Math.min(1, Math.max(0, percent / 100));
     const g = geometry(W, H, lift);
@@ -1879,7 +1888,7 @@ class AscentFeedElement extends PathElement {
     const oy = slider.offsetTop;
     const cw = card.offsetWidth;
     const ch = card.offsetHeight;
-    const edge = Math.max(10, W * 0.012);
+    const edge = W * 0.043;
     const cx = Math.min(W - edge - cw / 2, Math.max(edge + cw / 2, x));
     const gap = 22 * Math.max(0.8, sizeFor(W));
     // Keep the card below the header readouts; the stem shortens instead.
@@ -1889,11 +1898,135 @@ class AscentFeedElement extends PathElement {
     this.style.setProperty('--pin-x', `${(x - ox).toFixed(1)}px`);
     this.style.setProperty('--pin-y', `${(y - oy).toFixed(1)}px`);
     this.style.setProperty('--stem', `${Math.max(0, y - (top + ch)).toFixed(1)}px`);
+    // An event label the card would cover in part steps back while the card is up, so no sliver pokes out of it.
+    const host = this.root!.getBoundingClientRect();
+    const left = cx - cw / 2 - 6;
+    const right = cx + cw / 2 + 6;
+    labels.forEach((label) => {
+      const r = label.querySelector('.plate')?.getBoundingClientRect();
+      const under =
+        !!r &&
+        r.width > 0 &&
+        r.right - host.left > left &&
+        r.left - host.left < right &&
+        r.bottom - host.top > top - 6 &&
+        r.top - host.top < top + ch + 6;
+      label.classList.toggle('under-feed', under);
+    });
 
     const time = f * duration;
     const chapters = this.chapters;
     if (this.#time) this.#time.textContent = `T+ ${clock(time)}`;
     if (this.#event) this.#event.textContent = chapters.length ? chapters[chapterAt(chapters, time)].text : '';
+  }
+}
+
+const MANUAL: readonly (readonly [string[], string])[] = [
+  [['Space', 'K'], 'Launch or hold'],
+  [['←', '→'], 'Back or on 5 seconds'],
+  [['PgUp', 'PgDn'], 'A tenth of the film'],
+  [['Home', 'End'], 'Start or end'],
+  [['1–9'], 'Fly to that event'],
+  [['N'], 'Next event'],
+  [['↑', '↓'], 'Volume'],
+  [['M'], 'Mute'],
+  [['<', '>'], 'Speed'],
+  [['C'], 'Captions'],
+  [['F'], 'Full screen'],
+  [['?'], 'This card'],
+];
+
+/**
+ * <ascent-manual>: the flight manual, a card of the keyboard shortcuts. "?" opens and closes it, as does the "?" key
+ * on the desk; Escape closes it. It is a modal dialog: focus moves to its close button, Tab stays inside, and focus
+ * returns to where it was.
+ */
+class AscentManualElement extends UIElement {
+  #abort: AbortController | null = null;
+  #card?: HTMLElement;
+  #close?: HTMLButtonElement;
+  #back: HTMLElement | null = null;
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.#card) this.#build();
+    this.#abort?.abort();
+    this.#abort = new AbortController();
+    const { signal } = this.#abort;
+    const root = skinRoot(this);
+    root?.addEventListener(
+      'keydown',
+      (event) => {
+        if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+        if ((event.target as Element).closest('input, textarea, select, [contenteditable]')) return;
+        if (event.key === '?') {
+          event.preventDefault();
+          this.toggle();
+        } else if (event.key === 'Escape' && this.open) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.toggle(false);
+        }
+      },
+      { signal, capture: true }
+    );
+    root?.addEventListener(
+      'click',
+      (event) => {
+        if ((event.target as Element).closest('[data-asc-manual]')) this.toggle();
+      },
+      { signal }
+    );
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.#abort?.abort();
+    this.#abort = null;
+  }
+
+  get open() {
+    return this.hasAttribute('data-open');
+  }
+
+  toggle(force?: boolean) {
+    const open = force ?? !this.open;
+    if (open === this.open) return;
+    const root = skinRoot(this);
+    this.toggleAttribute('data-open', open);
+    root?.querySelectorAll('[data-asc-manual]').forEach((key) => key.setAttribute('aria-expanded', String(open)));
+    if (open) {
+      this.#back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      liftFor(this)?.wake();
+      this.#close?.focus();
+    } else {
+      const back = this.#back && this.#back.isConnected ? this.#back : root;
+      back?.focus({ preventScroll: true });
+      this.#back = null;
+    }
+  }
+
+  #build() {
+    const title = nextId('asc-manual');
+    this.innerHTML = `<div class="asc-dialog-backdrop asc-manual-backdrop"></div>
+<div class="asc-dialog asc-manual" role="dialog" aria-modal="true" aria-labelledby="${title}">
+<span class="lab asc-dialog-kicker" aria-hidden="true">Flight manual</span>
+<h2 class="lab asc-dialog-title" id="${title}">Keyboard</h2>
+<dl class="asc-manual-list">${MANUAL.map(
+      ([keys, what]) => `<div><dt>${keys.map((k) => `<kbd>${k}</kbd>`).join('')}</dt><dd>${what}</dd></div>`
+    ).join('')}</dl>
+<button type="button" class="asc-dialog-close">Close <kbd>Esc</kbd></button>
+</div>`;
+    this.#card = this.querySelector<HTMLElement>('.asc-manual')!;
+    this.#close = this.querySelector<HTMLButtonElement>('.asc-dialog-close')!;
+    this.#close.addEventListener('click', () => this.toggle(false));
+    this.querySelector('.asc-manual-backdrop')!.addEventListener('click', () => this.toggle(false));
+    // The close button is the card's only stop, so Tab stays on it.
+    this.#card.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      this.#close?.focus();
+    });
   }
 }
 
@@ -1910,6 +2043,7 @@ for (const [name, element] of [
   ['ascent-clock', AscentClockElement],
   ['ascent-captions', AscentCaptionsElement],
   ['ascent-keys', AscentKeysElement],
+  ['ascent-manual', AscentManualElement],
   ['ascent-lift', AscentLiftElement],
 ] as const) {
   if (!customElements.get(name)) customElements.define(name, element);

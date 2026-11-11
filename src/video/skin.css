@@ -64,7 +64,7 @@
   outline-offset: 3px;
 }
 
-.asc button {
+:where(.asc) button {
   margin: 0;
   padding: 0;
   border: 0;
@@ -459,16 +459,24 @@
   background: linear-gradient(rgba(244, 241, 234, 0.75), rgba(244, 241, 234, 0.3));
 }
 
+/* Where a press would land: an orange crosshair ring, unlike the event nodes. */
 .asc-feed-pin {
   position: absolute;
   top: var(--pin-y, 0);
   left: var(--pin-x, 0);
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
-  border: 1.5px solid var(--ink);
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 1.5px solid var(--burn);
   border-radius: 50%;
-  background: rgba(5, 7, 11, 0.6);
+  background:
+    linear-gradient(var(--burn), var(--burn)) 50% 0 / 1.5px 4px,
+    linear-gradient(var(--burn), var(--burn)) 50% 100% / 1.5px 4px,
+    linear-gradient(var(--burn), var(--burn)) 0 50% / 4px 1.5px,
+    linear-gradient(var(--burn), var(--burn)) 100% 50% / 4px 1.5px,
+    rgba(5, 7, 11, 0.55);
+  background-repeat: no-repeat;
+  box-shadow: 0 0 8px rgba(255, 91, 31, 0.6);
 }
 
 .asc-svg {
@@ -545,6 +553,23 @@
 
 .asc-events[data-orbit] .asc-ev:not(:last-child, :hover, :focus-visible) .plate {
   opacity: 0;
+}
+
+/* Their stems shorten to ticks on the path, so they do not read as labels gone missing. */
+.asc-events[data-orbit] .asc-ev:not(:last-child, :hover, :focus-visible)::after {
+  background: linear-gradient(transparent calc(100% - 0.9cqw), var(--ink) 0);
+}
+
+/* The last label, lifted over the orbit, keeps only a short tick under its plate, so no line runs through the
+   orbit or the craft. */
+.asc-ev.lifted::after {
+  background: linear-gradient(var(--ink) 0.7cqw, transparent 0);
+}
+
+/* A label the tracking camera covers in part steps back while the card is up. */
+.asc-ev.under-feed {
+  opacity: 0;
+  transition-duration: 0.12s;
 }
 
 /* Out of the way of the parking orbit at the end of the film (set by <ascent-events>). */
@@ -1930,6 +1955,161 @@ ascent-flight:is([data-burn], [data-cut]) .asc-booster i {
   border-color: rgba(244, 241, 234, 0.42);
 }
 
+/* ---------- the flight manual: keyboard shortcuts, opened with "?" ---------- */
+ascent-manual {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: block;
+}
+
+ascent-manual:not([data-open]) {
+  display: none;
+}
+
+ascent-manual[data-open] .asc-dialog-backdrop {
+  display: block;
+}
+
+ascent-manual[data-open] .asc-dialog {
+  display: flex;
+  width: min(540px, 88cqw);
+  max-height: 92cqh;
+  overflow: auto;
+  animation: asc-manual-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes asc-manual-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px)) scale(0.98);
+  }
+}
+
+.asc-manual h2 {
+  margin: 0;
+}
+
+.asc-manual-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 22px;
+  margin: 4px 0 0;
+}
+
+.asc-manual-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(244, 241, 234, 0.08);
+}
+
+.asc-manual-list dt {
+  display: flex;
+  gap: 4px;
+  order: 2;
+}
+
+.asc-manual-list dd {
+  margin: 0;
+  font: 300 13px / 1.3 var(--text);
+  opacity: 0.88;
+}
+
+.asc-manual kbd {
+  min-width: 22px;
+  padding: 2px 6px;
+  border: 1px solid rgba(244, 241, 234, 0.2);
+  border-radius: 5px;
+  background: rgba(244, 241, 234, 0.07);
+  font: 400 11.5px / 1.3 var(--mono);
+  text-align: center;
+}
+
+.asc-manual .asc-dialog-close kbd {
+  margin-left: 6px;
+  font-size: 10.5px;
+}
+
+/* The desk key that opens it. */
+.asc-b.man b {
+  font: 600 clamp(15px, 1.3cqw, 24px) / 1 var(--wide);
+  opacity: 0.8;
+}
+
+.asc-b.man[aria-expanded='true'] b {
+  color: var(--burn);
+  opacity: 1;
+}
+
+@container (max-width: 899.9px) {
+  .asc-b.man {
+    display: none;
+  }
+}
+
+@container (max-width: 520px) {
+  ascent-manual[data-open] .asc-dialog {
+    gap: 4px;
+  }
+
+  .asc-manual-list {
+    gap: 0 12px;
+    margin: 0;
+  }
+
+  .asc-manual-list div {
+    gap: 6px;
+    padding: 2px 0;
+  }
+
+  .asc-manual-list dd {
+    font-size: 10.5px;
+  }
+
+  .asc-manual kbd {
+    min-width: 16px;
+    padding: 1px 4px;
+    font-size: 9.5px;
+  }
+}
+
+/* High-contrast (forced colours): the system palette takes over plates, cards and keys; give them edges, and keep
+   the lamps and the path's own colour so state still reads. */
+@media (forced-colors: active) {
+  .asc-b,
+  .asc-ev .plate,
+  .asc-feed-card,
+  .asc-dialog,
+  .asc-board > * {
+    border: 1px solid CanvasText;
+  }
+
+  .asc-b:is([data-muted], [data-active], [data-fullscreen], [aria-expanded='true']) > i {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+
+  .asc-ev::after,
+  .asc-feed-stem {
+    background: CanvasText;
+  }
+
+  .asc-feed-pin {
+    forced-color-adjust: none;
+  }
+
+  .asc-shade {
+    display: none;
+  }
+
+  .asc :focus-visible {
+    outline-color: Highlight;
+  }
+}
+
 /* ---------- sizes ---------- */
 
 @container (max-width: 899.9px) {
@@ -2073,6 +2253,10 @@ ascent-flight:is([data-burn], [data-cut]) .asc-booster i {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  ascent-manual[data-open] .asc-dialog {
+    animation: none;
+  }
+
   .asc-feed-card {
     transition: none;
   }
