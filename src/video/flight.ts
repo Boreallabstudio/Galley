@@ -32,7 +32,7 @@ export function geometry(width: number, height: number, lift: number): Geometry 
   const x1 = width - width * 0.043 * lift;
   const clear = deskHeight(width, height) + (small ? 14 : Math.max(20, height * 0.045));
   // Under 520 px the arc is flatter, so it stays under the middle of the frame, where titles sit.
-  const climb = width < 520 ? 0.09 : small ? 0.15 : 0.21;
+  const climb = width < 520 ? 0.075 : small ? 0.15 : 0.21;
   return { x0, x1, y0: height - 3 - clear * lift, rise: height * climb * lift };
 }
 

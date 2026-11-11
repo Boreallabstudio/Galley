@@ -277,7 +277,7 @@
 
 @container (max-width: 519.9px) {
   .asc-seek {
-    height: calc(9cqh + 73px + var(--asc-seek-pad));
+    height: calc(7.5cqh + 73px + var(--asc-seek-pad));
   }
 }
 
@@ -2123,6 +2123,12 @@ ascent-manual[data-open] .asc-dialog {
 
   .asc-row {
     background: Canvas;
+  }
+
+  /* System backplates are taller than the text; lift the header lines clear of the film's top edge. */
+  .asc-title,
+  .asc-now {
+    top: 3.2cqw;
   }
 
   /* The engine dials draw their own state in colour; keep the drawing, let the readouts follow the system. */
