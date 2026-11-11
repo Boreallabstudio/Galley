@@ -789,9 +789,20 @@
 
   .asc-mod.clk {
     margin-left: auto;
-    padding-top: 0;
+    padding-right: 0;
     border-right: 0;
-    border-left: 1px solid rgba(244, 241, 234, 0.17);
+  }
+
+  /* The clock's heading sits where every other module's heading sits, in the same face and size. */
+  .asc-mod.clk .asc-clock span {
+    position: absolute;
+    top: calc(var(--desk) * 0.115);
+    right: 0;
+    font: 400 clamp(8px, 0.76cqw, 14px) var(--mono);
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: 0.62;
   }
 
   .asc-mh {
@@ -935,12 +946,10 @@
     transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* The play key: one ink pill that reads Launch, Hold, Resume or Relaunch on wide players. */
+/* The play key: the cream key that reads Launch, Hold, Resume or Relaunch on wide players. Same height and corners as
+   every other key on the desk, so the row reads as one set. */
 .asc-b.play {
-  width: clamp(46px, 4.1cqw, 80px);
-  height: clamp(46px, 4.1cqw, 80px);
   border-color: transparent;
-  border-radius: 99px;
   background: linear-gradient(#fffdf8, #e9e4d9);
   box-shadow:
     inset 0 1px 0 #fff,
@@ -1175,9 +1184,9 @@
 }
 
 .asc-b.rate {
-  width: auto;
-  padding: 0 13px;
-  font: 400 13px var(--mono);
+  padding: 0;
+  font: 400 12px var(--mono);
+  letter-spacing: -0.02em;
 }
 
 .asc-b.rate ascent-rate {
@@ -2194,20 +2203,16 @@ ascent-manual[data-open] .asc-dialog {
     display: none;
   }
 
-  .asc-b {
-    width: 36px;
-    height: 36px;
-  }
-
+  /* One key size on small players, the play key included. */
+  .asc-b,
   .asc-b.play {
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
   }
 
   .asc-b.rate {
-    width: auto;
-    padding: 0 9px;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .asc-clock b {
@@ -2222,11 +2227,6 @@ ascent-manual[data-open] .asc-dialog {
 }
 
 @container (max-width: 420px) {
-  .asc-b.play {
-    width: 40px;
-    height: 40px;
-  }
-
   .asc-clock b {
     font-size: 22px;
   }

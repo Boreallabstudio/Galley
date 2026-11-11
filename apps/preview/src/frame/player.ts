@@ -5,7 +5,7 @@ import skinTemplate from '@/video/skin.html?raw';
 
 // What the preview plays: Charge by Blender Studio (CC BY 4.0), shortened to its approach, surge and walk home, streamed from Mux by its public
 // playback ID. Chapters and captions are ordinary WebVTT tracks served with the workbench.
-const MUX_PLAYBACK_ID = 'kTBu01nh00xnHk00v6o7s900vpfxFKeM028Be6dOeph2rS0000';
+const MUX_PLAYBACK_ID = 'fZuQ9BawOvTRDOFxR8TMqJI67ur5fL8Q202NSYPNy9400';
 const TITLE = 'Charge';
 const BYLINE = 'Blender Studio · 2022';
 
