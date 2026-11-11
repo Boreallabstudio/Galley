@@ -23,6 +23,7 @@ import '@videojs/html/ui/fullscreen-button';
 import '@videojs/html/ui/time-slider';
 import '@videojs/html/ui/time-slider-chapter-title';
 import '@videojs/html/ui/slider-thumb';
+import '@videojs/html/ui/slider-thumbnail';
 import '@videojs/html/ui/hotkey';
 import '@videojs/html/ui/status-announcer';
 import './ascent';

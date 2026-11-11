@@ -105,7 +105,7 @@ abstract class PathElement extends UIElement {
     const unsubscribe = this.lift.subscribe(() => this.schedule());
     // The time slider writes its fill and pointer as CSS variables on itself; follow them for a smooth drag.
     const watch = new MutationObserver(() => this.schedule());
-    if (this.slider) watch.observe(this.slider, { attributes: true, attributeFilter: ['style', 'data-dragging'] });
+    if (this.slider) watch.observe(this.slider, { attributes: true, attributeFilter: ['style', 'data-dragging', 'data-pointing'] });
     signal.addEventListener('abort', () => {
       resize.disconnect();
       watch.disconnect();
@@ -738,14 +738,37 @@ class AscentEventsElement extends PathElement {
     this.#stagger();
     // At the end of the film the craft takes up a parking orbit past the last event. A label or stem in its way
     // steps aside; it comes back on hover and focus.
-    const box = inOrbit(chapters, currentTime, Boolean(this.#playback.value?.ended))
-      ? orbitBox(g, this.width, this.lift?.value ?? 1)
-      : null;
+    const orbiting = inOrbit(chapters, currentTime, Boolean(this.#playback.value?.ended));
+    const box = orbiting ? orbitBox(g, this.width, this.lift?.value ?? 1) : null;
     const host = box ? (this.root ?? this).getBoundingClientRect() : null;
+    // In orbit the credits roll over the film's title card, so the flown events fold down to their nodes and stems
+    // (a plate comes back on hover or focus). The last event keeps its label, on a stem tall enough to clear the orbit.
+    this.toggleAttribute('data-orbit', orbiting);
+    const last = this.#buttons.length - 1;
+    // Whether the last label found room above the orbit, under the header readouts.
+    let lifted = false;
+    if (box && host && last >= 0) {
+      const button = this.#buttons[last];
+      const r = button.querySelector('.plate')?.getBoundingClientRect();
+      if (r && r.width) {
+        const rise = parseFloat(button.style.getPropertyValue('--rise')) || 0;
+        const top = r.top + rise - host.top;
+        const bottom = r.bottom + rise - host.top;
+        let ceiling = 0;
+        for (const head of (this.root ?? this).querySelectorAll('.asc-title, .asc-now, .asc-board')) {
+          const h = head.getBoundingClientRect();
+          if (h.width && h.right > r.left && h.left < r.right) ceiling = Math.max(ceiling, h.bottom - host.top + 8);
+        }
+        const need = Math.max(0, Math.ceil(bottom - (box.top - 10)));
+        lifted = top - need >= ceiling;
+        const next = lifted ? need : 0;
+        if (Math.abs(next - rise) > 0.5) button.style.setProperty('--rise', `${next}px`);
+      }
+    }
     chapters.forEach((chapter, i) => {
       const button = this.#buttons[i];
       let blocked = false;
-      if (box && host) {
+      if (box && host && !(i === last && lifted)) {
         const stem = pathX(g, Math.min(1, chapter.startTime / duration));
         blocked = stem > box.left && stem < box.right;
         for (const part of button.children) {
@@ -1423,7 +1446,7 @@ class AscentNextElement extends UIElement {
     const time = this.#time.value;
     const duration = time && Number.isFinite(time.duration) && time.duration > 0 ? time.duration : chapters[chapters.length - 1].endTime;
     const next = this.#next;
-    this.#count.textContent = `T− ${clock((next ? next.startTime : duration) - (time?.currentTime ?? 0))}`;
+    this.#count.textContent = `T− ${clock((next ? next.startTime : duration) - (time?.currentTime ?? 0), Math.ceil)}`;
     const name = next ? next.text : 'End of film';
     if (this.#name.textContent !== name) {
       this.#name.textContent = name;
@@ -1464,7 +1487,7 @@ class AscentClockElement extends UIElement {
     const duration = time && Number.isFinite(time.duration) ? time.duration : 0;
     const current = time?.currentTime ?? 0;
     const remaining = this.#remaining;
-    this.#digits.textContent = remaining ? `−${clock(duration - current)}` : clock(current);
+    this.#digits.textContent = remaining ? `−${clock(duration - current, Math.ceil)}` : clock(Math.min(current, duration));
     this.#label.textContent = remaining ? `T− remaining · of ${clock(duration)}` : `T+ elapsed · of ${clock(duration)}`;
     this.#button.setAttribute(
       'aria-label',
@@ -1811,9 +1834,73 @@ class AscentLiftElement extends UIElement {
   }
 }
 
+/**
+ * <ascent-feed>: the tracking camera. While the pointer is over the flight path, or the path is dragged, a small
+ * camera feed rides above the spot on the path that a press would seek to: the frame there (from the media's
+ * `thumbnails` metadata track), the mission time and the event it falls in, with a stem down to a ring on the path.
+ * It lives inside the time slider so its `<media-slider-thumbnail>` follows the slider's pointer. Without a
+ * thumbnails track the feed still shows the time and the event.
+ */
+class AscentFeedElement extends PathElement {
+  #card: HTMLElement | null = null;
+  #time: HTMLElement | null = null;
+  #event: HTMLElement | null = null;
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.setAttribute('aria-hidden', 'true');
+    this.#card = this.querySelector('.asc-feed-card');
+    this.#time = this.querySelector('.asc-feed-t');
+    this.#event = this.querySelector('.asc-feed-ev');
+  }
+
+  protected draw() {
+    const slider = this.slider;
+    const card = this.#card;
+    if (!slider || !card) return;
+    const { width: W, height: H } = this;
+    const lift = this.lift?.value ?? 1;
+    const duration = this.duration;
+    const percent = parseFloat(slider.style.getPropertyValue('--media-slider-pointer'));
+    const on =
+      (slider.hasAttribute('data-pointing') || slider.hasAttribute('data-dragging')) &&
+      lift > 0.6 &&
+      duration > 0 &&
+      Number.isFinite(percent);
+    this.toggleAttribute('data-on', on);
+    if (!on) return;
+
+    const f = Math.min(1, Math.max(0, percent / 100));
+    const g = geometry(W, H, lift);
+    const x = pathX(g, f);
+    const y = pathY(g, f);
+    // The slider is positioned inside the skin root; this layer fills the slider.
+    const ox = slider.offsetLeft;
+    const oy = slider.offsetTop;
+    const cw = card.offsetWidth;
+    const ch = card.offsetHeight;
+    const edge = Math.max(10, W * 0.012);
+    const cx = Math.min(W - edge - cw / 2, Math.max(edge + cw / 2, x));
+    const gap = 22 * Math.max(0.8, sizeFor(W));
+    // Keep the card below the header readouts; the stem shortens instead.
+    const top = Math.max(W * 0.042 + 46, y - gap - ch);
+    this.style.setProperty('--feed-x', `${(cx - ox).toFixed(1)}px`);
+    this.style.setProperty('--feed-top', `${(top - oy).toFixed(1)}px`);
+    this.style.setProperty('--pin-x', `${(x - ox).toFixed(1)}px`);
+    this.style.setProperty('--pin-y', `${(y - oy).toFixed(1)}px`);
+    this.style.setProperty('--stem', `${Math.max(0, y - (top + ch)).toFixed(1)}px`);
+
+    const time = f * duration;
+    const chapters = this.chapters;
+    if (this.#time) this.#time.textContent = `T+ ${clock(time)}`;
+    if (this.#event) this.#event.textContent = chapters.length ? chapters[chapterAt(chapters, time)].text : '';
+  }
+}
+
 for (const [name, element] of [
   ['ascent-flight', AscentFlightElement],
   ['ascent-events', AscentEventsElement],
+  ['ascent-feed', AscentFeedElement],
   ['ascent-now', AscentNowElement],
   ['ascent-engine', AscentEngineElement],
   ['ascent-play-label', AscentPlayLabelElement],

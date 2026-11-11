@@ -48,9 +48,12 @@ export function pathData(g: Geometry, a: number, b: number): string {
   return d;
 }
 
-/** Mission-clock time: minutes and seconds, both two digits. */
-export function clock(seconds: number): string {
-  const s = Math.max(0, Math.round(seconds));
+/**
+ * Mission-clock time: minutes and seconds, both two digits. Whole seconds count down (`floor`), as a clock does, so
+ * the time elapsed never reads past the film's length; a countdown passes `ceil`, so it reaches zero on the mark.
+ */
+export function clock(seconds: number, round: (x: number) => number = Math.floor): string {
+  const s = Math.max(0, round(seconds + (round === Math.floor ? 1e-3 : -1e-3)));
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 

@@ -309,6 +309,168 @@
   r: 22;
 }
 
+/*
+ * The tracking camera (<ascent-feed>): while the path is pointed at or dragged, a small feed rides above the spot a
+ * press would seek to, with a stem down to a ring on the path. Positions come from the element as custom properties.
+ */
+.asc-feed {
+  --fw: clamp(148px, 14cqw, 252px);
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+}
+
+.asc-feed[data-on] {
+  opacity: 1;
+  transition-duration: 0.18s;
+}
+
+.asc-feed-card {
+  position: absolute;
+  top: var(--feed-top, 0);
+  left: var(--feed-x, 0);
+  display: flex;
+  flex-direction: column;
+  width: var(--fw);
+  padding: 3px;
+  border: 1px solid rgba(244, 241, 234, 0.22);
+  border-radius: 7px;
+  background: rgba(5, 7, 11, 0.9);
+  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.9);
+  transform: translateX(-50%) translateY(6px) scale(0.96);
+  transform-origin: 50% 100%;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.asc-feed[data-on] .asc-feed-card {
+  transform: translateX(-50%);
+}
+
+.asc-feed-cam {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #000;
+}
+
+.asc-feed-cam:has(.asc-feed-img[data-hidden]),
+.asc-feed-cam:has(.asc-feed-img[data-error]) {
+  display: none;
+}
+
+.asc-feed-img {
+  display: block;
+  min-width: calc(var(--fw) - 8px);
+  max-width: calc(var(--fw) - 8px);
+}
+
+.asc-feed-img[data-loading] {
+  width: calc(var(--fw) - 8px);
+  aspect-ratio: 2.39 / 1;
+}
+
+/* Viewfinder corners over the frame. */
+.asc-feed-cam::after {
+  --c: rgba(244, 241, 234, 0.9);
+  --l: clamp(7px, 0.7cqw, 12px);
+  content: '';
+  position: absolute;
+  inset: clamp(5px, 0.45cqw, 8px);
+  background:
+    linear-gradient(var(--c), var(--c)) 0 0 / var(--l) 1.5px,
+    linear-gradient(var(--c), var(--c)) 0 0 / 1.5px var(--l),
+    linear-gradient(var(--c), var(--c)) 100% 0 / var(--l) 1.5px,
+    linear-gradient(var(--c), var(--c)) 100% 0 / 1.5px var(--l),
+    linear-gradient(var(--c), var(--c)) 0 100% / var(--l) 1.5px,
+    linear-gradient(var(--c), var(--c)) 0 100% / 1.5px var(--l),
+    linear-gradient(var(--c), var(--c)) 100% 100% / var(--l) 1.5px,
+    linear-gradient(var(--c), var(--c)) 100% 100% / 1.5px var(--l);
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.asc-feed-cam i {
+  position: absolute;
+  top: clamp(7px, 0.62cqw, 11px);
+  left: clamp(9px, 0.8cqw, 14px);
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  font-size: clamp(8px, 0.6cqw, 11px);
+  font-style: normal;
+}
+
+.asc-feed-cam i::before {
+  content: '';
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  background: var(--burn);
+  box-shadow: 0 0 6px var(--burn);
+  animation: asc-feed-live 1.6s ease-in-out infinite;
+}
+
+/* On small players the frame is too short to carry words; the live dot stays. */
+@container (max-width: 519.9px) {
+  .asc-feed-cam i {
+    font-size: 0;
+  }
+
+  .asc-feed-cam i::before {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+@keyframes asc-feed-live {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.asc-feed-read {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 6px 3px;
+  font-size: clamp(9px, 0.74cqw, 14px);
+  white-space: nowrap;
+}
+
+.asc-feed-ev {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.82;
+}
+
+.asc-feed-stem {
+  position: absolute;
+  top: calc(var(--pin-y, 0) - var(--stem, 0px));
+  left: var(--pin-x, 0);
+  width: 1px;
+  height: var(--stem, 0);
+  margin-left: -0.5px;
+  background: linear-gradient(rgba(244, 241, 234, 0.75), rgba(244, 241, 234, 0.3));
+}
+
+.asc-feed-pin {
+  position: absolute;
+  top: var(--pin-y, 0);
+  left: var(--pin-x, 0);
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: rgba(5, 7, 11, 0.6);
+}
+
 .asc-svg {
   position: absolute;
   inset: 0;
@@ -345,12 +507,12 @@
 /* Events still ahead are quieter than those flown, but only their words and stems: the plates stay solid. */
 .asc-ev b,
 .asc-ev::after {
-  opacity: 0.72;
+  opacity: 0.84;
   transition: opacity 0.3s ease;
 }
 
 .asc-ev i {
-  opacity: 0.62;
+  opacity: 0.74;
   transition: opacity 0.3s ease;
 }
 
@@ -373,6 +535,16 @@
 .asc-ev.first {
   align-items: flex-start;
   transform: translate(0, -100%);
+}
+
+/* In parking orbit the flown events fold down to node and stem, so the title card stays whole; hover or focus
+   brings a plate back. The last event keeps its label (set by <ascent-events>). */
+.asc-ev .plate {
+  transition: opacity 0.3s ease;
+}
+
+.asc-events[data-orbit] .asc-ev:not(:last-child, :hover, :focus-visible) .plate {
+  opacity: 0;
 }
 
 /* Out of the way of the parking orbit at the end of the film (set by <ascent-events>). */
@@ -1901,6 +2073,14 @@ ascent-flight:is([data-burn], [data-cut]) .asc-booster i {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .asc-feed-card {
+    transition: none;
+  }
+
+  .asc-feed-cam i::before {
+    animation: none;
+  }
+
   .asc * {
     transition: none !important;
     animation: none !important;
