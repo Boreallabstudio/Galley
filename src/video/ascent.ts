@@ -644,6 +644,46 @@ class AscentEventsElement extends PathElement {
     });
   }
 
+  /** Two events close together in time would print their labels on top of each other. Left to right, a label that
+   *  runs into the one before it stands taller on a longer stem until it clears it. */
+  #stagger() {
+    const GAP = 10;
+    type Box = { left: number; right: number; top: number; bottom: number };
+    let prev: Box | null = null;
+    for (const button of this.#buttons) {
+      const rise = parseFloat(button.style.getPropertyValue('--rise')) || 0;
+      let box: Box | null = null;
+      for (const part of button.querySelectorAll('b, i')) {
+        const r = part.getBoundingClientRect();
+        if (!r.width) continue;
+        // Where the text would sit without any rise.
+        const top = r.top + rise;
+        const bottom = r.bottom + rise;
+        box = box
+          ? {
+              left: Math.min(box.left, r.left),
+              right: Math.max(box.right, r.right),
+              top: Math.min(box.top, top),
+              bottom: Math.max(box.bottom, bottom),
+            }
+          : { left: r.left, right: r.right, top, bottom };
+      }
+      let next = 0;
+      if (
+        box &&
+        prev &&
+        box.left < prev.right + GAP &&
+        box.right > prev.left - GAP &&
+        box.top < prev.bottom + GAP &&
+        box.bottom > prev.top - GAP
+      ) {
+        next = Math.ceil(box.bottom - prev.top + GAP);
+      }
+      if (Math.abs(next - rise) > 0.5) button.style.setProperty('--rise', `${next}px`);
+      if (box) prev = { ...box, top: box.top - next, bottom: box.bottom - next };
+    }
+  }
+
   protected draw() {
     const duration = this.duration;
     const chapters = duration > 0 ? this.chapters : [];
@@ -665,6 +705,7 @@ class AscentEventsElement extends PathElement {
       button.classList.toggle('past', f <= t + 1e-4);
       button.classList.toggle('cur', i === current);
     });
+    this.#stagger();
     // At the end of the film the craft takes up a parking orbit past the last event. A label or stem in its way
     // steps aside; it comes back on hover and focus.
     const box = inOrbit(chapters, currentTime, Boolean(this.#playback.value?.ended))

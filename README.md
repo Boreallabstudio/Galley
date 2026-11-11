@@ -7,7 +7,7 @@ The film is the main screen and you are the flight controller. The film's progre
 ## Controls
 
 - **Flight path**: click or drag anywhere along it to seek. It is a Video.js `<media-time-slider>`, so it also works from the keyboard and with screen readers.
-- **Events**: one per cue in the media's `kind="chapters"` track. Choose one to jump there. Without a chapters track, the path is drawn on its own.
+- **Events**: one per cue in the media's `kind="chapters"` track. Choose one to jump there. When two events fall close together, the later label stands taller on a longer stem so the names never print over each other. Without a chapters track, the path is drawn on its own.
 - **Flight**: the play key. On wide players it is one pill that reads Launch, Hold, Resume or Relaunch, following the film. The craft's engine flares at ignition and glows brighter at higher speeds.
 - **Propulsion**: mute, volume and speed. Volume and speed are engine dials: the engine seen from behind, with a glow in its throat that grows from an ember to white-hot and a ring that shows the level. They turn like a knob: press anywhere on a dial and the bright grip on its ring goes to the pointer and follows it round. The minus and plus under each dial step it, the wheel steps it, and on touch a tap on the left or right half steps it. How they appear depends on the player's width:
   - 900 px and wider: two dials on the desk, each with its reading beside it.

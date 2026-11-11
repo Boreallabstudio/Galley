@@ -389,15 +389,15 @@
 .asc-ev::after {
   content: '';
   width: 1.3px;
-  height: 2.4cqw;
+  height: calc(var(--stem, 2.4cqw) + var(--rise, 0px));
   margin-top: 0.35cqw;
   background: var(--ink);
 }
 
 /* 4:3 and taller (fullscreen on tablets and phones): the path climbs more steeply, so the first label stands higher. */
 @container (max-aspect-ratio: 3 / 2) {
-  .asc-ev.first::after {
-    height: 5.4cqw;
+  .asc-ev.first {
+    --stem: 5.4cqw;
   }
 }
 
@@ -1749,13 +1749,13 @@ ascent-flight:is([data-burn], [data-cut]) .asc-booster i {
     height: 16px;
   }
 
-  .asc-ev::after {
-    height: 10px;
+  .asc-ev {
+    --stem: 10px;
   }
 
   /* The first label starts at the left edge and runs under its neighbours; a longer stem lifts it clear of theirs. */
-  .asc-ev.first.cur::after {
-    height: 30px;
+  .asc-ev.first.cur {
+    --stem: 30px;
   }
 
   .asc-now span,
@@ -1845,12 +1845,12 @@ ascent-flight:is([data-burn], [data-cut]) .asc-booster i {
 /* Portrait (fullscreen on a phone held upright): the climb is steeper still, so every label stands higher. Stems
    follow the height here, because the climb does. */
 @container (max-aspect-ratio: 1 / 1) {
-  .asc-ev::after {
-    height: 6cqh;
+  .asc-ev {
+    --stem: 6cqh;
   }
 
-  .asc-ev.first::after {
-    height: 10cqh;
+  .asc-ev.first {
+    --stem: 10cqh;
   }
 }
 
