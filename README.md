@@ -87,6 +87,6 @@ The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `asc
 
 ## Credits
 
-Film: Charge by Blender Studio, CC BY 4.0, shortened to 35 seconds for this demo. (CC) Blender Foundation, studio.blender.org.
+Film: Charge by Blender Studio, CC BY 4.0, shortened to 34 seconds for this demo. (CC) Blender Foundation, studio.blender.org.
 
 Made by Boreal Lab Studio, Ontario, Canada. Licensed under the [Apache License 2.0](LICENSE).
