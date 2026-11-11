@@ -13,6 +13,7 @@ import {
 } from '@videojs/html';
 
 import {
+  type Geometry,
   clock,
   findMedia,
   geometry,
@@ -151,12 +152,15 @@ abstract class PathElement extends UIElement {
  * <ascent-flight>: the flight path. A dotted course still to fly, the buffered stretch ahead, the flown part in orange
  * with a glow, a dot for each chapter and the craft at the playhead. The craft's engine glow is an ember when paused
  * and grows with the playback rate. While the film plays a booster flame burns behind the craft (`data-burn`), longer
- * at higher rates, and it flares at ignition (`data-ignite` on the skin). A launch from the start of the film, or a
+ * at higher rates, it flares at ignition (`data-ignite` on the skin) and pulls back into the nozzle when the film is
+ * paused (`data-cut`), after which the craft holds with a slow beacon. A launch from the start of the film, or a
  * hold there, also raises a cloud from the pad (`data-pad`): the corner between the player's left edge and the desk.
  * Anywhere else on the path the takeoff has already happened, so there is the booster and nothing more. Flame and
  * cloud are baked fluid simulations played as sprites (`.asc-booster`, `.asc-liftoff`; see skin.css and tools/plume);
- * this element only keeps them in place. Purely visual (`aria-hidden`); the `<media-time-slider>` underneath it
- * carries the interaction, and its thumb is moved onto the craft here.
+ * this element only keeps them in place. When the film ends (`data-arrived`) a light runs up the flown path and the
+ * craft flies on into a parking orbit past the end of it, where it stays until the film is flown again. Purely
+ * visual (`aria-hidden`); the `<media-time-slider>` underneath it carries the interaction, and its thumb is kept on
+ * the path at the playhead here.
  */
 /** Booster sprite at full size, in CSS pixels, and its frame's height as a share of its width. */
 const BOOSTER_WIDTH = 190;
@@ -168,6 +172,106 @@ const LIFTOFF_RATIO = 294 / 400;
 const LIFTOFF_WALL = 62;
 /** The film counts as still on the pad for this many seconds. */
 const PAD_SECONDS = 1.2;
+/** How long the engine takes to cut off after a pause. Matches skin.css. */
+const CUTOFF_MS = 600;
+/**
+ * The end of the film. A light runs up the flown path and each event answers as it passes (`ARRIVAL_MS`), then the
+ * craft leaves the end of the path for a parking orbit around a small body: an ellipse with semi-axes `ORBIT_A` and
+ * `ORBIT_B` at full size, tilted so it reads as a circle seen at an angle, touching the path where the path ends.
+ * A lap takes `ORBIT_LAP_MS`; the craft eases up to that speed over `ORBIT_ENTRY_MS` and draws the orbit behind it
+ * on its first lap.
+ */
+const ARRIVAL_MS = 1000;
+const ORBIT_A = 42;
+const ORBIT_B = 19;
+const ORBIT_LAP_MS = 9000;
+const ORBIT_ENTRY_MS = 1800;
+/** The craft's size in orbit, as a share of its size on the path. */
+const ORBIT_CRAFT = 0.6;
+
+interface Orbit {
+  /** The parameter of the ellipse's lowest point: the craft joins the orbit there, flying level. */
+  join: number;
+  /** A point on the orbit, measured from the join, and the heading of a craft passing it. */
+  at(u: number): { x: number; y: number; heading: number };
+  /** The body the craft goes around, measured from the join. */
+  centre: { x: number; y: number };
+}
+
+/**
+ * The parking orbit that fits `room`: the space between the end of the path and the player's edge, in the orbit's
+ * own units. The flatter the ellipse lies the further it reaches past the end of the path, so a narrow player gets
+ * a steeper one.
+ */
+function parkingOrbit(room: number): Orbit {
+  let tilt = 18;
+  let cos = 1;
+  let sin = 0;
+  let join = 0;
+  for (; tilt <= 44; tilt += 2) {
+    cos = Math.cos((tilt * Math.PI) / 180);
+    sin = Math.sin((tilt * Math.PI) / 180);
+    join = Math.atan2(ORBIT_B * cos, ORBIT_A * sin);
+    const reach = Math.hypot(ORBIT_A * cos, ORBIT_B * sin) - (ORBIT_A * Math.cos(join) * cos - ORBIT_B * Math.sin(join) * sin);
+    if (reach + 17 * ORBIT_CRAFT + 3 <= room) break;
+  }
+  const x = (v: number) => ORBIT_A * Math.cos(v) * cos - ORBIT_B * Math.sin(v) * sin;
+  const y = (v: number) => ORBIT_A * Math.cos(v) * sin + ORBIT_B * Math.sin(v) * cos;
+  return {
+    join,
+    centre: { x: -x(join), y: -y(join) },
+    at: (u) => ({
+      x: x(u) - x(join),
+      y: y(u) - y(join),
+      heading: Math.atan2(
+        ORBIT_A * Math.sin(u) * sin - ORBIT_B * Math.cos(u) * cos,
+        ORBIT_A * Math.sin(u) * cos + ORBIT_B * Math.cos(u) * sin
+      ),
+    }),
+  };
+}
+
+/** Drawn sizes follow the player: smaller under 1100 px, larger on very big screens. */
+const sizeFor = (width: number) => Math.max(0.62, Math.min(1, width / 1100)) * Math.min(1.45, Math.max(1, width / 1600));
+/** How large the craft is drawn: its size for this player, shrinking as the HUD lowers. */
+const craftScale = (width: number, lift: number) => sizeFor(width) * (0.35 + 0.65 * lift);
+/** The path's heading at `t`, in radians. */
+const headingAt = (g: Geometry, t: number) =>
+  Math.atan2(
+    pathY(g, Math.min(1, t + 0.004)) - pathY(g, Math.max(0, t - 0.004)),
+    pathX(g, Math.min(1, t + 0.004)) - pathX(g, Math.max(0, t - 0.004))
+  );
+
+/** The parking orbit for a path, placed in the skin: the orbit, and how to turn its points into skin pixels. */
+function placedOrbit(g: Geometry, width: number, scale: number) {
+  const orbit = parkingOrbit((width - g.x1) / scale);
+  const turn = headingAt(g, 1);
+  const x0 = pathX(g, 1);
+  const y0 = pathY(g, 1);
+  const place = (p: { x: number; y: number }) => ({
+    x: x0 + scale * (p.x * Math.cos(turn) - p.y * Math.sin(turn)),
+    y: y0 + scale * (p.x * Math.sin(turn) + p.y * Math.cos(turn)),
+  });
+  return { orbit, turn, place };
+}
+
+/** The box the parking orbit takes up with the craft on it, in skin pixels. */
+function orbitBox(g: Geometry, width: number, lift: number) {
+  const scale = craftScale(width, lift);
+  const { orbit, place } = placedOrbit(g, width, scale);
+  const box = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+  for (let i = 0; i < 48; i++) {
+    const p = place(orbit.at((i / 48) * 2 * Math.PI));
+    box.left = Math.min(box.left, p.x);
+    box.right = Math.max(box.right, p.x);
+    box.top = Math.min(box.top, p.y);
+    box.bottom = Math.max(box.bottom, p.y);
+  }
+  const craft = 17 * ORBIT_CRAFT * 1.1 * scale + 3;
+  return { left: box.left - craft, top: box.top - craft, right: box.right + craft, bottom: box.bottom + craft };
+}
+
+const smooth = (x: number) => x * x * (3 - 2 * x);
 
 class AscentFlightElement extends PathElement {
   #buffer = new PlayerController(this, playerContext, selectBuffer);
@@ -187,6 +291,17 @@ class AscentFlightElement extends PathElement {
   #liftoff!: HTMLElement;
   #fxAt = '';
   #onPad = true;
+  #burning = false;
+  #cut = 0;
+  #sweep!: SVGPathElement;
+  #orbit!: SVGPathElement;
+  #orbitGlow!: SVGPathElement;
+  #body!: SVGGElement;
+  /** Where the craft sits on the path, as last drawn. */
+  #at: { g: Geometry; t: number; angle: number; scale: number; size: number; rate: number; marks: number[] } | null = null;
+  /** When the film ended (`performance.now()`), or 0 while it has not. */
+  #arrived = 0;
+  #lap = 0;
 
   connectedCallback() {
     if (!this.#svg) this.#build();
@@ -203,8 +318,12 @@ class AscentFlightElement extends PathElement {
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".5"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
+<path class="sweep" fill="none" stroke="#fff6ec" stroke-width="4" stroke-linecap="round"/>
+<path class="orbit-glow" fill="none" stroke="${BURN}" stroke-width="7" filter="url(#${glow})"/>
+<path class="orbit" fill="none" stroke="${BURN}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
 <g class="dots"></g>
-<g class="craft"><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
+<g class="orbit-body"><circle r="5.5" fill="${INK}"/></g>
+<g class="craft"><circle class="craft-beacon" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-beacon late" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
 </svg><div class="asc-booster"><b class="asc-fx"><i></i><i></i></b></div>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
@@ -219,6 +338,16 @@ class AscentFlightElement extends PathElement {
     this.#booster = q('.asc-booster');
     this.#liftoff = q('.asc-liftoff');
     this.#burn = q('.craft-glow');
+    this.#sweep = q('.sweep');
+    this.#orbit = q('.orbit');
+    this.#orbitGlow = q('.orbit-glow');
+    this.#body = q('.orbit-body');
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    cancelAnimationFrame(this.#lap);
+    this.#lap = 0;
   }
 
   protected draw() {
@@ -248,32 +377,150 @@ class AscentFlightElement extends PathElement {
     }
     this.#buffered.setAttribute('d', pathData(g, t, Math.max(t, ahead)));
 
-    const angle =
-      (Math.atan2(
-        pathY(g, Math.min(1, t + 0.004)) - pathY(g, Math.max(0, t - 0.004)),
-        pathX(g, Math.min(1, t + 0.004)) - pathX(g, Math.max(0, t - 0.004))
-      ) *
-        180) /
-      Math.PI;
-    // Drawn sizes follow the player: smaller under 1100 px, larger on very big screens.
-    const size = Math.max(0.62, Math.min(1, W / 1100)) * Math.min(1.45, Math.max(1, W / 1600));
+    const angle = (headingAt(g, t) * 180) / Math.PI;
+    const size = sizeFor(W);
     const big = Math.max(1, size);
     this.#done.setAttribute('stroke-width', (4 * big).toFixed(2));
     this.#glow.setAttribute('stroke-width', (10 * big).toFixed(2));
     this.#rest.setAttribute('stroke-width', (2 * big).toFixed(2));
     this.#buffered.setAttribute('stroke-width', (2 * big).toFixed(2));
     this.#under.setAttribute('stroke-width', (5 * big).toFixed(2));
-    const scale = size * (0.35 + 0.65 * lift);
-    const cx = pathX(g, t);
-    const cy = pathY(g, t);
-    this.#craft.setAttribute('transform', `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${scale.toFixed(3)})`);
+    const scale = craftScale(W, lift);
+    this.#sweep.setAttribute('stroke-width', (4 * big).toFixed(2));
+    this.#orbit.setAttribute('stroke-width', (2.4 * big).toFixed(2));
+    this.#orbitGlow.setAttribute('stroke-width', (7 * big).toFixed(2));
+    const burning = this.#playback.value ? !this.#playback.value.paused : false;
+    const rate = this.#rate.value?.playbackRate ?? 1;
+    const chapters = duration > 0 ? this.chapters : [];
+    const marks = chapters.map((chapter) => Math.min(1, chapter.startTime / duration));
+
+    // One dot per chapter.
+    while (this.#dots.children.length > chapters.length) this.#dots.lastChild!.remove();
+    while (this.#dots.children.length < chapters.length) {
+      const dot = document.createElementNS(SVG, 'circle');
+      dot.setAttribute('stroke-width', '2');
+      this.#dots.append(dot);
+    }
+    marks.forEach((f, i) => {
+      const past = f <= t + 1e-4;
+      const dot = this.#dots.children[i];
+      dot.setAttribute('cx', pathX(g, f).toFixed(1));
+      dot.setAttribute('cy', pathY(g, f).toFixed(1));
+      dot.setAttribute('r', (6 * Math.max(0.7, size)).toFixed(2));
+      dot.setAttribute('fill', past ? BURN : '#070a0f');
+      dot.setAttribute('stroke', past ? BURN : INK);
+      dot.setAttribute('opacity', String(lift * (past ? 1 : 0.7)));
+    });
+
+    // The end of the film starts the arrival; anything that moves the playhead off the end calls it off.
+    const ended = Boolean(this.#playback.value?.ended);
+    if (ended !== Boolean(this.#arrived)) {
+      this.#arrived = ended ? performance.now() : 0;
+      this.toggleAttribute('data-arrived', ended);
+      cancelAnimationFrame(this.#lap);
+      this.#lap = ended && !reducedMotion() ? requestAnimationFrame(this.#fly) : 0;
+    }
+    this.#at = { g, t, angle, scale, size, rate, marks };
+    this.#place();
+
+    // On the pad: the first moments of the film, and until a launch that began there has finished.
+    if (currentTime <= PAD_SECONDS) this.#onPad = true;
+    else if (!this.root?.hasAttribute('data-ignite')) this.#onPad = false;
+    this.toggleAttribute('data-pad', this.#onPad);
+    // The flame only burns while the HUD is up to show it.
+    this.toggleAttribute('data-burn', burning && lift > 0.02);
+    // Engine cut-off: for a moment after a pause the flame keeps moving while it pulls back into the nozzle.
+    if (burning !== this.#burning) {
+      this.#burning = burning;
+      clearTimeout(this.#cut);
+      this.toggleAttribute('data-cut', !burning);
+      if (!burning) this.#cut = window.setTimeout(() => this.removeAttribute('data-cut'), CUTOFF_MS);
+    }
+
+    // Engine glow: an ember when paused, brighter and wider with speed.
+    this.#burn.setAttribute('r', String(burning ? 18 + 8 * rate : 17));
+    this.#burn.setAttribute('opacity', burning ? '.55' : '.3');
+  }
+
+  /** The arrival runs on its own clock: the film has stopped, so nothing else asks for a redraw. */
+  #fly = () => {
+    this.#lap = 0;
+    if (!this.#arrived || !this.isConnected) return;
+    this.#place();
+    this.#lap = requestAnimationFrame(this.#fly);
+  };
+
+  /**
+   * Put the craft where it belongs: on the path at the playhead or, once the film has ended, on its way around the
+   * parking orbit. The booster and the time slider's thumb go with it.
+   */
+  #place() {
+    const at = this.#at;
+    if (!at) return;
+    const { g, t, scale, size, rate, marks } = at;
+    let cx = pathX(g, t);
+    let cy = pathY(g, t);
+    let angle = at.angle;
+    let craft = scale;
+
+    if (this.#arrived) {
+      const still = reducedMotion();
+      const since = still ? Infinity : performance.now() - this.#arrived;
+
+      // A light runs up the flown path, and each event answers as it passes.
+      const run = Math.min(1, since / ARRIVAL_MS);
+      const head = 1.2 * smooth(run);
+      this.#sweep.setAttribute('d', head - 0.14 < 1 ? pathData(g, Math.max(0, head - 0.14), Math.min(1, head)) : '');
+      this.#sweep.setAttribute('opacity', (Math.min(1, run / 0.15) * Math.min(1, (1 - run) / 0.2)).toFixed(3));
+      const dot = 6 * Math.max(0.7, size);
+      marks.forEach((f, i) => {
+        const answer = run < 1 ? Math.exp(-(((head - f) / 0.07) ** 2)) : 0;
+        this.#dots.children[i]?.setAttribute('r', (dot * (1 + 0.6 * answer)).toFixed(2));
+      });
+
+      // Then the craft flies on into orbit, drawing it on the first lap.
+      const flown = Math.max(0, since - ARRIVAL_MS);
+      const speed = (2 * Math.PI) / ORBIT_LAP_MS;
+      const swept = still
+        ? 2 * Math.PI
+        : flown < ORBIT_ENTRY_MS
+          ? (speed * flown * flown) / (2 * ORBIT_ENTRY_MS)
+          : speed * (flown - ORBIT_ENTRY_MS / 2);
+      const { orbit, turn, place: point } = placedOrbit(g, this.width, scale);
+      const body = point(orbit.centre);
+      this.#body.setAttribute('transform', `translate(${body.x.toFixed(1)} ${body.y.toFixed(1)}) scale(${scale.toFixed(3)})`);
+      const drawn = Math.min(swept, 2 * Math.PI);
+      const steps = Math.ceil(drawn / 0.09);
+      let d = '';
+      for (let i = 0; i <= steps; i++) {
+        const p = point(orbit.at(orbit.join - (steps ? (drawn * i) / steps : 0)));
+        d += `${i ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+      }
+      if (drawn >= 2 * Math.PI) d += 'Z';
+      this.#orbit.setAttribute('d', d);
+      this.#orbitGlow.setAttribute('d', d);
+
+      if (!still) {
+        const u = orbit.join - swept;
+        const passing = orbit.at(u);
+        const p = point(passing);
+        // Smaller once it is up there, and a touch smaller again on the far side of the orbit.
+        const settle = smooth(Math.min(1, flown / (ORBIT_ENTRY_MS * 1.6)));
+        craft = scale * (1 - (1 - ORBIT_CRAFT) * settle) * (1 + 0.1 * settle * Math.sin(u));
+        cx = p.x;
+        cy = p.y;
+        angle = ((passing.heading + turn) * 180) / Math.PI;
+      }
+    } else {
+      this.#sweep.setAttribute('d', '');
+    }
+
+    this.#craft.setAttribute('transform', `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${craft.toFixed(3)})`);
     this.#arrow.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
     // The booster sits on the craft's tail, turned to its heading; the liftoff cloud stays on the pad. Sizes are whole
     // pixels so the sprites' frames stay exact.
-    const burning = this.#playback.value ? !this.#playback.value.paused : false;
-    const rate = this.#rate.value?.playbackRate ?? 1;
     const boosterW = Math.round(BOOSTER_WIDTH * scale);
-    const liftoffW = Math.round((LIFTOFF_WIDTH * W * 0.043) / LIFTOFF_WALL);
+    const liftoffW = Math.round((LIFTOFF_WIDTH * this.width * 0.043) / LIFTOFF_WALL);
     const fx = [
       cx.toFixed(1),
       cy.toFixed(1),
@@ -304,42 +551,13 @@ class AscentFlightElement extends PathElement {
       liftoff.setProperty('--fx-w', `${lw}px`);
       liftoff.setProperty('--fx-h', `${lh}px`);
     }
-    // On the pad: the first moments of the film, and until a launch that began there has finished.
-    if (currentTime <= PAD_SECONDS) this.#onPad = true;
-    else if (!this.root?.hasAttribute('data-ignite')) this.#onPad = false;
-    this.toggleAttribute('data-pad', this.#onPad);
-    // The flame only burns while the HUD is up to show it.
-    this.toggleAttribute('data-burn', burning && lift > 0.02);
 
-    // Engine glow: an ember when paused, brighter and wider with speed.
-    this.#burn.setAttribute('r', String(burning ? 18 + 8 * rate : 17));
-    this.#burn.setAttribute('opacity', burning ? '.55' : '.3');
-
-    // One dot per chapter.
-    const chapters = duration > 0 ? this.chapters : [];
-    while (this.#dots.children.length > chapters.length) this.#dots.lastChild!.remove();
-    while (this.#dots.children.length < chapters.length) {
-      const dot = document.createElementNS(SVG, 'circle');
-      dot.setAttribute('stroke-width', '2');
-      this.#dots.append(dot);
-    }
-    chapters.forEach((chapter, i) => {
-      const f = Math.min(1, chapter.startTime / duration);
-      const past = f <= t + 1e-4;
-      const dot = this.#dots.children[i];
-      dot.setAttribute('cx', pathX(g, f).toFixed(1));
-      dot.setAttribute('cy', pathY(g, f).toFixed(1));
-      dot.setAttribute('r', (6 * Math.max(0.7, size)).toFixed(2));
-      dot.setAttribute('fill', past ? BURN : '#070a0f');
-      dot.setAttribute('stroke', past ? BURN : INK);
-      dot.setAttribute('opacity', String(lift * (past ? 1 : 0.7)));
-    });
-
-    // The slider's thumb (the focusable role="slider") sits on the craft, so focus and touch land where the eye is.
+    // The slider's thumb (the focusable role="slider") stays on the path at the playhead, so a press or a key
+    // lands where the film is.
     const thumb = this.slider?.querySelector<HTMLElement>('media-slider-thumb');
     if (thumb && this.slider) {
-      thumb.style.left = `${(cx - this.slider.offsetLeft).toFixed(1)}px`;
-      thumb.style.top = `${(cy - this.slider.offsetTop).toFixed(1)}px`;
+      thumb.style.left = `${(pathX(g, t) - this.slider.offsetLeft).toFixed(1)}px`;
+      thumb.style.top = `${(pathY(g, t) - this.slider.offsetTop).toFixed(1)}px`;
     }
   }
 }
@@ -349,6 +567,7 @@ class AscentFlightElement extends PathElement {
  * Each is a button that flies the craft there. Without a chapters track it renders nothing.
  */
 class AscentEventsElement extends PathElement {
+  #playback = new PlayerController(this, playerContext, selectPlayback);
   #buttons: HTMLButtonElement[] = [];
   #signature = '';
 
@@ -410,12 +629,35 @@ class AscentEventsElement extends PathElement {
       button.classList.toggle('past', f <= t + 1e-4);
       button.classList.toggle('cur', i === current);
     });
+    // At the end of the film the craft takes up a parking orbit past the last event. A label or stem in its way
+    // steps aside; it comes back on hover and focus.
+    const box = this.#playback.value?.ended ? orbitBox(g, this.width, this.lift?.value ?? 1) : null;
+    const host = box ? (this.root ?? this).getBoundingClientRect() : null;
+    chapters.forEach((chapter, i) => {
+      const button = this.#buttons[i];
+      let blocked = false;
+      if (box && host) {
+        const stem = pathX(g, Math.min(1, chapter.startTime / duration));
+        blocked = stem > box.left && stem < box.right;
+        for (const part of button.children) {
+          const r = part.getBoundingClientRect();
+          if (!r.width) continue;
+          blocked ||=
+            r.right - host.left > box.left &&
+            r.left - host.left < box.right &&
+            r.bottom - host.top > box.top &&
+            r.top - host.top < box.bottom;
+        }
+      }
+      button.classList.toggle('clear', blocked);
+    });
   }
 }
 
 /** <ascent-now>: top right, the event in progress ("Event 04 of 06", "The flame"). Hidden without chapters. */
 class AscentNowElement extends UIElement {
   #time = new PlayerController(this, playerContext, selectTime);
+  #playback = new PlayerController(this, playerContext, selectPlayback);
   #tracks = new PlayerController(this, playerContext, selectTextTrack);
   #count?: HTMLElement;
   #name?: HTMLElement;
@@ -437,8 +679,10 @@ class AscentNowElement extends UIElement {
     this.hidden = !chapters.length;
     if (!chapters.length || !this.#count || !this.#name) return;
     const index = chapterAt(chapters, this.#time.value?.currentTime ?? 0);
-    this.#count.textContent = `Event ${pad2(index + 1)} of ${pad2(chapters.length)}`;
-    this.#name.textContent = chapters[index].text;
+    // At the end of the film the craft is in its parking orbit, and the readout says so.
+    const ended = Boolean(this.#playback.value?.ended);
+    setWords(this.#count, ended ? 'Flight complete' : `Event ${pad2(index + 1)} of ${pad2(chapters.length)}`);
+    setWords(this.#name, ended ? 'In orbit' : chapters[index].text);
   }
 }
 

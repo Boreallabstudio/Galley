@@ -18,8 +18,10 @@ The film is the main screen and you are the flight controller. The film's progre
 - **Mission clock**: shows time elapsed. Choose it to switch to time remaining.
 - **Status board** (900 px and wider): four lamps. Signal reads Go, Hold while the film buffers, or Lost on an error. Audio and Captions read Go or Off. Flight reads Ready, Go, Hold or Complete. Green is used for the Go lamps only.
 - **Launch and holds**: while the film plays a booster flame burns behind the craft, longer at higher speeds. A launch from the start of the film also raises a cloud of smoke from the pad; anywhere else the takeoff has already happened, so there is only the booster. Flame and cloud are fluid simulations baked into looping sprites, blended frame to frame so they move smoothly (see `tools/plume`). While the film buffers the engine idles (on the pad it vents white vapour), the main screen dims, and the console stays up. Narrower players show a "Hold · buffering" line in place of the board.
+- **Pause**: a pause is a hold called from the console. The flame pulls back into the nozzle, the main screen dims a little, and what was running waits in one slow rhythm: a beacon from the craft, the stopped clock, and a ring around the Resume key.
+- **End of the film**: a light runs up the flown path and each event answers as it passes. Then the craft flies on past the end of the path into a parking orbit, drawing it on the first lap, and keeps circling until you relaunch. The readout top right changes to "Flight complete · In orbit". An event label in the orbit's way steps aside and returns on hover or focus.
 - **Captions** are drawn by the skin and rise with the console to sit above the event labels, so they never run through the path.
-- Every key has a hit area of at least 44 × 44 px, and the hit areas never overlap. With reduced motion set, the console appears and hides without the lift animation, and the glow, ignition and venting do not animate.
+- Every key has a hit area of at least 44 × 44 px, and the hit areas never overlap. With reduced motion set, the console appears and hides without the lift animation, and the glow, ignition, venting, beacon and arrival do not animate: a paused film shows a still console, and a finished one shows the orbit already drawn.
 
 ## Keys
 
