@@ -275,6 +275,12 @@
   touch-action: none;
 }
 
+@container (max-width: 519.9px) {
+  .asc-seek {
+    height: calc(9cqh + 73px + var(--asc-seek-pad));
+  }
+}
+
 @container (min-width: 760px) {
   .asc-seek {
     height: calc(21cqh + 75px + max(20px, 4.5cqh) + var(--asc-seek-pad));
@@ -2074,6 +2080,16 @@ ascent-manual[data-open] .asc-dialog {
     padding: 1px 4px;
     font-size: 9.5px;
   }
+
+  /* Close moves up beside the heading, so the whole card fits a small frame. */
+  .asc-manual .asc-dialog-close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    margin: 0;
+    padding: 4px 10px;
+    font-size: 11px;
+  }
 }
 
 /* High-contrast (forced colours): the system palette takes over plates, cards and keys; give them edges, and keep
@@ -2103,6 +2119,15 @@ ascent-manual[data-open] .asc-dialog {
 
   .asc-shade {
     display: none;
+  }
+
+  .asc-row {
+    background: Canvas;
+  }
+
+  /* The engine dials draw their own state in colour; keep the drawing, let the readouts follow the system. */
+  ascent-engine svg {
+    forced-color-adjust: none;
   }
 
   .asc :focus-visible {

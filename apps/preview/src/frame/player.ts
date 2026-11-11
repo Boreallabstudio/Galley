@@ -25,9 +25,9 @@ export function createPlayer(): HTMLElement {
   );
 
   // The structured source builds the stream URL from the playback ID; <mux-video> also derives the poster from it
-  // (a frame at 16 s) and hands it to the skin.
+  // (a frame at 18 s) and hands it to the skin.
   const media = player.querySelector('mux-video');
-  if (media) media.source = { playbackId: MUX_PLAYBACK_ID, poster: { time: 16 } };
+  if (media) media.source = { playbackId: MUX_PLAYBACK_ID, poster: { time: 18 } };
 
   const byline = player.querySelector<HTMLElement>('[data-asc-byline]');
   if (byline) byline.textContent = BYLINE;

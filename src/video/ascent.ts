@@ -1923,10 +1923,10 @@ class AscentFeedElement extends PathElement {
 
 const MANUAL: readonly (readonly [string[], string])[] = [
   [['Space', 'K'], 'Launch or hold'],
-  [['←', '→'], 'Back or on 5 seconds'],
-  [['PgUp', 'PgDn'], 'A tenth of the film'],
+  [['←', '→'], 'Back / forward 5 s'],
+  [['PgUp', 'PgDn'], 'Jump 10%'],
   [['Home', 'End'], 'Start or end'],
-  [['1–9'], 'Fly to that event'],
+  [['1–9'], 'Fly to event'],
   [['N'], 'Next event'],
   [['↑', '↓'], 'Volume'],
   [['M'], 'Mute'],
@@ -1942,6 +1942,7 @@ const MANUAL: readonly (readonly [string[], string])[] = [
  * returns to where it was.
  */
 class AscentManualElement extends UIElement {
+  #tracks = new PlayerController(this, playerContext, selectTextTrack);
   #abort: AbortController | null = null;
   #card?: HTMLElement;
   #close?: HTMLButtonElement;
@@ -1998,7 +1999,16 @@ class AscentManualElement extends UIElement {
     if (open) {
       this.#back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       liftFor(this)?.wake();
-      this.#close?.focus();
+      // The event keys name the film's own range ("1–5"); without events the row goes.
+      const events = Math.min(9, (this.#tracks.value?.chaptersCues ?? []).length);
+      const row = this.querySelector<HTMLElement>('[data-asc-events]');
+      if (row) {
+        row.hidden = events < 1;
+        const key = row.querySelector('kbd');
+        if (key) key.textContent = events > 1 ? `1–${events}` : '1';
+      }
+      this.#close?.focus({ preventScroll: true });
+      if (this.#card) this.#card.scrollTop = 0;
     } else {
       const back = this.#back && this.#back.isConnected ? this.#back : root;
       back?.focus({ preventScroll: true });
@@ -2013,7 +2023,8 @@ class AscentManualElement extends UIElement {
 <span class="lab asc-dialog-kicker" aria-hidden="true">Flight manual</span>
 <h2 class="lab asc-dialog-title" id="${title}">Keyboard</h2>
 <dl class="asc-manual-list">${MANUAL.map(
-      ([keys, what]) => `<div><dt>${keys.map((k) => `<kbd>${k}</kbd>`).join('')}</dt><dd>${what}</dd></div>`
+      ([keys, what]) =>
+        `<div${keys[0] === '1–9' ? ' data-asc-events' : ''}><dt>${keys.map((k) => `<kbd>${k}</kbd>`).join('')}</dt><dd>${what}</dd></div>`
     ).join('')}</dl>
 <button type="button" class="asc-dialog-close">Close <kbd>Esc</kbd></button>
 </div>`;
