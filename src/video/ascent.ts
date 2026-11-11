@@ -873,7 +873,7 @@ const dialPoint = (angle: number, radius: number) => {
  * throat, and the glow in the throat grows from nothing, to a small ember, to white-hot at full. The ring around the
  * body lights up to the value in the same heat colours, and a tick on the body marks it.
  *
- * `stops` > 0 (speed) adds a small tick outside the ring for each stop.
+ * `stops` > 0 (speed) adds a small tick just inside the ring for each stop, so both dials share one outer edge.
  */
 function drawDial(host: HTMLElement, stops: number): DialDrawing {
   const id = nextId('asc-dial');
@@ -886,11 +886,11 @@ function drawDial(host: HTMLElement, stops: number): DialDrawing {
   let ticks = '';
   for (let i = 0; i < stops; i++) {
     const angle = DIAL_START + (DIAL_SWEEP * i) / (stops - 1);
-    ticks += `<path d="M${dialPoint(angle, DIAL_R + 2.2)}L${dialPoint(angle, DIAL_R + 4.2)}" stroke="${INK}" stroke-width="1.1" stroke-linecap="round" opacity=".6"/>`;
+    ticks += `<path d="M${dialPoint(angle, DIAL_R - 3.4)}L${dialPoint(angle, DIAL_R - 1.9)}" stroke="${INK}" stroke-width="1.1" stroke-linecap="round" opacity=".6"/>`;
   }
   host.insertAdjacentHTML(
     'afterbegin',
-    `<svg class="asc-thr-svg" viewBox="-2 -2 52 52" aria-hidden="true"><defs><filter id="${id}-bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3.6"/></filter><filter id="${id}-core" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5"/></filter><linearGradient id="${id}-cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b313b"/><stop offset="1" stop-color="#171b21"/></linearGradient></defs><circle class="tg" cx="24" cy="24" r="12" filter="url(#${id}-bloom)"/><path d="M${dialPoint(DIAL_START, DIAL_R)}A${DIAL_R} ${DIAL_R} 0 1 1 ${dialPoint(DIAL_START + DIAL_SWEEP, DIAL_R)}" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round" opacity=".2"/><g fill="none" stroke-width="2.6" stroke-linecap="round">${segments}</g>${ticks}<circle cx="24" cy="24" r="16.5" fill="url(#${id}-cap)" stroke="${INK}" stroke-opacity=".2"/><path d="M10.2 16.6A16 16 0 0 1 37.8 16.6" fill="none" stroke="#fff" stroke-opacity=".16" stroke-linecap="round"/><circle cx="24" cy="24" r="10.5" fill="rgba(2,3,5,.85)" stroke="${INK}" stroke-opacity=".28"/><circle class="to" cx="24" cy="24" filter="url(#${id}-core)"/><circle class="tc" cx="24" cy="24" fill="${HOT}"/><path class="tk" stroke="${INK}" stroke-width="1.7" stroke-linecap="round"/><g class="pm" fill="none" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"><path d="M16.6 45.2h4.2"/><path d="M27.2 45.2h4.2M29.3 43.1v4.2"/></g><circle class="gr" r="2.9" fill="${HOT}" stroke="#07090c" stroke-width="1.1"/></svg><span class="asc-thr-read" aria-hidden="true"></span>`
+    `<svg class="asc-thr-svg" viewBox="-2 -2 52 52" aria-hidden="true"><defs><filter id="${id}-bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3.6"/></filter><filter id="${id}-core" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5"/></filter><linearGradient id="${id}-cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b313b"/><stop offset="1" stop-color="#171b21"/></linearGradient></defs><circle class="tg" cx="24" cy="24" r="12" filter="url(#${id}-bloom)"/><path d="M${dialPoint(DIAL_START, DIAL_R)}A${DIAL_R} ${DIAL_R} 0 1 1 ${dialPoint(DIAL_START + DIAL_SWEEP, DIAL_R)}" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round" opacity=".34"/><g fill="none" stroke-width="2.6" stroke-linecap="round">${segments}</g>${ticks}<circle cx="24" cy="24" r="16.5" fill="url(#${id}-cap)" stroke="${INK}" stroke-opacity=".2"/><path d="M10.2 16.6A16 16 0 0 1 37.8 16.6" fill="none" stroke="#fff" stroke-opacity=".16" stroke-linecap="round"/><circle cx="24" cy="24" r="10.5" fill="rgba(2,3,5,.85)" stroke="${INK}" stroke-opacity=".28"/><circle class="to" cx="24" cy="24" filter="url(#${id}-core)"/><circle class="tc" cx="24" cy="24" fill="${HOT}"/><path class="tk" stroke="${INK}" stroke-width="1.7" stroke-linecap="round"/><g class="pm" fill="none" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"><path d="M16.6 45.2h4.2"/><path d="M27.2 45.2h4.2M29.3 43.1v4.2"/></g><circle class="gr" r="2.9" fill="${HOT}" stroke="#07090c" stroke-width="1.1"/></svg><span class="asc-thr-read" aria-hidden="true"></span>`
   );
   const svg = host.querySelector('svg')!;
   const q = (selector: string) => svg.querySelector(selector)!;

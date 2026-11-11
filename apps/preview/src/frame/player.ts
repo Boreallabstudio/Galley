@@ -5,7 +5,7 @@ import skinTemplate from '@/video/skin.html?raw';
 
 // What the preview plays: Charge by Blender Studio (CC BY 4.0), shortened to its approach, surge and walk home, streamed from Mux by its public
 // playback ID. Chapters and captions are ordinary WebVTT tracks served with the workbench.
-const MUX_PLAYBACK_ID = 'fZuQ9BawOvTRDOFxR8TMqJI67ur5fL8Q202NSYPNy9400';
+const MUX_PLAYBACK_ID = 'DZxyhy81shSh45D7TUhJ8FVS3TGsoZuGfE1Dk5yFELM';
 const TITLE = 'Charge';
 const BYLINE = 'Blender Studio · 2022';
 
@@ -27,7 +27,7 @@ export function createPlayer(): HTMLElement {
   // The structured source builds the stream URL from the playback ID; <mux-video> also derives the poster from it
   // (a frame at 18 s) and hands it to the skin.
   const media = player.querySelector('mux-video');
-  if (media) media.source = { playbackId: MUX_PLAYBACK_ID, poster: { time: 18 } };
+  if (media) media.source = { playbackId: MUX_PLAYBACK_ID, poster: { time: 12.4 } };
 
   const byline = player.querySelector<HTMLElement>('[data-asc-byline]');
   if (byline) byline.textContent = BYLINE;
