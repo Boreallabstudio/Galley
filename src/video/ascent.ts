@@ -349,8 +349,8 @@ class AscentFlightElement extends PathElement {
     this.innerHTML = `<div class="asc-liftoff asc-fx"><i></i><i></i></div><svg xmlns="${SVG}">
 <defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
-<path class="rest" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2.5 8" opacity=".7"/>
-<path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".5"/>
+<path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".26"/>
+<path class="rest" fill="none" stroke="${BURN}" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2.5 8" opacity=".7"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
 <path class="sweep" fill="none" stroke="#ffd2b0" stroke-width="4" stroke-linecap="round" filter="url(#${glow})"/>
@@ -400,7 +400,9 @@ class AscentFlightElement extends PathElement {
     const rest = pathData(g, t, 1);
     this.#rest.setAttribute('d', rest);
     this.#under.setAttribute('d', rest);
-    this.#rest.setAttribute('opacity', String(0.3 + 0.25 * lift));
+    // The course still to fly is drawn in the same orange as the flown path, dashed and fainter, so the whole
+    // trajectory reads as one line across the film.
+    this.#rest.setAttribute('opacity', String(0.35 + 0.4 * lift));
 
     // Buffered: the stretch of the range that holds the playhead.
     let ahead = t;
@@ -1332,8 +1334,10 @@ class AscentPlayLabelElement extends UIElement {
 /**
  * <ascent-board>: the go / no-go board, top centre on wide players. Four lamps follow the film: Downlink (the link
  * rate while the film comes in, Locked once the rest of it is loaded, Hold while it buffers, Lost on an error), Audio,
- * Captions and Flight (Ready, Go, Hold, Complete). Decoration
- * (`aria-hidden`): each fact is already announced by the control or the status region that owns it.
+ * Captions and Flight (Ready, Go, Hold, Complete). Before launch the lamps stand by; at the first launch they are
+ * polled left to right, Flight last, as the engine lights. After that the board shows only what is not Go (a hold, a
+ * lost link) and the end of the flight, so it stays away while all is well. Decoration (`aria-hidden`): each fact is
+ * already announced by the control or the status region that owns it.
  */
 /**
  * The downlink: how fast the film is coming in, and whether there is anything left to load. The rate is the playback
@@ -1377,6 +1381,9 @@ class AscentBoardElement extends UIElement {
   #cells: Record<string, HTMLElement> = {};
   #watch: MutationObserver | null = null;
   #poll = 0;
+  // standby until the first launch, then the poll, then armed.
+  #phase: 'standby' | 'poll' | 'armed' = 'standby';
+  #timers: number[] = [];
 
   connectedCallback() {
     super.connectedCallback();
@@ -1406,6 +1413,33 @@ class AscentBoardElement extends UIElement {
     this.#watch?.disconnect();
     this.#watch = null;
     clearInterval(this.#poll);
+    this.#timers.forEach(clearTimeout);
+    this.#timers = [];
+  }
+
+  #setPhase(phase: 'standby' | 'poll' | 'armed') {
+    this.#phase = phase;
+    this.dataset.phase = phase;
+  }
+
+  /** The go / no-go poll: each lamp answers in turn, 140 ms apart, Flight last. Playback has already started. */
+  #runPoll() {
+    const cells = Object.values(this.#cells);
+    if (reducedMotion()) {
+      cells.forEach((cell) => cell.setAttribute('data-polled', ''));
+      this.#setPhase('armed');
+      return;
+    }
+    this.#setPhase('poll');
+    cells.forEach((cell, i) => {
+      this.#timers.push(
+        window.setTimeout(() => {
+          cell.setAttribute('data-polled', '');
+          this.requestUpdate();
+        }, 80 + 140 * i),
+      );
+    });
+    this.#timers.push(window.setTimeout(() => this.#setPhase('armed'), 80 + 140 * cells.length + 1400));
   }
 
   #set(name: string, state: 'go' | 'hold' | 'wait' | 'off', text: string, quiet = false) {
@@ -1442,10 +1476,15 @@ class AscentBoardElement extends UIElement {
     if (line) line.textContent = `Hold · buffering${held && link.fresh ? ` · ${link.rate}` : ''}`;
     this.#set('Audio', quiet ? 'off' : 'go', quiet ? 'Off' : 'Go');
     this.#set('Captions', captions ? 'go' : 'off', captions ? 'Go' : 'Off');
+    if (this.#phase === 'standby' && playing) this.#runPoll();
+    const flight = this.#cells.Flight;
+    const polled = flight?.hasAttribute('data-polled') ?? false;
     if (playback?.ended) this.#set('Flight', 'off', 'Complete');
+    else if (this.#phase === 'poll' && !polled) this.#set('Flight', 'off', 'Ready');
     else if (playing) this.#set('Flight', 'go', 'Go');
     else if (launched) this.#set('Flight', 'wait', 'Hold');
     else this.#set('Flight', 'off', 'Ready');
+    flight?.toggleAttribute('data-end', Boolean(playback?.ended));
   }
 }
 

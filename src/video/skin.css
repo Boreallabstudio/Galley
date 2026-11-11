@@ -564,23 +564,24 @@
   margin-bottom: 0.35cqw;
 }
 
-/* In parking orbit the flown events fold down to node and stem, so the title card stays whole; hover or focus
-   brings a plate back. The last event keeps its label (set by <ascent-events>). */
+/* One label at a time: only the event being flown shows its plate, so the trajectory is the picture. Every other
+   event folds down to its node and a tick on the path; hover or focus brings its plate back. In parking orbit the
+   current event is the last one, so the title card stays whole. */
 .asc-ev .plate {
   transform: translateX(var(--nudge, 0px));
   transition: opacity 0.3s ease;
 }
 
-.asc-events[data-orbit] .asc-ev:not(:last-child, :hover, :focus-visible) .plate {
+.asc-ev:not(.cur, :hover, :focus-visible) .plate {
   opacity: 0;
 }
 
 /* Their stems shorten to ticks on the path, so they do not read as labels gone missing. */
-.asc-events[data-orbit] .asc-ev:not(:last-child, :hover, :focus-visible)::after {
+.asc-ev:not(.cur, :hover, :focus-visible)::after {
   background: linear-gradient(transparent calc(100% - 0.9cqw), var(--ink) 0);
 }
 
-.asc-events[data-orbit] .asc-ev.hang:not(:last-child, :hover, :focus-visible)::after {
+.asc-ev.hang:not(.cur, :hover, :focus-visible)::after {
   background: linear-gradient(var(--ink) 0.9cqw, transparent 0);
 }
 
@@ -730,6 +731,56 @@
   50% {
     opacity: 0.25;
   }
+}
+
+/* Before launch the lamps stand by: unlit, the readings still shown. */
+.asc-board:not([data-phase='armed']) .asc-cell:not([data-polled]) b::before {
+  border-color: currentColor;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+  opacity: 0.6;
+}
+
+/* The poll: each lamp answers with a short flare as it lights. */
+.asc-board[data-phase='poll'] .asc-cell[data-polled] b::before {
+  animation: asc-poll 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.asc-board[data-phase='poll'] .asc-cell[data-polled] {
+  animation: asc-poll-cell 0.6s ease-out;
+}
+
+@keyframes asc-poll {
+  from {
+    box-shadow: 0 0 0 5px rgba(244, 241, 234, 0.35), 0 0 16px currentColor;
+    transform: scale(1.6);
+  }
+}
+
+@keyframes asc-poll-cell {
+  from {
+    border-color: rgba(244, 241, 234, 0.5);
+  }
+}
+
+/* After launch the board shows only what is not Go, and the end of the flight; all clear, it stays away. Each lamp
+   keeps its place, so a hold lights where it always sits. */
+.asc-cell {
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s;
+}
+
+.asc-board[data-phase='armed'] .asc-cell:not([data-s='hold'], [data-s='wait'], [data-end]) {
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease,
+    visibility 0s 0.45s;
 }
 
 /* ---------- the console desk ---------- */
