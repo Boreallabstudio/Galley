@@ -1625,10 +1625,20 @@ ascent-flight[data-burn] .spikes {
   animation: asc-pad-glow 1.05s ease-out;
 }
 
-/* A hold on the pad: the point waits as an ember. */
+/* Before the first launch, and in a hold on the pad, the engine is not lit: the point waits as an ember. */
+.asc:has(.asc-b.play:not([data-started])) ascent-flight .star-core,
+.asc:has(.asc-b.play:not([data-started])) ascent-flight .star-halo,
 .asc[data-hold] ascent-flight[data-pad] .star-core,
 .asc[data-hold] ascent-flight[data-pad] .star-halo {
   animation: asc-ember-point 2.4s ease-in-out infinite;
+}
+
+.asc:has(.asc-b.play:not([data-started])) ascent-flight .star-core {
+  fill: #ffb27f;
+}
+
+.asc:has(.asc-b.play:not([data-started])) ascent-flight .spikes {
+  opacity: 0;
 }
 
 .asc[data-hold] ascent-flight[data-pad] .spikes {

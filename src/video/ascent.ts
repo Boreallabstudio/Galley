@@ -358,7 +358,7 @@ class AscentFlightElement extends PathElement {
 <path class="rest" fill="none" stroke="${BURN}" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2.5 8" opacity=".7"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
-<g class="pad"><ellipse class="pad-glow" rx="110" ry="18" fill="url(#${ink}-p)"/></g><g class="trail" fill="none" stroke-linecap="round"><path class="tr-glow" stroke="url(#${ink}-g)" filter="url(#${glow})"/><path class="tr-body" stroke="url(#${ink}-b)"/><path class="tr-core" stroke="url(#${ink}-c)"/></g>
+<g class="pad"><ellipse class="pad-glow" rx="75" ry="18" fill="url(#${ink}-p)"/></g><g class="trail" fill="none" stroke-linecap="round"><path class="tr-glow" stroke="url(#${ink}-g)" filter="url(#${glow})"/><path class="tr-body" stroke="url(#${ink}-b)"/><path class="tr-core" stroke="url(#${ink}-c)"/></g>
 <path class="sweep" fill="none" stroke="#ffd2b0" stroke-width="4" stroke-linecap="round" filter="url(#${glow})"/>
 <path class="orbit-track" fill="none" stroke="${BURN}" stroke-width="2" stroke-linejoin="round"/>
 <path class="orbit-glow" fill="none" stroke="${BURN}" stroke-width="7" filter="url(#${glow})"/>
@@ -643,7 +643,7 @@ class AscentFlightElement extends PathElement {
     this.#drawTrail(g, shown, TRAIL_LENGTH * scale * boost, 3 * scale);
     // The pad glow lies along the top of the console under the pad, low and wide. CSS animates the ellipse inside,
     // so the position stays on the group.
-    this.#pad.setAttribute('transform', `translate(${(g.x0 + 70 * scale).toFixed(1)} ${(g.y0 + 6 * scale).toFixed(1)}) scale(${scale.toFixed(3)})`);
+    this.#pad.setAttribute('transform', `translate(${(g.x0 + 78 * scale).toFixed(1)} ${(g.y0 + 6 * scale).toFixed(1)}) scale(${scale.toFixed(3)})`);
 
     // The slider's thumb (the focusable role="slider") stays on the path at the playhead, so a press or a key
     // lands where the film is.
