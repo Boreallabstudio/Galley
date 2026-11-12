@@ -1574,9 +1574,14 @@ class AscentNextElement extends UIElement {
   }
 }
 
-/** <ascent-clock>: the mission clock, at the right end of the console desk. Choosing it switches between time elapsed and time remaining. */
+/**
+ * <ascent-clock>: the mission clock, at the right end of the console desk. Choosing it switches between time elapsed
+ * and time remaining. Small players have no Next event module, so the clock carries its countdown on a second line.
+ */
 class AscentClockElement extends UIElement {
   #time = new PlayerController(this, playerContext, selectTime);
+  #tracks = new PlayerController(this, playerContext, selectTextTrack);
+  #next?: HTMLElement;
   #remaining = false;
   #button?: HTMLButtonElement;
   #label?: HTMLElement;
@@ -1590,7 +1595,10 @@ class AscentClockElement extends UIElement {
     this.#label = document.createElement('span');
     this.#label.className = 'lab';
     this.#digits = document.createElement('b');
-    this.#button.append(this.#label, this.#digits);
+    this.#next = document.createElement('i');
+    this.#next.className = 'nx';
+    this.#next.setAttribute('aria-hidden', 'true');
+    this.#button.append(this.#label, this.#digits, this.#next);
     this.append(this.#button);
     this.#button.addEventListener('click', () => {
       this.#remaining = !this.#remaining;
@@ -1609,6 +1617,12 @@ class AscentClockElement extends UIElement {
       ? `−${clock(Math.floor(duration + 1e-3) - Math.floor(Math.min(current, duration) + 1e-3))}`
       : clock(Math.min(current, duration));
     this.#label.textContent = remaining ? `T− remaining · of ${clock(duration)}` : `T+ elapsed · of ${clock(duration)}`;
+    if (this.#next) {
+      const chapters = this.#tracks.value?.chaptersCues ?? [];
+      const next = chapters.find((chapter) => chapter.startTime > current + 0.05);
+      const to = next ? next.startTime : chapters.length ? duration : 0;
+      this.#next.textContent = chapters.length ? `${next ? 'Next' : 'End'} T− ${clock(Math.floor(to + 1e-3) - Math.floor(current + 1e-3))}` : '';
+    }
     this.#button.setAttribute(
       'aria-label',
       remaining ? 'Time remaining. Switch to elapsed time' : 'Elapsed time. Switch to time remaining'
