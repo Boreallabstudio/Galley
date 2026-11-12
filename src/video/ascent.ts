@@ -570,7 +570,7 @@ class AscentFlightElement extends PathElement {
     // The trail burns while the film plays, until the craft is in orbit; it only shows while the HUD is up.
     const lit = at.burning && since < ARRIVAL_MS;
     this.toggleAttribute('data-burn', lit && at.lift > 0.02);
-    // Engine cut-off: for a moment after the flame goes out it keeps moving while it pulls back into the nozzle.
+    // Engine cut-off: for a moment after the engine stops the trail keeps moving while it draws back into the craft.
     if (lit !== this.#lit) {
       this.#lit = lit;
       clearTimeout(this.#cut);
