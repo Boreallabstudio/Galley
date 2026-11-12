@@ -156,11 +156,10 @@ abstract class PathElement extends UIElement {
  * and grows with the playback rate. While the film plays the engine's light trail burns on the flown path behind the
  * craft (`data-burn`): white-hot at the craft, cooling to the path's orange, longer at higher rates. It surges at
  * ignition (`data-ignite` on the skin) and draws back into the craft when the film is paused (`data-cut`), after which
- * the craft holds with a slow beacon. A launch from the start of the film, or a
- * hold there, also raises a cloud from the pad (`data-pad`): the corner between the player's left edge and the desk.
- * Anywhere else on the path the takeoff has already happened, so there is the trail and nothing more. The trail is
- * drawn in the path's own SVG (`.trail`); the cloud is a baked fluid simulation played as a sprite (`.asc-liftoff`;
- * see skin.css and tools/plume). When the film ends (`data-arrived`) a light runs up the flown path and the
+ * the craft holds with a slow beacon. A launch is a light event, as the tracking camera would see it: the point
+ * overexposes and settles (a smaller flare when play starts mid-film), and a launch from the pad (`data-pad`, the
+ * corner between the player's left edge and the desk) also washes the top of the console with a low orange glow. A
+ * hold on the pad dims the point to a slow ember. Everything is drawn in the path's own SVG. When the film ends (`data-arrived`) a light runs up the flown path and the
  * craft flies on into a parking orbit past the end of it, where it stays until the film is flown again. Purely
  * visual (`aria-hidden`); the `<media-time-slider>` underneath it carries the interaction, and its thumb is kept on
  * the path at the playhead here.
@@ -171,11 +170,6 @@ const TRAIL_LENGTH = 210;
 const TRAIL_WIDTHS = [13, 5.2, 2.8];
 /** How far back each stroke reaches, as a share of the trail's length. */
 const TRAIL_REACH = [1.25, 1, 0.4];
-/** Liftoff cloud at full size, and how far its simulated wall stands behind the craft: it is scaled until that wall
- * is the player's left edge. */
-const LIFTOFF_WIDTH = 340;
-const LIFTOFF_RATIO = 294 / 400;
-const LIFTOFF_WALL = 62;
 /** The film counts as still on the pad for this many seconds. */
 const PAD_SECONDS = 1.2;
 /** How long the engine takes to cut off after a pause. Matches skin.css. */
@@ -317,8 +311,7 @@ class AscentFlightElement extends PathElement {
   #trail!: SVGGElement;
   #trailPaths!: SVGPathElement[];
   #trailInks!: SVGLinearGradientElement[];
-  #liftoff!: HTMLElement;
-  #fxAt = '';
+  #pad!: SVGGElement;
   #onPad = true;
   #cut = 0;
   #sweep!: SVGPathElement;
@@ -355,24 +348,24 @@ class AscentFlightElement extends PathElement {
     this.setAttribute('aria-hidden', 'true');
     const glow = nextId('asc-glow');
     const ink = nextId('asc-trail');
-    this.innerHTML = `<div class="asc-liftoff asc-fx"><i></i><i></i></div><svg xmlns="${SVG}">
+    this.innerHTML = `<svg xmlns="${SVG}">
 <defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
 <linearGradient id="${ink}-g" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${BURN}" stop-opacity=".8"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient>
 <linearGradient id="${ink}-b" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff6ea"/><stop offset=".14" stop-color="#ffd9bc"/><stop offset=".45" stop-color="#ff8a4d" stop-opacity=".9"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient>
-<radialGradient id="${ink}-s"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#ffe9d6"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></radialGradient><linearGradient id="${ink}-h"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><linearGradient id="${ink}-v" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><linearGradient id="${ink}-c" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffef8"/><stop offset=".5" stop-color="#ffecd9" stop-opacity=".85"/><stop offset="1" stop-color="#ffc9a0" stop-opacity="0"/></linearGradient></defs>
+<radialGradient id="${ink}-p"><stop offset="0" stop-color="#ffb27f" stop-opacity=".9"/><stop offset=".35" stop-color="${BURN}" stop-opacity=".55"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></radialGradient><radialGradient id="${ink}-s"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#ffe9d6"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></radialGradient><linearGradient id="${ink}-h"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><linearGradient id="${ink}-v" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><linearGradient id="${ink}-c" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffef8"/><stop offset=".5" stop-color="#ffecd9" stop-opacity=".85"/><stop offset="1" stop-color="#ffc9a0" stop-opacity="0"/></linearGradient></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".26"/>
 <path class="rest" fill="none" stroke="${BURN}" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2.5 8" opacity=".7"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
-<g class="trail" fill="none" stroke-linecap="round"><path class="tr-glow" stroke="url(#${ink}-g)" filter="url(#${glow})"/><path class="tr-body" stroke="url(#${ink}-b)"/><path class="tr-core" stroke="url(#${ink}-c)"/></g>
+<g class="pad"><ellipse class="pad-glow" rx="110" ry="18" fill="url(#${ink}-p)"/></g><g class="trail" fill="none" stroke-linecap="round"><path class="tr-glow" stroke="url(#${ink}-g)" filter="url(#${glow})"/><path class="tr-body" stroke="url(#${ink}-b)"/><path class="tr-core" stroke="url(#${ink}-c)"/></g>
 <path class="sweep" fill="none" stroke="#ffd2b0" stroke-width="4" stroke-linecap="round" filter="url(#${glow})"/>
 <path class="orbit-track" fill="none" stroke="${BURN}" stroke-width="2" stroke-linejoin="round"/>
 <path class="orbit-glow" fill="none" stroke="${BURN}" stroke-width="7" filter="url(#${glow})"/>
 <path class="orbit" fill="none" stroke="${BURN}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
 <g class="dots"></g>
 <g class="orbit-body"><circle r="5.5" fill="${INK}"/></g>
-<g class="craft"><circle class="craft-beacon" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-beacon late" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="star-halo" r="9" fill="url(#${ink}-s)"/><g class="spikes"><rect x="-30" y="-.55" width="60" height="1.1" fill="url(#${ink}-h)"/><rect x="-.55" y="-22" width="1.1" height="44" fill="url(#${ink}-v)"/></g><circle class="star-core" r="2.6" fill="#fff"/><g class="arrow"></g><g class="lock" fill="none" stroke-linecap="square"><path d="M-15 -4V-15H-4M15 4V15H4" stroke="rgba(3,5,9,.5)" stroke-width="3.4"/><path d="M-15 -4V-15H-4M15 4V15H4" stroke="${INK}" stroke-width="1.2"/></g><g class="tag"><text x="18.5" y="-9.5" fill="${INK}" stroke="rgba(3,5,9,.6)" stroke-width="2.5" paint-order="stroke">ASC-1</text></g></g>
+<g class="craft"><circle class="craft-beacon" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-beacon late" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="star-halo" r="12" fill="url(#${ink}-s)"/><g class="spikes"><rect x="-30" y="-.55" width="60" height="1.1" fill="url(#${ink}-h)"/><rect x="-.45" y="-17" width=".9" height="34" fill="url(#${ink}-v)"/></g><circle class="star-core" r="3.8" fill="#fff"/><g class="arrow"></g><g class="lock" fill="none" stroke-linecap="square"><path d="M-15 -4V-15H-4M15 4V15H4" stroke="rgba(3,5,9,.5)" stroke-width="3.4"/><path d="M-15 -4V-15H-4M15 4V15H4" stroke="${INK}" stroke-width="1.2"/></g><g class="tag"><text x="18.5" y="-9.5" fill="${INK}" stroke="rgba(3,5,9,.6)" stroke-width="2.5" paint-order="stroke">ASC-1</text></g></g>
 </svg>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
@@ -387,7 +380,7 @@ class AscentFlightElement extends PathElement {
     this.#trail = q('.trail');
     this.#trailPaths = [...this.#trail.children] as SVGPathElement[];
     this.#trailInks = ['g', 'b', 'c'].map((k) => q(`#${ink}-${k}`));
-    this.#liftoff = q('.asc-liftoff');
+    this.#pad = q('.pad');
     this.#burn = q('.craft-glow');
     this.#sweep = q('.sweep');
     this.#orbit = q('.orbit');
@@ -648,23 +641,9 @@ class AscentFlightElement extends PathElement {
     // The light trail runs back along the flown path from the craft, longer at higher rates.
     const boost = Math.min(1.8, Math.max(0.7, 0.6 + 0.4 * rate));
     this.#drawTrail(g, shown, TRAIL_LENGTH * scale * boost, 3 * scale);
-    // The liftoff cloud stays on the pad. Sizes are whole pixels so the sprite's frames stay exact.
-    const liftoffW = Math.round((LIFTOFF_WIDTH * this.width * 0.043) / LIFTOFF_WALL);
-    const fx = [
-      g.x0.toFixed(1),
-      g.y0.toFixed(1),
-      liftoffW,
-      Math.round(liftoffW * LIFTOFF_RATIO),
-    ].join();
-    if (fx !== this.#fxAt) {
-      this.#fxAt = fx;
-      const [px, py, lw, lh] = fx.split(',');
-      const liftoff = this.#liftoff.style;
-      liftoff.setProperty('--fx-x', `${px}px`);
-      liftoff.setProperty('--fx-y', `${py}px`);
-      liftoff.setProperty('--fx-w', `${lw}px`);
-      liftoff.setProperty('--fx-h', `${lh}px`);
-    }
+    // The pad glow lies along the top of the console under the pad, low and wide. CSS animates the ellipse inside,
+    // so the position stays on the group.
+    this.#pad.setAttribute('transform', `translate(${(g.x0 + 70 * scale).toFixed(1)} ${(g.y0 + 6 * scale).toFixed(1)}) scale(${scale.toFixed(3)})`);
 
     // The slider's thumb (the focusable role="slider") stays on the path at the playhead, so a press or a key
     // lands where the film is.
@@ -1786,8 +1765,8 @@ class AscentKeysElement extends UIElement {
   }
 }
 
-/** How long ignition lasts: the trail's surge, and the liftoff cloud rising and clearing. Matches skin.css. */
-const IGNITION_MS = 3200;
+/** How long ignition lasts: the point's flare, the pad glow and the trail's surge. Matches skin.css. */
+const IGNITION_MS = 1200;
 /** After the launch effects end, the console stays up this long more, so the trail is seen burning on its own. */
 const LAUNCH_HOLD_MS = 2000;
 
@@ -1797,7 +1776,7 @@ const LAUNCH_HOLD_MS = 2000;
  * leaving only the film (and captions). With reduced motion the change is instant.
  *
  * It also calls the hold: while the film buffers (the `<media-buffering-indicator>` is showing) the skin carries
- * `data-hold`, the HUD stays up, the engine idles (or vents on the pad) and the Downlink lamp reads Hold. And it marks
+ * `data-hold`, the HUD stays up, the engine idles (on the pad the point dims to an ember) and the Downlink lamp reads Hold. And it marks
  * ignition: `data-ignite` for a moment each time the film starts playing or a hold ends, which flares the engine.
  *
  * A tap on the picture plays or pauses, unless the HUD was away: then the tap only brings it back.
@@ -1930,7 +1909,7 @@ class AscentLiftElement extends UIElement {
     if (!root || this.#isPaused || root.hasAttribute('data-hold')) return;
     // In orbit (the credits are rolling): the console stays up so the craft can be seen circling.
     if (root.querySelector('ascent-flight[data-arrived]')) return;
-    // A launch is playing out: let the smoke clear and the trail burn on its own for a moment first.
+    // A launch is playing out: let the flare settle and the trail burn on its own for a moment first.
     const launch = this.#showUntil - performance.now();
     if (launch > 0) {
       clearTimeout(this.#timer);

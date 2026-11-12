@@ -1566,7 +1566,7 @@ ascent-engine:hover .pm {
   text-shadow: 0 2px 14px rgba(2, 5, 10, 0.8);
 }
 
-/* ---------- the craft: engine glow, ignition, and the launch smoke ---------- */
+/* ---------- the craft: engine glow, ignition, and the launch flare ---------- */
 
 /*
  * The craft is drawn the way a long-range tracking camera sees a launch at night: a white-hot point with thin
@@ -1585,6 +1585,122 @@ ascent-flight[data-burn] .spikes {
 
 .asc:has(.asc-b.play[data-started][data-paused]:not([data-ended])) .spikes {
   opacity: 0.45;
+}
+
+/*
+ * Ignition is a light event, the way a tracking camera sees an engine light: the point overexposes, its spikes
+ * stretch, and both settle. From the pad the flare is full size and a low glow washes the top of the console;
+ * anywhere else the takeoff has already happened, so the flare is smaller and there is no glow.
+ */
+.star-core,
+.star-halo,
+.pad-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.pad-glow {
+  opacity: 0;
+}
+
+.asc[data-ignite] ascent-flight .star-core,
+.asc[data-ignite] ascent-flight .star-halo {
+  animation: asc-bloom 0.7s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.asc[data-ignite] ascent-flight .spikes {
+  animation: asc-flare 0.8s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.asc[data-ignite] ascent-flight[data-pad] .star-core,
+.asc[data-ignite] ascent-flight[data-pad] .star-halo {
+  animation-name: asc-bloom-pad;
+}
+
+.asc[data-ignite] ascent-flight[data-pad] .spikes {
+  animation-name: asc-flare-pad;
+}
+
+.asc[data-ignite]:not([data-hold]) ascent-flight[data-pad] .pad-glow {
+  animation: asc-pad-glow 1.05s ease-out;
+}
+
+/* A hold on the pad: the point waits as an ember. */
+.asc[data-hold] ascent-flight[data-pad] .star-core,
+.asc[data-hold] ascent-flight[data-pad] .star-halo {
+  animation: asc-ember-point 2.4s ease-in-out infinite;
+}
+
+.asc[data-hold] ascent-flight[data-pad] .spikes {
+  opacity: 0.3;
+}
+
+@keyframes asc-bloom {
+  0% {
+    transform: scale(1.8);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes asc-bloom-pad {
+  0% {
+    transform: scale(2.5);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes asc-flare {
+  0% {
+    transform: scale(2, 1.6);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes asc-flare-pad {
+  0% {
+    transform: scale(3, 2.4);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes asc-pad-glow {
+  0% {
+    opacity: 0;
+    transform: scale(0.5, 0.7);
+  }
+
+  14% {
+    opacity: 1;
+    transform: none;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.15, 1);
+  }
+}
+
+@keyframes asc-ember-point {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
 }
 
 @keyframes asc-shimmer {
@@ -1773,83 +1889,6 @@ ascent-flight[data-arrived] .craft-beacon.late {
   }
 }
 
-/*
- * Exhaust. The liftoff cloud is a baked fluid simulation (tools/plume makes it), 48 looping frames in an 8 x 6
- * sheet: smoke rising from the pad, the corner between the player's left edge and the desk. It shows only for a
- * launch from the start of the film, and as white vapour for a hold there. The light trail behind the craft is drawn on
- * the path (below).
- *
- * Two layers play alternate frames and cross-fade (plus-lighter makes the fade an exact blend), so the motion is
- * continuous instead of stepping from frame to frame. Each layer changes frame while it is fully faded out.
- * <ascent-flight> sets --fx-w / --fx-h in whole pixels and keeps both effects in place.
- */
-.asc-fx {
-  --fx-frame: 55ms;
-
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  width: var(--fx-w, 0);
-  height: var(--fx-h, 0);
-  isolation: isolate;
-  pointer-events: none;
-}
-
-.asc-fx > i {
-  position: absolute;
-  inset: 0;
-  background-repeat: no-repeat;
-  background-size: calc(var(--fx-w, 0px) * 8) calc(var(--fx-h, 0px) * 6);
-  animation:
-    asc-fx-even calc(var(--fx-frame) * 8) steps(4) infinite,
-    asc-fx-row calc(var(--fx-frame) * 48) steps(6) infinite,
-    asc-fx-mix calc(var(--fx-frame) * 2) linear infinite;
-  animation-play-state: paused;
-}
-
-/* The second layer: the odd frames, one frame later. */
-.asc-fx > i + i {
-  background-position-x: calc(var(--fx-w, 0px) * -1);
-  opacity: 0;
-  mix-blend-mode: plus-lighter;
-  animation-name: asc-fx-odd, asc-fx-row, asc-fx-mix;
-  animation-delay: var(--fx-frame);
-}
-
-@keyframes asc-fx-even {
-  to {
-    background-position-x: calc(var(--fx-w, 0px) * -8);
-  }
-}
-
-@keyframes asc-fx-odd {
-  from {
-    background-position-x: calc(var(--fx-w, 0px) * -1);
-  }
-
-  to {
-    background-position-x: calc(var(--fx-w, 0px) * -9);
-  }
-}
-
-@keyframes asc-fx-row {
-  to {
-    background-position-y: calc(var(--fx-h, 0px) * -6);
-  }
-}
-
-@keyframes asc-fx-mix {
-  0%,
-  100% {
-    opacity: 0;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
-
 /* The light trail: the engine's exhaust drawn on the flown path itself, white-hot at the craft and cooling to the path's
    orange. <ascent-flight> draws it back along the path from the craft; here it surges at ignition, burns longer with
    speed (drawn, not scaled), and draws back into the craft when the engine cuts. The strokes keep their width as the
@@ -1934,89 +1973,10 @@ ascent-flight:is([data-burn], [data-cut]) .trail path {
   }
 }
 
-/* A hold on the pad: no trail yet, only vapour. */
+/* A hold on the pad: no trail yet, and the point dims to a slow ember. */
 .asc[data-hold] ascent-flight[data-pad] .trail {
   visibility: hidden;
   opacity: 0;
-}
-
-/*
- * The liftoff cloud. Its frame's left edge is the wall the smoke splashes up and its bottom edge the floor it rolls
- * along; the craft stands at 18.24% across and 84.46% down. It billows out of the corner behind a growing soft edge.
- */
-.asc-liftoff {
-  visibility: hidden;
-  transform: translate(
-    calc(var(--fx-x, 0px) - var(--fx-w, 0px) * 0.1824),
-    calc(var(--fx-y, 0px) - var(--fx-h, 0px) * 0.8446)
-  );
-  transition: filter 0.4s ease;
-  -webkit-mask-image: radial-gradient(circle at 0 100%, #000 55%, transparent 82%);
-  mask-image: radial-gradient(circle at 0 100%, #000 55%, transparent 82%);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: 0 100%;
-  mask-position: 0 100%;
-  -webkit-mask-size: 200% 200%;
-  mask-size: 200% 200%;
-}
-
-.asc-liftoff i {
-  background-image: url('./liftoff.webp');
-  background-image: image-set(url('./liftoff.avif') type('image/avif'), url('./liftoff.webp') type('image/webp'));
-}
-
-.asc[data-hold] ascent-flight[data-pad] .asc-liftoff,
-.asc[data-ignite] ascent-flight[data-pad] .asc-liftoff {
-  visibility: visible;
-  animation: asc-billow 1.3s cubic-bezier(0.2, 0.7, 0.3, 1) both;
-}
-
-.asc[data-hold] ascent-flight[data-pad] .asc-liftoff i,
-.asc[data-ignite] ascent-flight[data-pad] .asc-liftoff i {
-  animation-play-state: running;
-}
-
-/* A launch: the cloud rises, hangs for a moment and clears. */
-.asc[data-ignite]:not([data-hold]) ascent-flight[data-pad] .asc-liftoff {
-  animation:
-    asc-billow 1.3s cubic-bezier(0.2, 0.7, 0.3, 1) both,
-    asc-clear 3.2s linear both;
-}
-
-/* A hold on the pad vents cold gas: the same cloud with the warmth taken out of it. */
-.asc[data-hold] ascent-flight[data-pad] .asc-liftoff {
-  filter: grayscale(1) brightness(1.06);
-}
-
-@keyframes asc-billow {
-  from {
-    -webkit-mask-size: 30% 30%;
-    mask-size: 30% 30%;
-  }
-
-  to {
-    -webkit-mask-size: 200% 200%;
-    mask-size: 200% 200%;
-  }
-}
-
-@keyframes asc-clear {
-  0% {
-    opacity: 0;
-  }
-
-  5% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
 }
 
 /* ---------- captions: rise with the HUD so they never sit on the path ---------- */
