@@ -151,20 +151,24 @@ abstract class PathElement extends UIElement {
 /**
  * <ascent-flight>: the flight path. A dotted course still to fly, the buffered stretch ahead, the flown part in orange
  * with a glow, a dot for each chapter and the craft at the playhead. The craft's engine glow is an ember when paused
- * and grows with the playback rate. While the film plays a booster flame burns behind the craft (`data-burn`), longer
- * at higher rates, it flares at ignition (`data-ignite` on the skin) and pulls back into the nozzle when the film is
- * paused (`data-cut`), after which the craft holds with a slow beacon. A launch from the start of the film, or a
+ * and grows with the playback rate. While the film plays the engine's light trail burns on the flown path behind the
+ * craft (`data-burn`): white-hot at the craft, cooling to the path's orange, longer at higher rates. It surges at
+ * ignition (`data-ignite` on the skin) and draws back into the craft when the film is paused (`data-cut`), after which
+ * the craft holds with a slow beacon. A launch from the start of the film, or a
  * hold there, also raises a cloud from the pad (`data-pad`): the corner between the player's left edge and the desk.
- * Anywhere else on the path the takeoff has already happened, so there is the booster and nothing more. The booster
- * is a white-hot jet with a chain of shock diamonds, drawn in CSS (`.asc-booster`); the cloud is a baked fluid
- * simulation played as a sprite (`.asc-liftoff`; see skin.css and tools/plume). This element only keeps them in place. When the film ends (`data-arrived`) a light runs up the flown path and the
+ * Anywhere else on the path the takeoff has already happened, so there is the trail and nothing more. The trail is
+ * drawn in the path's own SVG (`.trail`); the cloud is a baked fluid simulation played as a sprite (`.asc-liftoff`;
+ * see skin.css and tools/plume). When the film ends (`data-arrived`) a light runs up the flown path and the
  * craft flies on into a parking orbit past the end of it, where it stays until the film is flown again. Purely
  * visual (`aria-hidden`); the `<media-time-slider>` underneath it carries the interaction, and its thumb is kept on
  * the path at the playhead here.
  */
-/** Booster flame box at full size, in CSS pixels, and its height as a share of its width. */
-const BOOSTER_WIDTH = 190;
-const BOOSTER_RATIO = 118 / 384;
+/** The light trail at full size and normal speed: how far back along the path it reaches, in CSS pixels. */
+const TRAIL_LENGTH = 210;
+/** The trail's three strokes, at full size: the glow it throws, its body, and the white-hot core. */
+const TRAIL_WIDTHS = [13, 5.2, 2.8];
+/** How far back each stroke reaches, as a share of the trail's length. */
+const TRAIL_REACH = [1.25, 1, 0.4];
 /** Liftoff cloud at full size, and how far its simulated wall stands behind the craft: it is scaled until that wall
  * is the player's left edge. */
 const LIFTOFF_WIDTH = 340;
@@ -308,7 +312,9 @@ class AscentFlightElement extends PathElement {
   #dots!: SVGGElement;
   #craft!: SVGGElement;
   #arrow!: SVGPathElement;
-  #booster!: HTMLElement;
+  #trail!: SVGGElement;
+  #trailPaths!: SVGPathElement[];
+  #trailInks!: SVGLinearGradientElement[];
   #liftoff!: HTMLElement;
   #fxAt = '';
   #onPad = true;
@@ -346,13 +352,18 @@ class AscentFlightElement extends PathElement {
   #build() {
     this.setAttribute('aria-hidden', 'true');
     const glow = nextId('asc-glow');
+    const ink = nextId('asc-trail');
     this.innerHTML = `<div class="asc-liftoff asc-fx"><i></i><i></i></div><svg xmlns="${SVG}">
-<defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter></defs>
+<defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
+<linearGradient id="${ink}-g" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${BURN}" stop-opacity=".8"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient>
+<linearGradient id="${ink}-b" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff6ea"/><stop offset=".14" stop-color="#ffd9bc"/><stop offset=".45" stop-color="#ff8a4d" stop-opacity=".9"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient>
+<linearGradient id="${ink}-c" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffef8"/><stop offset=".5" stop-color="#ffecd9" stop-opacity=".85"/><stop offset="1" stop-color="#ffc9a0" stop-opacity="0"/></linearGradient></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".26"/>
 <path class="rest" fill="none" stroke="${BURN}" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2.5 8" opacity=".7"/>
 <path class="glow" fill="none" stroke="${BURN}" stroke-width="10" opacity=".45" filter="url(#${glow})"/>
 <path class="done" fill="none" stroke="${BURN}" stroke-width="4" stroke-linecap="round"/>
+<g class="trail" fill="none" stroke-linecap="round"><path class="tr-glow" stroke="url(#${ink}-g)" filter="url(#${glow})"/><path class="tr-body" stroke="url(#${ink}-b)"/><path class="tr-core" stroke="url(#${ink}-c)"/></g>
 <path class="sweep" fill="none" stroke="#ffd2b0" stroke-width="4" stroke-linecap="round" filter="url(#${glow})"/>
 <path class="orbit-track" fill="none" stroke="${BURN}" stroke-width="2" stroke-linejoin="round"/>
 <path class="orbit-glow" fill="none" stroke="${BURN}" stroke-width="7" filter="url(#${glow})"/>
@@ -360,7 +371,7 @@ class AscentFlightElement extends PathElement {
 <g class="dots"></g>
 <g class="orbit-body"><circle r="5.5" fill="${INK}"/></g>
 <g class="craft"><circle class="craft-beacon" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-beacon late" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
-</svg><div class="asc-booster"><b><s class="halo"></s><s class="plume"></s><s class="core"></s><s class="dia"></s><s class="dia"></s><s class="dia"></s><s class="dia"></s></b></div>`;
+</svg>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
     this.#rest = q('.rest');
@@ -371,7 +382,9 @@ class AscentFlightElement extends PathElement {
     this.#dots = q('.dots');
     this.#craft = q('.craft');
     this.#arrow = q('.arrow');
-    this.#booster = q('.asc-booster');
+    this.#trail = q('.trail');
+    this.#trailPaths = [...this.#trail.children] as SVGPathElement[];
+    this.#trailInks = ['g', 'b', 'c'].map((k) => q(`#${ink}-${k}`));
     this.#liftoff = q('.asc-liftoff');
     this.#burn = q('.craft-glow');
     this.#sweep = q('.sweep');
@@ -423,6 +436,7 @@ class AscentFlightElement extends PathElement {
     const scale = craftScale(W, lift);
     this.#sweep.setAttribute('stroke-width', (9 * big).toFixed(2));
     this.#orbit.setAttribute('stroke-width', (2.4 * big).toFixed(2));
+    TRAIL_WIDTHS.forEach((w, i) => this.#trailPaths[i]?.setAttribute('stroke-width', (w * big).toFixed(2)));
     this.#orbitTrack.setAttribute('stroke-width', (2 * big).toFixed(2));
     this.#orbitGlow.setAttribute('stroke-width', (7 * big).toFixed(2));
     const burning = this.#playback.value ? !this.#playback.value.paused : false;
@@ -488,8 +502,54 @@ class AscentFlightElement extends PathElement {
   };
 
   /**
+   * Draw the light trail: from the craft's ring (`gap` pixels out from its centre) back along the flown path for
+   * `length` pixels (less near the start). Each
+   * stroke's gradient runs from the craft to its own tail, so it cools from white-hot to nothing. The group is also
+   * scaled from the craft by the skin's CSS, for the surge at ignition and the draw-back at a pause.
+   */
+  #drawTrail(g: Geometry, t: number, length: number, gap: number) {
+    const x0 = pathX(g, t);
+    const y0 = pathY(g, t);
+    const reach = gap + length * TRAIL_REACH[0];
+    const points: [number, number, number][] = [];
+    let px = x0;
+    let py = y0;
+    let run = 0;
+    for (let u = t; u > 0 && run < reach; ) {
+      u = Math.max(0, u - 0.002);
+      const x = pathX(g, u);
+      const y = pathY(g, u);
+      run += Math.hypot(x - px, y - py);
+      px = x;
+      py = y;
+      if (run >= gap) points.push([x, y, run - gap]);
+    }
+    TRAIL_REACH.forEach((share, i) => {
+      const want = length * share;
+      let d = '';
+      const start = points[0];
+      let end = start;
+      for (const point of points) {
+        if (point[2] > want && d) break;
+        d += `${d ? 'L' : 'M'}${point[0].toFixed(1)} ${point[1].toFixed(1)}`;
+        end = point;
+      }
+      this.#trailPaths[i]?.setAttribute('d', points.length > 1 ? d : '');
+      if (!start || !end) return;
+      const ink = this.#trailInks[i];
+      ink?.setAttribute('x1', start[0].toFixed(1));
+      ink?.setAttribute('y1', start[1].toFixed(1));
+      // A gradient whose two ends meet draws nothing, so the tail always lies a pixel or more away.
+      ink?.setAttribute('x2', (end[0] - (end === start ? 1 : 0)).toFixed(1));
+      ink?.setAttribute('y2', end[1].toFixed(1));
+    });
+    this.#trail.style.setProperty('--tx', `${x0.toFixed(1)}px`);
+    this.#trail.style.setProperty('--ty', `${y0.toFixed(1)}px`);
+  }
+
+  /**
    * Put the craft where it belongs: on the path at the playhead or, once the film has ended, on its way around the
-   * parking orbit. The booster and the time slider's thumb go with it.
+   * parking orbit. The light trail and the time slider's thumb go with it.
    */
   #place() {
     const at = this.#at;
@@ -507,7 +567,7 @@ class AscentFlightElement extends PathElement {
     let cy = pathY(g, shown);
     let angle = (headingAt(g, shown) * 180) / Math.PI;
     let craft = scale;
-    // The booster burns while the film plays, until the craft is in orbit; it only shows while the HUD is up.
+    // The trail burns while the film plays, until the craft is in orbit; it only shows while the HUD is up.
     const lit = at.burning && since < ARRIVAL_MS;
     this.toggleAttribute('data-burn', lit && at.lift > 0.02);
     // Engine cut-off: for a moment after the flame goes out it keeps moving while it pulls back into the nozzle.
@@ -581,18 +641,12 @@ class AscentFlightElement extends PathElement {
 
     this.#craft.setAttribute('transform', `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${craft.toFixed(3)})`);
     this.#arrow.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
-    // The booster sits on the craft's tail, turned to its heading; the liftoff cloud stays on the pad. Sizes are whole
-    // pixels so the sprites' frames stay exact.
-    const boosterW = Math.round(BOOSTER_WIDTH * scale);
+    // The light trail runs back along the flown path from the craft, longer at higher rates.
+    const boost = Math.min(1.8, Math.max(0.7, 0.6 + 0.4 * rate));
+    this.#drawTrail(g, shown, TRAIL_LENGTH * scale * boost, 15 * scale);
+    // The liftoff cloud stays on the pad. Sizes are whole pixels so the sprite's frames stay exact.
     const liftoffW = Math.round((LIFTOFF_WIDTH * this.width * 0.043) / LIFTOFF_WALL);
     const fx = [
-      cx.toFixed(1),
-      cy.toFixed(1),
-      angle.toFixed(1),
-      boosterW,
-      Math.round(boosterW * BOOSTER_RATIO),
-      (17 * scale).toFixed(1),
-      Math.min(1.5, Math.max(0.7, 0.8 + 0.2 * rate)).toFixed(2),
       g.x0.toFixed(1),
       g.y0.toFixed(1),
       liftoffW,
@@ -600,15 +654,7 @@ class AscentFlightElement extends PathElement {
     ].join();
     if (fx !== this.#fxAt) {
       this.#fxAt = fx;
-      const [x, y, turn, bw, bh, back, boost, px, py, lw, lh] = fx.split(',');
-      const booster = this.#booster.style;
-      booster.setProperty('--fx-x', `${x}px`);
-      booster.setProperty('--fx-y', `${y}px`);
-      booster.setProperty('--fx-turn', `${turn}deg`);
-      booster.setProperty('--fx-w', `${bw}px`);
-      booster.setProperty('--fx-h', `${bh}px`);
-      booster.setProperty('--fx-back', `${back}px`);
-      booster.setProperty('--boost', boost);
+      const [px, py, lw, lh] = fx.split(',');
       const liftoff = this.#liftoff.style;
       liftoff.setProperty('--fx-x', `${px}px`);
       liftoff.setProperty('--fx-y', `${py}px`);
@@ -1736,9 +1782,9 @@ class AscentKeysElement extends UIElement {
   }
 }
 
-/** How long ignition lasts: the booster's flare, and the liftoff cloud rising and clearing. Matches skin.css. */
+/** How long ignition lasts: the trail's surge, and the liftoff cloud rising and clearing. Matches skin.css. */
 const IGNITION_MS = 3200;
-/** After the launch effects end, the console stays up this long more, so the booster is seen burning on its own. */
+/** After the launch effects end, the console stays up this long more, so the trail is seen burning on its own. */
 const LAUNCH_HOLD_MS = 2000;
 
 /**
@@ -1880,7 +1926,7 @@ class AscentLiftElement extends UIElement {
     if (!root || this.#isPaused || root.hasAttribute('data-hold')) return;
     // In orbit (the credits are rolling): the console stays up so the craft can be seen circling.
     if (root.querySelector('ascent-flight[data-arrived]')) return;
-    // A launch is playing out: let the smoke clear and the booster burn on its own for a moment first.
+    // A launch is playing out: let the smoke clear and the trail burn on its own for a moment first.
     const launch = this.#showUntil - performance.now();
     if (launch > 0) {
       clearTimeout(this.#timer);

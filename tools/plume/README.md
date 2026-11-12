@@ -1,13 +1,13 @@
 # Exhaust
 
 The cloud at liftoff is not drawn. It is a small fluid simulation, run once and baked into a looping sprite sheet
-that the skin plays in CSS. Nothing is simulated in the browser and no SVG filter runs while the film plays. (The
-booster flame on the craft's tail is drawn in CSS, as a white-hot jet with shock diamonds; see `.asc-booster` in
-`src/video/skin.css`. An earlier version baked it here too.)
+that the skin plays in CSS. Nothing is simulated in the browser and no SVG filter runs while the film plays. (In flight
+the engine shows as a light trail on the flown path, drawn in SVG; see `.trail` in `src/video/skin.css`. An earlier
+version baked a booster flame here too.)
 
 - **Liftoff cloud** (`src/video/liftoff.avif`, `.webp`): smoke rising from the pad, the corner between the player's
   left edge and the console desk. It shows only for a launch from the start of the film, and as white vapour for a
-  hold there. Anywhere else on the path the takeoff has already happened, so there is only the booster.
+  hold there. Anywhere else on the path the takeoff has already happened, so there is only the trail.
 
 ## Rebuild
 

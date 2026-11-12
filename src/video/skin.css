@@ -135,7 +135,7 @@
 }
 
 /*
- * A pause is a hold called from the console. The engine cuts off (see the booster), the main screen dims a little,
+ * A pause is a hold called from the console. The engine cuts off (see the light trail), the main screen dims a little,
  * and everything that was running waits in one slow rhythm: a beacon from the craft, the stopped clock, and a ring
  * around the key that resumes the flight.
  */
@@ -1705,8 +1705,8 @@ ascent-flight[data-arrived] .craft-beacon.late {
 /*
  * Exhaust. The liftoff cloud is a baked fluid simulation (tools/plume makes it), 48 looping frames in an 8 x 6
  * sheet: smoke rising from the pad, the corner between the player's left edge and the desk. It shows only for a
- * launch from the start of the film, and as white vapour for a hold there. The booster on the craft's tail is drawn
- * in CSS (below).
+ * launch from the start of the film, and as white vapour for a hold there. The light trail behind the craft is drawn on
+ * the path (below).
  *
  * Two layers play alternate frames and cross-fade (plus-lighter makes the fade an exact blend), so the motion is
  * continuous instead of stepping from frame to frame. Each layer changes frame while it is fully faded out.
@@ -1779,186 +1779,81 @@ ascent-flight[data-arrived] .craft-beacon.late {
   }
 }
 
-/* The booster: a white-hot jet with shock diamonds, the bright beads a rocket's exhaust makes at speed. Its box is
-   set by <ascent-flight>; the nozzle sits at 92% across and half way down. */
-.asc-booster {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: var(--fx-w, 0);
-  height: var(--fx-h, 0);
+/* The light trail: the engine's exhaust drawn on the flown path itself, white-hot at the craft and cooling to the path's
+   orange. <ascent-flight> draws it back along the path from the craft; here it surges at ignition, burns longer with
+   speed (drawn, not scaled), and draws back into the craft when the engine cuts. The strokes keep their width as the
+   group scales. */
+ascent-flight .trail {
   visibility: hidden;
   opacity: 0;
-  transform: translate(var(--fx-x, 0), var(--fx-y, 0)) rotate(var(--fx-turn, 0deg))
-    translate(calc(var(--fx-w, 0px) * -0.92 - var(--fx-back, 16px)), calc(var(--fx-h, 0px) * -0.5));
-  transform-origin: 0 0;
-  /* Engine cut-off: the flame is gone only after it has pulled back into the nozzle (see below). */
+  transform: scale(0.04);
+  transform-origin: var(--tx, 0) var(--ty, 0);
+  /* Engine cut-off: the trail is gone only after it has drawn back into the craft. */
   transition:
+    transform 0.45s cubic-bezier(0.5, 0, 0.8, 0.4),
     opacity 0.2s ease 0.36s,
     visibility 0s 0.56s;
-  pointer-events: none;
 }
 
-.asc-booster > b {
-  position: absolute;
-  inset: 0;
-  display: block;
-  /* High contrast keeps the flame, as it keeps the path's own orange. */
-  forced-color-adjust: none;
+ascent-flight .trail path {
+  vector-effect: non-scaling-stroke;
 }
 
-.asc-booster s {
-  position: absolute;
-  top: 50%;
-  display: block;
-  text-decoration: none;
-}
-
-/* The glow the jet throws on the air around it. */
-.asc-booster .halo {
-  right: 2%;
-  width: 72%;
-  height: 76%;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(255, 91, 31, 0.5), transparent);
-  filter: blur(5px);
-  transform: translateY(-50%);
-}
-
-/* The plume: the orange taper the diamonds sit in, cooling to nothing. */
-.asc-booster .plume {
-  right: 8%;
-  width: 88%;
-  height: 40%;
-  background: linear-gradient(to left, rgba(255, 120, 60, 0.85), rgba(255, 91, 31, 0.5) 40%, rgba(255, 91, 31, 0));
-  /* Soft sides: the plume is masked to a long half-ellipse from the nozzle, fading at its edges, not cut. */
-  -webkit-mask-image: radial-gradient(farthest-side at 100% 50%, #000 45%, transparent);
-  mask-image: radial-gradient(farthest-side at 100% 50%, #000 45%, transparent);
-  transform: translateY(-50%);
-  transform-origin: 100% 50%;
-  animation: asc-plume 0.9s ease-in-out infinite alternate;
-}
-
-/* The core: white-hot where it leaves the nozzle. */
-.asc-booster .core {
-  right: 8%;
-  width: 19%;
-  height: 24%;
-  background: linear-gradient(to left, #fffef8, #ffe6cc 50%, rgba(255, 170, 110, 0));
-  -webkit-mask-image: radial-gradient(farthest-side at 100% 50%, #000 40%, transparent);
-  mask-image: radial-gradient(farthest-side at 100% 50%, #000 40%, transparent);
-  transform: translateY(-50%);
-}
-
-/* The diamonds, each smaller and cooler than the one before, each breathing at its own pace. Two crossed diagonal
-   bands mask each one to a soft lozenge, pinched at the ends like the real thing. */
-.asc-booster .dia {
-  aspect-ratio: 1;
-  background: radial-gradient(closest-side, #fffef8, #ffe2c8 38%, rgba(255, 150, 80, 0.12));
-  -webkit-mask-image:
-    linear-gradient(45deg, transparent 12%, #000 38%, #000 62%, transparent 88%),
-    linear-gradient(-45deg, transparent 12%, #000 38%, #000 62%, transparent 88%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(45deg, transparent 12%, #000 38%, #000 62%, transparent 88%),
-    linear-gradient(-45deg, transparent 12%, #000 38%, #000 62%, transparent 88%);
-  mask-composite: intersect;
-  opacity: var(--o, 1);
-  transform: translate(50%, -50%) scaleX(1.6);
-  animation: asc-dia 0.7s ease-in-out infinite alternate;
-}
-
-.asc-booster .dia:nth-child(4) {
-  right: 23%;
-  width: 12.5%;
-}
-
-.asc-booster .dia:nth-child(5) {
-  right: 38%;
-  width: 10%;
-  --o: 0.9;
-  animation-duration: 0.83s;
-  animation-delay: -0.3s;
-}
-
-.asc-booster .dia:nth-child(6) {
-  right: 52%;
-  width: 7.5%;
-  --o: 0.75;
-  animation-duration: 0.61s;
-  animation-delay: -0.5s;
-}
-
-.asc-booster .dia:nth-child(7) {
-  right: 65%;
-  width: 5.5%;
-  --o: 0.55;
-  animation-duration: 0.95s;
-  animation-delay: -0.2s;
-}
-
-@keyframes asc-plume {
-  to {
-    transform: translateY(-50%) scale(0.94, 0.86);
-  }
-}
-
-@keyframes asc-dia {
-  to {
-    opacity: calc(var(--o, 1) * 0.78);
-    transform: translate(50%, -50%) scale(1.4, 0.84);
-  }
-}
-
-/* Out: the flame is drawn back into the nozzle. A pause sends it there, still burning, before it fades. */
-.asc-booster > b {
-  transform: scale(0.05, 0.4);
-  transform-origin: 92% 50%;
-  transition: transform 0.5s cubic-bezier(0.5, 0, 0.8, 0.4);
-}
-
-ascent-flight[data-burn] .asc-booster {
+ascent-flight[data-burn] .trail {
   visibility: visible;
   opacity: 1;
-  transition: opacity 0.25s ease;
+  transform: none;
+  transition:
+    transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 0.25s ease;
 }
 
-/* Thrust: the flame is longer at higher playback rates. */
-ascent-flight[data-burn] .asc-booster > b {
-  transform: scale(var(--boost, 1));
-  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+/* The trail never sits still while it burns: the glow and the core breathe, each at its own pace. */
+ascent-flight .trail .tr-glow {
+  animation: asc-trail-glow 1.1s ease-in-out infinite alternate paused;
 }
 
-/* The diamonds and plume only move while the engine burns. */
-.asc-booster s {
-  animation-play-state: paused !important;
+ascent-flight .trail .tr-core {
+  animation: asc-trail-core 0.74s ease-in-out -0.3s infinite alternate paused;
 }
 
-ascent-flight:is([data-burn], [data-cut]) .asc-booster s {
-  animation-play-state: running !important;
+ascent-flight:is([data-burn], [data-cut]) .trail path {
+  animation-play-state: running;
 }
 
-/* Ignition: the flame kicks out past its length, then settles. */
-.asc[data-ignite] .asc-booster > b {
-  animation: asc-flare 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+@keyframes asc-trail-glow {
+  to {
+    opacity: 0.6;
+  }
 }
 
-@keyframes asc-flare {
+@keyframes asc-trail-core {
+  to {
+    opacity: 0.72;
+  }
+}
+
+/* Ignition: the trail surges out past its length, then settles. */
+.asc[data-ignite] ascent-flight .trail {
+  animation: asc-surge 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes asc-surge {
   0% {
     transform: scale(0.3);
   }
 
   30% {
-    transform: scale(calc(var(--boost, 1) * 1.45));
+    transform: scale(1.4);
   }
 
   100% {
-    transform: scale(var(--boost, 1));
+    transform: none;
   }
 }
 
-/* A hold in flight: the engine idles, the flame breathing low. */
-.asc[data-hold] ascent-flight[data-burn]:not([data-pad]) .asc-booster {
+/* A hold in flight: the engine idles, the trail breathing low. */
+.asc[data-hold] ascent-flight[data-burn]:not([data-pad]) .trail {
   animation: asc-idle 1.6s ease-in-out infinite;
 }
 
@@ -1968,8 +1863,8 @@ ascent-flight:is([data-burn], [data-cut]) .asc-booster s {
   }
 }
 
-/* A hold on the pad: no flame yet, only vapour. */
-.asc[data-hold] ascent-flight[data-pad] .asc-booster {
+/* A hold on the pad: no trail yet, only vapour. */
+.asc[data-hold] ascent-flight[data-pad] .trail {
   visibility: hidden;
   opacity: 0;
 }
