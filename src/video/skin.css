@@ -1757,6 +1757,7 @@ ascent-flight .tag text {
 
 /* No room to read it on a narrow player, and in orbit the credits have the stage. */
 ascent-flight[data-narrow] .tag,
+ascent-flight[data-near] .tag,
 ascent-flight[data-arrived] .tag {
   opacity: 0;
 }
@@ -2292,7 +2293,7 @@ ascent-manual[data-open] .asc-dialog {
   .asc-manual kbd {
     min-width: 16px;
     padding: 1px 4px;
-    font-size: 9.5px;
+    font-size: 10px;
   }
 
   /* Close moves up beside the heading, so the whole card fits a small frame. */
@@ -2420,18 +2421,19 @@ ascent-manual[data-open] .asc-dialog {
   }
 
   .asc-clock b {
-    font-size: clamp(22px, 6.6cqw, 40px);
+    font-size: clamp(22px, 6.6cqw, 34px);
   }
 
   /* The clock is one line here, with the next event's countdown under it; keep its toggle 44px tall. */
   .asc-clock button {
     justify-content: center;
-    gap: 3px;
+    gap: 2px;
     min-height: 44px;
   }
 
   .asc-clock .nx {
     display: block;
+    line-height: 1;
   }
 }
 
@@ -2509,5 +2511,10 @@ ascent-manual[data-open] .asc-dialog {
   .asc * {
     transition: none !important;
     animation: none !important;
+  }
+
+  /* The skip readout normally fades in through its animation; without motion it simply shows while it is on. */
+  .asc .asc-skip[data-on] {
+    opacity: 1;
   }
 }

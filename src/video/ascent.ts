@@ -564,6 +564,10 @@ class AscentFlightElement extends PathElement {
     let cy = pathY(g, shown);
     let angle = (headingAt(g, shown) * 180) / Math.PI;
     let craft = scale;
+    // The callsign tag reads to the right of the craft; it steps aside while the next event's node and tick pass under it.
+    const ahead = marks.find((f) => f > shown + 1e-4);
+    const gap = ahead === undefined ? Infinity : pathX(g, ahead) - cx;
+    this.toggleAttribute('data-near', gap >= -6 * scale && gap < 60 * scale);
     // The trail burns while the film plays, until the craft is in orbit; it only shows while the HUD is up.
     const lit = at.burning && since < ARRIVAL_MS;
     this.toggleAttribute('data-burn', lit && at.lift > 0.02);
