@@ -56,7 +56,7 @@ a:focus-visible {
   gap: 16px;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 22px var(--gutter);
+  padding: 18px var(--gutter) 14px;
 }
 
 .site-mark {
@@ -132,7 +132,7 @@ a:focus-visible {
 /* The whole player fits the first screen: its width is capped by the height left under the header and hero. */
 .site-player {
   position: relative;
-  width: min(100%, calc(1440px), calc((100svh - 280px) * 16 / 9 + 2 * var(--gutter)));
+  width: min(100%, calc(1440px), calc((100svh - 262px) * 16 / 9 + 2 * var(--gutter)));
   min-width: min(100%, 360px);
   margin: 0 auto;
   padding: 0 var(--gutter);
@@ -142,7 +142,7 @@ a:focus-visible {
 .site-cue {
   position: absolute;
   top: -26px;
-  right: var(--gutter);
+  left: var(--gutter);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -208,9 +208,9 @@ video-player {
   letter-spacing: 0.14em;
 }
 
-.site-num::after {
-  content: ' · event';
+.site-num em {
   color: var(--dim);
+  font-style: normal;
   text-transform: uppercase;
 }
 

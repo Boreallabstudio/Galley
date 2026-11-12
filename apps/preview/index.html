@@ -39,10 +39,10 @@
       <section class="site-parts" aria-labelledby="parts">
         <h2 id="parts" class="site-h2">On the console</h2>
         <ol class="site-list">
-          <li><span class="site-num">01</span><b>Flight path</b><span>A real Video.js time slider. The chapters are events along it; drag the craft or press an event to fly there.</span></li>
-          <li><span class="site-num">02</span><b>Engine dials</b><span>Volume and speed. Turn, drag or scroll; the throat of the engine glows from ember to white-hot.</span></li>
-          <li><span class="site-num">03</span><b>Launch, Hold, Resume</b><span>Play is a launch with an ignition flare. Buffering is a hold, and the Downlink lamp reads the link rate where the browser reports it.</span></li>
-          <li><span class="site-num">04</span><b>Mission clock</b><span>Elapsed time, with a countdown to the next event. At the end the craft settles into a parking orbit.</span></li>
+          <li><span class="site-num">01 <em>· Path</em></span><b>Flight path</b><span>A real Video.js time slider. The chapters are events along it; drag the craft or press an event to fly there.</span></li>
+          <li><span class="site-num">02 <em>· Propulsion</em></span><b>Engine dials</b><span>Volume and speed. Turn, drag or scroll; the throat of the engine glows from ember to white-hot.</span></li>
+          <li><span class="site-num">03 <em>· Flight</em></span><b>Launch, Hold, Resume</b><span>Play is a launch with an ignition flare. Buffering is a hold, and the Downlink lamp reads the link rate where the browser reports it.</span></li>
+          <li><span class="site-num">04 <em>· Clock</em></span><b>Mission clock</b><span>Elapsed time, with a countdown to the next event. At the end the craft settles into a parking orbit.</span></li>
         </ol>
       </section>
       <section class="site-parts" aria-labelledby="keys">
@@ -61,7 +61,9 @@
       <section id="use" class="site-parts" aria-labelledby="use-title">
         <h2 id="use-title" class="site-h2">Use it</h2>
         <p class="site-use">Put your media in place of the placeholder in <code>src/video/skin.html</code>, inside a Video.js player, and import <code>src/video/skin.ts</code>. That one import brings the stylesheet and the self-hosted fonts. Chapters become events on the path.</p>
-        <pre class="site-code" tabindex="0" aria-label="Example markup"><code>&lt;video-player content-title="Charge"&gt;
+        <pre class="site-code" tabindex="0" aria-label="Example markup"><code>import './src/video/skin';
+
+&lt;video-player content-title="Charge"&gt;
   &lt;!-- src/video/skin.html, with the placeholder replaced by: --&gt;
   &lt;mux-video playsinline crossorigin="anonymous"&gt;
     &lt;track kind="chapters" srclang="en" src="chapters.vtt" default&gt;
