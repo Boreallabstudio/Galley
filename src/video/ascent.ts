@@ -1308,6 +1308,9 @@ class AscentEngineElement extends UIElement {
       const volume = this.#volume.value;
       const f = volume ? (volume.muted ? 0 : volume.volume) : 1;
       this.#show(f, String(Math.round(f * 100)));
+      // Where a page cannot set the volume (iPhone and iPad), the dial would turn and change nothing: leave it out.
+      // The mute key still works there.
+      this.hidden = volume?.volumeAvailability === 'unsupported';
     }
   }
 
@@ -1767,6 +1770,10 @@ class AscentKeysElement extends UIElement {
 
 /** How long ignition lasts: the point's flare, the pad glow and the trail's surge. Matches skin.css. */
 const IGNITION_MS = 1200;
+/** Touch: two taps this close together on the same side of the film make a double tap. */
+const TAP_GAP_MS = 280;
+/** How far a double tap skips. */
+const SKIP_SECONDS = 10;
 /** After the launch effects end, the console stays up this long more, so the trail is seen burning on its own. */
 const LAUNCH_HOLD_MS = 2000;
 
@@ -1783,6 +1790,12 @@ const LAUNCH_HOLD_MS = 2000;
  */
 class AscentLiftElement extends UIElement {
   #playback = new PlayerController(this, playerContext, selectPlayback);
+  #time = new PlayerController(this, playerContext, selectTime);
+  /** Touch: the last tap on the film's left or right third, and the play or pause it is holding back. */
+  #lastTap: { at: number; side: -1 | 1 } | null = null;
+  #tapTimer = 0;
+  #touch = false;
+  #skipShown = 0;
   #abort: AbortController | null = null;
   #root: HTMLElement | null = null;
   #lift: Lift | null = null;
@@ -1810,7 +1823,8 @@ class AscentLiftElement extends UIElement {
     for (const type of ['pointermove', 'keydown', 'focusin']) root.addEventListener(type, () => this.#wake(), { signal });
     root.addEventListener(
       'pointerdown',
-      () => {
+      (event) => {
+        this.#touch = (event as PointerEvent).pointerType === 'touch';
         this.#wokeByPress = root.hasAttribute('data-idle');
         this.#wake();
       },
@@ -1885,14 +1899,61 @@ class AscentLiftElement extends UIElement {
     const target = event.target as Element;
     if (event.button !== 0 || !this.#root) return;
     if (target.closest('.asc-fade, media-time-slider, media-error-dialog, button, [role="button"], [role="slider"], a')) return;
+    // Touch: a double tap on the left or right third of the film skips back or ahead 10 seconds. A single tap there
+    // waits a moment to see whether a second one follows; the middle third acts at once.
+    const box = this.#root.getBoundingClientRect();
+    const at = (event.clientX - box.left) / box.width;
+    const side = at < 1 / 3 ? -1 : at > 2 / 3 ? 1 : 0;
+    if (this.#touch && side) {
+      const now = performance.now();
+      if (this.#lastTap && this.#lastTap.side === side && now - this.#lastTap.at < TAP_GAP_MS) {
+        clearTimeout(this.#tapTimer);
+        this.#lastTap = { at: now, side };
+        this.#wokeByPress = false;
+        this.#skip(side);
+        return;
+      }
+      this.#lastTap = { at: now, side };
+      if (this.#wokeByPress) {
+        this.#wokeByPress = false;
+        return;
+      }
+      clearTimeout(this.#tapTimer);
+      this.#tapTimer = window.setTimeout(() => this.#toggle(), TAP_GAP_MS);
+      return;
+    }
     if (this.#wokeByPress) {
       this.#wokeByPress = false;
       return;
     }
+    this.#toggle();
+  }
+
+  #toggle() {
     const playback = this.#playback.value;
     if (!playback) return;
     if (playback.paused) void Promise.resolve(playback.play()).catch(() => {});
     else playback.pause();
+  }
+
+  /** Skips 10 seconds back or ahead and shows it on that side of the film; more taps keep adding to it. */
+  #skip(side: -1 | 1) {
+    const time = this.#time.value;
+    const root = this.#root;
+    if (!time || !root) return;
+    const to = Math.min(Math.max(0, time.currentTime + side * SKIP_SECONDS), Math.max(0, time.duration - 0.1));
+    void time.seek(to);
+    const readout = root.querySelector<HTMLElement>('.asc-skip');
+    if (!readout) return;
+    const run = readout.dataset.side === String(side) && readout.hasAttribute('data-on') ? Number(readout.dataset.run) + 1 : 1;
+    readout.dataset.side = String(side);
+    readout.dataset.run = String(run);
+    readout.textContent = `T ${side < 0 ? '−' : '+'}${run * SKIP_SECONDS} s`;
+    readout.removeAttribute('data-on');
+    void readout.offsetWidth;
+    readout.setAttribute('data-on', '');
+    clearTimeout(this.#skipShown);
+    this.#skipShown = window.setTimeout(() => readout.removeAttribute('data-on'), 900);
   }
 
   #wake() {

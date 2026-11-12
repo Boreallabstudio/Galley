@@ -238,7 +238,7 @@
 
 .asc-title .asc-byline,
 .asc-now span {
-  font-size: clamp(9px, 0.88cqw, 16px);
+  font-size: clamp(10px, 0.88cqw, 16px);
   opacity: 0.78;
 }
 
@@ -406,7 +406,7 @@
   display: flex;
   align-items: center;
   gap: 0.45em;
-  font-size: clamp(8px, 0.6cqw, 11px);
+  font-size: clamp(10px, 0.6cqw, 11px);
   font-style: normal;
 }
 
@@ -444,7 +444,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 5px 6px 3px;
-  font-size: clamp(9px, 0.74cqw, 14px);
+  font-size: clamp(10px, 0.74cqw, 14px);
   white-space: nowrap;
 }
 
@@ -602,7 +602,7 @@
 }
 
 .asc-ev b {
-  font-size: clamp(9px, 0.95cqw, 18px);
+  font-size: clamp(10px, 0.95cqw, 18px);
   font-weight: 600;
 }
 
@@ -611,7 +611,7 @@
 }
 
 .asc-ev i {
-  font-size: clamp(8px, 0.88cqw, 16px);
+  font-size: clamp(10px, 0.88cqw, 16px);
   font-style: normal;
 }
 
@@ -664,7 +664,7 @@
 }
 
 .asc-cell i {
-  font: 400 clamp(8px, 0.74cqw, 13px) var(--mono);
+  font: 400 clamp(10px, 0.74cqw, 13px) var(--mono);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   opacity: 0.62;
@@ -674,7 +674,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font: 600 clamp(9px, 0.86cqw, 15px) var(--wide);
+  font: 600 clamp(10px, 0.86cqw, 15px) var(--wide);
   font-stretch: 125%;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -869,7 +869,7 @@
     position: absolute;
     top: calc(var(--desk) * 0.115);
     right: 0;
-    font: 400 clamp(8px, 0.76cqw, 14px) var(--mono);
+    font: 400 clamp(10px, 0.76cqw, 14px) var(--mono);
     letter-spacing: 0.24em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -881,7 +881,7 @@
     top: calc(var(--desk) * 0.115);
     left: 1.7cqw;
     display: block;
-    font: 400 clamp(8px, 0.76cqw, 14px) var(--mono);
+    font: 400 clamp(10px, 0.76cqw, 14px) var(--mono);
     letter-spacing: 0.24em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -891,7 +891,7 @@
   .asc-kl {
     position: relative;
     display: block;
-    font: 700 clamp(9px, 0.9cqw, 17px) var(--wide);
+    font: 700 clamp(10px, 0.9cqw, 17px) var(--wide);
     font-stretch: 125%;
     letter-spacing: 0.16em;
     text-align: left;
@@ -1104,7 +1104,7 @@
     gap: 0.75cqw;
     box-sizing: border-box;
     width: auto;
-    min-width: calc(3.5cqw + clamp(17px, 1.6cqw, 30px) + 8.7 * clamp(9px, 0.9cqw, 17px));
+    min-width: calc(3.5cqw + clamp(17px, 1.6cqw, 30px) + 8.7 * clamp(10px, 0.9cqw, 17px));
     padding: 0 1.5cqw 0 1.25cqw;
   }
 }
@@ -1519,7 +1519,7 @@ ascent-engine:hover .pm {
 .asc-nx .lab {
   max-width: 15cqw;
   overflow: hidden;
-  font-size: clamp(8px, 0.8cqw, 15px);
+  font-size: clamp(10px, 0.8cqw, 15px);
   text-overflow: ellipsis;
   white-space: nowrap;
   opacity: 0.78;
@@ -1548,7 +1548,7 @@ ascent-engine:hover .pm {
 
 /* The clock's heading is set like every module heading: small mono capitals, not the wide label face. */
 .asc .asc-clock span {
-  font: 400 clamp(9px, 0.76cqw, 14px) var(--mono);
+  font: 400 clamp(10px, 0.76cqw, 14px) var(--mono);
   letter-spacing: 0.24em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -2025,6 +2025,55 @@ ascent-flight:is([data-burn], [data-cut]) .trail path {
 
 /* The hold label, top centre on players too narrow for the status board. On wide players the board's Signal lamp
    shows the hold, and this stays for assistive technology only. */
+/* Touch: a double tap on either side of the film skips 10 seconds, read out on that side like a clock correction. */
+.asc-skip {
+  position: absolute;
+  top: 40%;
+  left: 14%;
+  z-index: 3;
+  padding: 0.5em 0.85em;
+  border-left: 2px solid var(--burn);
+  border-radius: 3px;
+  background: var(--plate);
+  color: var(--ink);
+  font: 500 clamp(13px, 1.6cqw, 22px) var(--mono);
+  letter-spacing: 0.06em;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.asc-skip[data-side='1'] {
+  right: 14%;
+  left: auto;
+}
+
+.asc-skip[data-on] {
+  animation: asc-skip 0.9s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+@keyframes asc-skip {
+  0% {
+    opacity: 0;
+    transform: translate(calc(var(--dir, -1) * 10px), -50%);
+  }
+
+  20%,
+  70% {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(0, -50%);
+  }
+}
+
+.asc-skip[data-side='1'] {
+  --dir: 1;
+}
+
 .asc-load {
   position: absolute;
   top: 4.4cqh;
