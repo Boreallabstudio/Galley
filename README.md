@@ -46,8 +46,9 @@ On a focused slider, the arrow keys move that slider. Escape closes an open pop-
 
 ## Accessibility
 
-- axe-core 4.10 (WCAG 2.0, 2.1 and 2.2 A and AA, plus best practice) reports no violations on the player, with the console up and with the flight manual open, at 1360 and 390 px wide. Colour contrast over moving video cannot be computed automatically; every label sits on a solid dark plate.
+- axe-core 4.10 (WCAG 2.0, 2.1 and 2.2 A and AA, plus best practice) reports no violations on the player, with the console up and with the flight manual open, at seven widths from 390 to 2560 px. Colour contrast over moving video cannot be computed automatically; every label sits on a solid dark plate.
 - In forced colours (Windows high contrast) keys, plates, cards and dialogs get system-colour edges, active lamps light in the system highlight, and the flight path keeps its orange.
+- Tested with: Chromium through Playwright at 390 to 2560 px, keyboard only, emulated touch (taps, double taps and drags on the path), forced colours, reduced motion, and a locked-volume device where the volume dial hides as it does on iPhone.
 - Every control is a labelled button or slider from Video.js or a native button; the flight path is a Video.js time slider, and status changes are announced by `<media-status-announcer>`.
 
 ## Use it
