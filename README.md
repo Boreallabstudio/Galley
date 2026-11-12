@@ -2,7 +2,7 @@
 
 A skin for [Video.js 10](https://videojs.org) that puts the viewer at Mission Control.
 
-The film is the main screen and you are the flight controller. The film's progress is an orange flight path climbing across the lower part of the picture, with a craft at the playhead and the chapters marked as events along the way. Under it is your console desk: Flight, Propulsion, Comms, Screen, the next event and a large mission clock. A status board at the top polls Downlink, Audio, Captions and Flight. Once the film has played for three seconds without input, the whole console lifts away and the path sinks and fades, so nothing is drawn over the picture except captions. Move the pointer, tap, press a key or pause and everything comes back.
+The film is the main screen and you are the flight controller. The film's progress is an orange flight path climbing across the lower part of the picture, with the craft at the playhead drawn the way a controller sees it on the big board, a tracked target in corner brackets with a heading leader and an ASC-1 callsign tag, and the chapters marked as events along the way. Under it is your console desk: Flight, Propulsion, Comms, Screen, the next event and a large mission clock. A status board at the top polls Downlink, Audio, Captions and Flight. Once the film has played for three seconds without input, the whole console lifts away and the path sinks and fades, so nothing is drawn over the picture except captions. Move the pointer, tap, press a key or pause and everything comes back.
 
 ## Controls
 

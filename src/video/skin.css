@@ -310,9 +310,8 @@
   outline: none;
 }
 
-.asc:has(.asc-seek-thumb:focus-visible) .craft-ring {
-  stroke-width: 3;
-  r: 22;
+.asc:has(.asc-seek-thumb:focus-visible) .lock {
+  transform: scale(1.35);
 }
 
 /*
@@ -1568,6 +1567,52 @@ ascent-engine:hover .pm {
 }
 
 /* ---------- the craft: engine glow, ignition, and the launch smoke ---------- */
+
+/*
+ * The craft is drawn the way a flight controller sees it on the big board: a tracked target. Corner brackets hold
+ * a lock on it and stay level; a short leader off the pip shows its heading; a tag carries its callsign.
+ */
+.lock {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Ignition: the brackets close in from wide and lock on. */
+.asc[data-ignite] .lock {
+  animation: asc-lock 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+ascent-flight .tag {
+  transition: opacity 0.3s ease;
+}
+
+ascent-flight .tag text {
+  font: 500 8.5px var(--mono);
+  letter-spacing: 0.08em;
+}
+
+/* No room to read it on a narrow player, and in orbit the credits have the stage. */
+ascent-flight[data-narrow] .tag,
+ascent-flight[data-arrived] .tag {
+  opacity: 0;
+}
+
+@keyframes asc-lock {
+  0% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+
+  100% {
+    transform: none;
+  }
+}
 
 .craft-glow {
   transform-box: fill-box;

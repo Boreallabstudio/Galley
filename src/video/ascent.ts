@@ -150,7 +150,8 @@ abstract class PathElement extends UIElement {
 
 /**
  * <ascent-flight>: the flight path. A dotted course still to fly, the buffered stretch ahead, the flown part in orange
- * with a glow, a dot for each chapter and the craft at the playhead. The craft's engine glow is an ember when paused
+ * with a glow, a dot for each chapter and the craft at the playhead, drawn as a tracked target: level corner brackets,
+ * a pip with a short leader for its heading, and a callsign tag (hidden on narrow players and in orbit). The engine glow is an ember when paused
  * and grows with the playback rate. While the film plays the engine's light trail burns on the flown path behind the
  * craft (`data-burn`): white-hot at the craft, cooling to the path's orange, longer at higher rates. It surges at
  * ignition (`data-ignite` on the skin) and draws back into the craft when the film is paused (`data-cut`), after which
@@ -370,7 +371,7 @@ class AscentFlightElement extends PathElement {
 <path class="orbit" fill="none" stroke="${BURN}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
 <g class="dots"></g>
 <g class="orbit-body"><circle r="5.5" fill="${INK}"/></g>
-<g class="craft"><circle class="craft-beacon" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-beacon late" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="craft-ring" r="17" fill="rgba(3,5,9,.35)" stroke="${INK}" stroke-width="1.5"/><path class="arrow" d="M15 0L-8 -8L-3 0L-8 8Z" fill="${INK}"/></g>
+<g class="craft"><circle class="craft-beacon" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-beacon late" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><g class="lock" fill="none" stroke-linecap="square"><path d="M-15 -9V-15H-9M9 -15H15V-9M15 9V15H9M-9 15H-15V9" stroke="rgba(3,5,9,.55)" stroke-width="4"/><path d="M-15 -9V-15H-9M9 -15H15V-9M15 9V15H9M-9 15H-15V9" stroke="${INK}" stroke-width="1.8"/></g><path class="arrow" d="M7.5 0H12.5" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/><circle class="pip-ring" r="8" fill="rgba(3,5,9,.3)" stroke="${BURN}" stroke-width="1.2"/><circle r="4.2" fill="${BURN}"/><circle r="1.9" fill="#fff6ea"/><g class="tag"><path d="M11 -11L17 -17H44" fill="none" stroke="rgba(3,5,9,.55)" stroke-width="3"/><path d="M11 -11L17 -17H44" fill="none" stroke="${INK}" stroke-width="1"/><text x="18.5" y="-20.5" fill="${INK}" stroke="rgba(3,5,9,.6)" stroke-width="2.5" paint-order="stroke">ASC-1</text></g></g>
 </svg>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
@@ -434,6 +435,8 @@ class AscentFlightElement extends PathElement {
     this.#buffered.setAttribute('stroke-width', (2 * big).toFixed(2));
     this.#under.setAttribute('stroke-width', (5 * big).toFixed(2));
     const scale = craftScale(W, lift);
+    // The craft's callsign tag only shows where there is room to read it.
+    this.toggleAttribute('data-narrow', W < 600);
     this.#sweep.setAttribute('stroke-width', (9 * big).toFixed(2));
     this.#orbit.setAttribute('stroke-width', (2.4 * big).toFixed(2));
     TRAIL_WIDTHS.forEach((w, i) => this.#trailPaths[i]?.setAttribute('stroke-width', (w * big).toFixed(2)));
@@ -643,7 +646,7 @@ class AscentFlightElement extends PathElement {
     this.#arrow.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
     // The light trail runs back along the flown path from the craft, longer at higher rates.
     const boost = Math.min(1.8, Math.max(0.7, 0.6 + 0.4 * rate));
-    this.#drawTrail(g, shown, TRAIL_LENGTH * scale * boost, 15 * scale);
+    this.#drawTrail(g, shown, TRAIL_LENGTH * scale * boost, 9 * scale);
     // The liftoff cloud stays on the pad. Sizes are whole pixels so the sprite's frames stay exact.
     const liftoffW = Math.round((LIFTOFF_WIDTH * this.width * 0.043) / LIFTOFF_WALL);
     const fx = [
