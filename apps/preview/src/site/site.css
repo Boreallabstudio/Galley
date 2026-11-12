@@ -109,6 +109,11 @@ a:focus-visible {
   .site-hero {
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   }
+
+  /* The column sets the measure here; a ch cap would follow whichever font measured first. */
+  .site-hero h1 {
+    max-width: none;
+  }
 }
 
 .site-hero h1 {
