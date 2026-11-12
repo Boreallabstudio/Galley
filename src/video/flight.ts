@@ -30,10 +30,10 @@ export function geometry(width: number, height: number, lift: number): Geometry 
   const small = width < 760;
   const x0 = width * 0.043 * lift;
   const x1 = width - width * 0.043 * lift;
-  const clear = deskHeight(width, height) + (small ? 12 : Math.max(16, height * 0.03));
-  // A low arc: it climbs only through the bottom band of the picture, under faces and subtitles. Flatter still under
-  // 520 px, where the frame is short.
-  const climb = width < 520 ? 0.05 : small ? 0.08 : 0.105;
+  const clear = deskHeight(width, height) + (small ? 10 : Math.max(12, height * 0.018));
+  // A low arc: it lifts off just above the console and climbs only a little, so it stays under faces and subtitles.
+  // Flatter still under 520 px, where the frame is short.
+  const climb = width < 520 ? 0.045 : small ? 0.06 : 0.07;
   return { x0, x1, y0: height - 3 - clear * lift, rise: height * climb * lift };
 }
 
