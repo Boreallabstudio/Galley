@@ -270,26 +270,26 @@
   bottom: 0;
   left: 4.3cqw;
   display: block;
-  height: calc(15cqh + 73px + var(--asc-seek-pad));
+  height: calc(6cqh + 73px + var(--asc-seek-pad));
   cursor: pointer;
   touch-action: none;
 }
 
 @container (max-width: 519.9px) {
   .asc-seek {
-    height: calc(7.5cqh + 73px + var(--asc-seek-pad));
+    height: calc(4.5cqh + 73px + var(--asc-seek-pad));
   }
 }
 
 @container (min-width: 760px) {
   .asc-seek {
-    height: calc(21cqh + 75px + max(20px, 4.5cqh) + var(--asc-seek-pad));
+    height: calc(7cqh + 75px + max(20px, 4.5cqh) + var(--asc-seek-pad));
   }
 }
 
 @container (min-width: 900px) {
   .asc-seek {
-    height: calc(21cqh + 3px + clamp(84px, 13.4cqh, 172px) + max(20px, 4.5cqh) + var(--asc-seek-pad));
+    height: calc(7cqh + 3px + clamp(84px, 13.4cqh, 172px) + max(20px, 4.5cqh) + var(--asc-seek-pad));
   }
 }
 
