@@ -1569,9 +1569,35 @@ ascent-engine:hover .pm {
 /* ---------- the craft: engine glow, ignition, and the launch smoke ---------- */
 
 /*
- * The craft is drawn the way a flight controller sees it on the big board: a tracked target. Corner brackets hold
- * a lock on it and stay level; a leader off the pip, out past the brackets, shows its heading; a tag carries its callsign.
+ * The craft is drawn the way a long-range tracking camera sees a launch at night: a white-hot point with thin
+ * diffraction spikes, held in two corner brackets with its callsign. The spikes shimmer while the engine burns and
+ * dim on a hold.
  */
+.spikes {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 0.4s ease;
+}
+
+ascent-flight[data-burn] .spikes {
+  animation: asc-shimmer 1.7s ease-in-out infinite;
+}
+
+.asc:has(.asc-b.play[data-started][data-paused]:not([data-ended])) .spikes {
+  opacity: 0.45;
+}
+
+@keyframes asc-shimmer {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.12, 0.9);
+  }
+}
+
 .lock {
   transform-box: fill-box;
   transform-origin: center;
@@ -1600,7 +1626,7 @@ ascent-flight[data-arrived] .tag {
 
 @keyframes asc-lock {
   0% {
-    transform: scale(1.7);
+    transform: scale(1.4);
     opacity: 0;
   }
 

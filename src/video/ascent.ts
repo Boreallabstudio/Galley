@@ -150,8 +150,9 @@ abstract class PathElement extends UIElement {
 
 /**
  * <ascent-flight>: the flight path. A dotted course still to fly, the buffered stretch ahead, the flown part in orange
- * with a glow, a dot for each chapter and the craft at the playhead, drawn as a tracked target: level corner brackets,
- * a pip with a leader out past the brackets for its heading, and a callsign tag (hidden on narrow players and in orbit). The engine glow is an ember when paused
+ * with a glow, a dot for each chapter and the craft at the playhead, drawn as a long-range tracking camera sees a launch:
+ * a white-hot point with thin diffraction spikes, two corner brackets and a callsign tag (hidden on narrow players and
+ * in orbit). The engine glow is an ember when paused
  * and grows with the playback rate. While the film plays the engine's light trail burns on the flown path behind the
  * craft (`data-burn`): white-hot at the craft, cooling to the path's orange, longer at higher rates. It surges at
  * ignition (`data-ignite` on the skin) and draws back into the craft when the film is paused (`data-cut`), after which
@@ -358,7 +359,7 @@ class AscentFlightElement extends PathElement {
 <defs><filter id="${glow}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
 <linearGradient id="${ink}-g" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${BURN}" stop-opacity=".8"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient>
 <linearGradient id="${ink}-b" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff6ea"/><stop offset=".14" stop-color="#ffd9bc"/><stop offset=".45" stop-color="#ff8a4d" stop-opacity=".9"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></linearGradient>
-<linearGradient id="${ink}-c" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffef8"/><stop offset=".5" stop-color="#ffecd9" stop-opacity=".85"/><stop offset="1" stop-color="#ffc9a0" stop-opacity="0"/></linearGradient></defs>
+<radialGradient id="${ink}-s"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#ffe9d6"/><stop offset="1" stop-color="${BURN}" stop-opacity="0"/></radialGradient><linearGradient id="${ink}-h"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><linearGradient id="${ink}-v" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><linearGradient id="${ink}-c" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffef8"/><stop offset=".5" stop-color="#ffecd9" stop-opacity=".85"/><stop offset="1" stop-color="#ffc9a0" stop-opacity="0"/></linearGradient></defs>
 <path class="under" fill="none" stroke="rgba(3,5,9,.32)" stroke-width="5" stroke-linecap="round"/>
 <path class="buf" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity=".26"/>
 <path class="rest" fill="none" stroke="${BURN}" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="2.5 8" opacity=".7"/>
@@ -371,7 +372,7 @@ class AscentFlightElement extends PathElement {
 <path class="orbit" fill="none" stroke="${BURN}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
 <g class="dots"></g>
 <g class="orbit-body"><circle r="5.5" fill="${INK}"/></g>
-<g class="craft"><circle class="craft-beacon" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-beacon late" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><g class="lock" fill="none" stroke-linecap="square"><path d="M-15 -9V-15H-9M9 -15H15V-9M15 9V15H9M-9 15H-15V9" stroke="rgba(3,5,9,.55)" stroke-width="4"/><path d="M-15 -9V-15H-9M9 -15H15V-9M15 9V15H9M-9 15H-15V9" stroke="${INK}" stroke-width="1.8"/></g><g class="arrow" stroke-linecap="round"><path d="M9 0H23" stroke="rgba(3,5,9,.55)" stroke-width="3.6"/><path d="M9 0H23" stroke="${INK}" stroke-width="1.6"/></g><circle class="pip-ring" r="8" fill="rgba(3,5,9,.3)" stroke="${BURN}" stroke-width="1.2"/><circle r="4.2" fill="${BURN}"/><circle r="1.9" fill="#fff6ea"/><g class="tag"><path d="M11 -11L18 -18H50" fill="none" stroke="rgba(3,5,9,.55)" stroke-width="3"/><path d="M11 -11L18 -18H50" fill="none" stroke="${INK}" stroke-width="1"/><text x="19.5" y="-21.5" fill="${INK}" stroke="rgba(3,5,9,.6)" stroke-width="2.5" paint-order="stroke">ASC-1</text></g></g>
+<g class="craft"><circle class="craft-beacon" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-beacon late" r="17" fill="none" stroke="${BURN}" stroke-width="2" opacity="0"/><circle class="craft-glow" r="26" fill="${BURN}" opacity=".5" filter="url(#${glow})"/><circle class="star-halo" r="9" fill="url(#${ink}-s)"/><g class="spikes"><rect x="-30" y="-.55" width="60" height="1.1" fill="url(#${ink}-h)"/><rect x="-.55" y="-22" width="1.1" height="44" fill="url(#${ink}-v)"/></g><circle class="star-core" r="2.6" fill="#fff"/><g class="arrow"></g><g class="lock" fill="none" stroke-linecap="square"><path d="M-15 -4V-15H-4M15 4V15H4" stroke="rgba(3,5,9,.5)" stroke-width="3.4"/><path d="M-15 -4V-15H-4M15 4V15H4" stroke="${INK}" stroke-width="1.2"/></g><g class="tag"><text x="18.5" y="-9.5" fill="${INK}" stroke="rgba(3,5,9,.6)" stroke-width="2.5" paint-order="stroke">ASC-1</text></g></g>
 </svg>`;
     const q = <T extends Element>(selector: string) => this.querySelector(selector) as T;
     this.#svg = q('svg');
@@ -646,7 +647,7 @@ class AscentFlightElement extends PathElement {
     this.#arrow.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
     // The light trail runs back along the flown path from the craft, longer at higher rates.
     const boost = Math.min(1.8, Math.max(0.7, 0.6 + 0.4 * rate));
-    this.#drawTrail(g, shown, TRAIL_LENGTH * scale * boost, 9 * scale);
+    this.#drawTrail(g, shown, TRAIL_LENGTH * scale * boost, 3 * scale);
     // The liftoff cloud stays on the pad. Sizes are whole pixels so the sprite's frames stay exact.
     const liftoffW = Math.round((LIFTOFF_WIDTH * this.width * 0.043) / LIFTOFF_WALL);
     const fx = [
