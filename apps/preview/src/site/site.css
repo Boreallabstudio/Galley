@@ -1,0 +1,198 @@
+/* The showcase page around the player. It borrows the skin's palette and type, nothing more. */
+:root {
+  color-scheme: dark;
+  --void: #05070b;
+  --ink: #f4f1ea;
+  --dim: #a9adb5;
+  --burn: #ff5b1f;
+  --rule: rgba(244, 241, 234, 0.14);
+  --wide: 'Archivo Variable', 'Archivo', 'Arial Black', Arial, sans-serif;
+  --mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --text: 'Sora Variable', 'Helvetica Neue', Arial, sans-serif;
+  --gutter: clamp(16px, 4vw, 56px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--ink);
+  font: 300 clamp(15px, 1.05vw, 18px) / 1.6 var(--text);
+}
+
+a {
+  color: inherit;
+  text-decoration-color: var(--burn);
+  text-underline-offset: 3px;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--burn);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.site-skip {
+  position: absolute;
+  top: -100px;
+  left: var(--gutter);
+  padding: 8px 12px;
+  background: var(--ink);
+  color: var(--void);
+  font: 500 14px var(--mono);
+}
+
+.site-skip:focus {
+  top: 12px;
+}
+
+.site-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 22px var(--gutter);
+}
+
+.site-mark {
+  font: 800 clamp(16px, 1.4vw, 22px) var(--wide);
+  font-stretch: 125%;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.site-note,
+.site-h2 {
+  margin: 0;
+  color: var(--dim);
+  font: 400 12px var(--mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.site-hero {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(24px, 6vh, 72px) var(--gutter) clamp(24px, 4vh, 48px);
+}
+
+.site-hero h1 {
+  max-width: 14ch;
+  margin: 0;
+  font: 700 clamp(34px, 6.2vw, 104px) / 0.98 var(--wide);
+  font-stretch: 112%;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  animation: site-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.site-lede {
+  max-width: 46ch;
+  margin: 22px 0 0;
+  color: var(--dim);
+  font-size: clamp(16px, 1.3vw, 21px);
+  animation: site-rise 0.9s 0.12s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.site-player {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  animation: site-rise 1s 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+media-i18n,
+video-player {
+  display: contents;
+}
+
+.site-parts {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(40px, 8vh, 96px) var(--gutter) 0;
+}
+
+.site-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 28px clamp(20px, 3vw, 48px);
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-list li {
+  display: grid;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+  transition: border-color 0.4s ease;
+}
+
+.site-list li:hover {
+  border-top-color: var(--burn);
+}
+
+.site-list b {
+  font: 600 clamp(15px, 1.15vw, 19px) var(--wide);
+  font-stretch: 112%;
+  letter-spacing: 0.04em;
+}
+
+.site-list span {
+  color: var(--dim);
+}
+
+.site-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin: 22px 0 0;
+  padding: 0;
+  color: var(--dim);
+  list-style: none;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 26px;
+  padding: 2px 7px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  color: var(--ink);
+  font: 400 13px var(--mono);
+  text-align: center;
+}
+
+.site-foot {
+  max-width: 1440px;
+  margin: clamp(56px, 10vh, 120px) auto 0;
+  padding: 24px var(--gutter) 40px;
+  border-top: 1px solid var(--rule);
+  color: var(--dim);
+  font-size: 14px;
+}
+
+.site-foot p {
+  margin: 0 0 6px;
+}
+
+@keyframes site-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-hero h1,
+  .site-lede,
+  .site-player {
+    animation: none;
+  }
+}

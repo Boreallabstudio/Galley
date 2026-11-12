@@ -79,12 +79,12 @@ The line under the title (`[data-asc-byline]`) is empty in the template; fill it
 
 ```sh
 npm install
-npm run dev        # the Video.js skin workbench
+npm run dev        # the showcase page at /, the skin workbench at /workbench.html
 npm run typecheck
 npm run build      # static build in dist/
 ```
 
-The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `ascent.ts` holds the custom elements (path, events, engine dials, status board, next event, clock, captions, idle behaviour and holds), and `flight.ts` holds the shared geometry and the glow colours. The workbench in `apps/preview/` streams the film from Mux by its public playback ID (`apps/preview/src/frame/player.ts`), with the chapters and captions tracks served from `apps/preview/public/media/`.
+The skin lives in `src/video/`. `skin.html` and `skin.css` hold the player, `ascent.ts` holds the custom elements (path, events, engine dials, status board, next event, clock, captions, idle behaviour and holds), and `flight.ts` holds the shared geometry and the glow colours. The showcase page and the workbench in `apps/preview/` stream the film from Mux by its public playback ID (`apps/preview/src/frame/player.ts`), with the chapters and captions tracks served from `apps/preview/public/media/`.
 
 ## Credits
 

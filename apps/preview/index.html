@@ -3,10 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Ascent - Video.js</title>
+    <title>Ascent: a Mission Control skin for Video.js 10</title>
+    <meta name="description" content="Ascent is a skin for Video.js 10 that puts you at Mission Control: the seek bar is a flight path, volume and speed are engine dials, and the console lifts away while the film plays." />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#05070b" />
+    <meta property="og:title" content="Ascent: a Mission Control skin for Video.js 10" />
+    <meta property="og:description" content="The seek bar is a flight path. Volume and speed are engine dials. You are the flight controller." />
+    <meta property="og:type" content="website" />
   </head>
-  <body class="text-foreground h-screen overflow-hidden font-sans">
-    <div id="root" class="h-full"></div>
-    <script type="module" src="/src/shell/main.tsx"></script>
+  <body>
+    <a class="site-skip" href="#player">Skip to the player</a>
+    <header class="site-top">
+      <span class="site-mark">Ascent</span>
+      <span class="site-note">A skin for Video.js 10</span>
+    </header>
+    <main>
+      <section class="site-hero" aria-labelledby="title">
+        <h1 id="title">You are the flight controller.</h1>
+        <p class="site-lede">The seek bar is a flight path across the film. Volume and speed are engine dials. Three seconds after launch the console lifts away and the film is clear.</p>
+      </section>
+      <section id="player" class="site-player" aria-label="Player"></section>
+      <section class="site-parts" aria-labelledby="parts">
+        <h2 id="parts" class="site-h2">On the console</h2>
+        <ol class="site-list">
+          <li><b>Flight path</b><span>A real Video.js time slider. The chapters are events along it; drag the craft or press an event to fly there.</span></li>
+          <li><b>Engine dials</b><span>Volume and speed. Turn, drag or scroll; the throat of the engine glows from ember to white-hot.</span></li>
+          <li><b>Launch, Hold, Resume</b><span>Play is a launch with an ignition flare. Buffering is a hold, and the Downlink lamp shows the real connection speed.</span></li>
+          <li><b>Mission clock</b><span>Elapsed time, with a countdown to the next event. At the end the craft settles into a parking orbit.</span></li>
+        </ol>
+      </section>
+      <section class="site-parts" aria-labelledby="keys">
+        <h2 id="keys" class="site-h2">Keys and touch</h2>
+        <ul class="site-keys">
+          <li><kbd>Space</kbd> or <kbd>K</kbd> launch and hold</li>
+          <li><kbd>←</kbd> <kbd>→</kbd> 5 seconds</li>
+          <li><kbd>↑</kbd> <kbd>↓</kbd> volume</li>
+          <li><kbd>N</kbd> next event</li>
+          <li><kbd>F</kbd> full screen</li>
+          <li><kbd>?</kbd> flight manual</li>
+          <li>On a phone, double tap either side to skip 10 seconds</li>
+        </ul>
+      </section>
+    </main>
+    <footer class="site-foot">
+      <p>Open source under Apache 2.0 on <a href="https://github.com/Boreallabstudio/ascent">GitHub</a>. Streamed from Mux. Film: Charge by Blender Studio, CC BY 4.0, shortened to 34 seconds.</p>
+      <p>Made by <a href="https://boreallab.ca/design">Boreal Lab Studio</a>.</p>
+    </footer>
+    <script type="module" src="/src/site/main.ts"></script>
   </body>
 </html>
