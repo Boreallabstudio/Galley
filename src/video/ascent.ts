@@ -643,7 +643,7 @@ class AscentFlightElement extends PathElement {
     this.#drawTrail(g, shown, TRAIL_LENGTH * scale * boost, 3 * scale);
     // The pad glow lies along the top of the console under the pad, low and wide. CSS animates the ellipse inside,
     // so the position stays on the group.
-    this.#pad.setAttribute('transform', `translate(${(g.x0 + 78 * scale).toFixed(1)} ${(g.y0 + 6 * scale).toFixed(1)}) scale(${scale.toFixed(3)})`);
+    this.#pad.setAttribute('transform', `translate(${(g.x0 + 45 * scale).toFixed(1)} ${(g.y0 + 6 * scale).toFixed(1)}) scale(${scale.toFixed(3)})`);
 
     // The slider's thumb (the focusable role="slider") stays on the path at the playhead, so a press or a key
     // lands where the film is.
